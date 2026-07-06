@@ -21,14 +21,7 @@ export function renderHtmlReport(bundle: ReportBundle): string {
   <style>${REPORT_CSS}</style>
 </head>
 <body>
-  <header class="hero">
-    <div>
-      <p class="eyebrow">SEO Polish Report</p>
-      <h1>${escapeHtml(new URL(bundle.scan.config.url).hostname)}</h1>
-      <p>${escapeHtml(bundle.scan.siteType)} site, ${escapeHtml(bundle.scan.techStack?.framework ?? bundle.scan.framework)} framework signal</p>
-    </div>
-    <div class="score">${bundle.score.total}<span>/100</span></div>
-  </header>
+  ${renderHero(bundle)}
   <main class="layout">
     <nav class="toc" aria-label="Report sections">
       ${REPORT_SECTIONS.map((section) => `<a href="#section-${section.number}">${section.number}. ${escapeHtml(section.title)}</a>`).join("")}
@@ -107,17 +100,77 @@ export function renderHtmlReport(bundle: ReportBundle): string {
 }
 
 function renderScoreGrid(bundle: ReportBundle): string {
-  return `<section class="score-grid" aria-label="Score overview">
+  return `<section class="score-overview" aria-label="Score overview">
+  <div class="score-grid">
 ${bundle.score.categories
   .map(
     (category) => `<div class="metric">
-  <span>${escapeHtml(category.label)}</span>
-  <strong>${category.score}/${category.maxScore}</strong>
+  <div class="metric-head">
+    ${renderScoreRing(category.score, category.maxScore, category.status, category.label, "small")}
+    <div>
+      <span>${escapeHtml(category.label)}</span>
+      <strong>${category.score}/${category.maxScore}</strong>
+    </div>
+  </div>
   <small>${escapeHtml(category.status)} - ${escapeHtml(category.notes)}</small>
 </div>`
   )
   .join("")}
+  </div>
+  <div class="score-support">
+    ${renderSeverityChart(bundle.findings)}
+    <div class="score-model">
+      <span>Score model</span>
+      <strong>Grouped issue impact</strong>
+      <p>Scores use unique open/warning issue groups. Repeated affected URLs add capped impact, while passed and not-applicable checks do not lower scores.</p>
+    </div>
+  </div>
 </section>`;
+}
+
+function renderHero(bundle: ReportBundle): string {
+  return `<header class="hero">
+    <div>
+      <p class="eyebrow">SEO Polish Report</p>
+      <h1>${escapeHtml(new URL(bundle.scan.config.url).hostname)}</h1>
+      <p>${escapeHtml(bundle.scan.siteType)} site, ${escapeHtml(bundle.scan.techStack?.framework ?? bundle.scan.framework)} framework signal</p>
+    </div>
+    ${renderScoreRing(bundle.score.total, 100, bundle.score.level, "Combined SEO Polish Score", "large")}
+  </header>`;
+}
+
+function renderScoreRing(
+  score: number,
+  maxScore: number,
+  status: string,
+  label: string,
+  size: "large" | "small"
+): string {
+  const percent = scorePercent(score, maxScore);
+  const angle = Math.round(percent * 3.6 * 10) / 10;
+  return `<div class="score-ring ${size}" role="img" aria-label="${escapeHtml(label)}: ${score} out of ${maxScore}" style="--score-angle: ${angle}deg; --score-color: var(${scoreColorVar(status)});">
+    <div class="score-ring-inner"><strong>${score}</strong><span>/${maxScore}</span></div>
+  </div>`;
+}
+
+function renderSeverityChart(findings: Finding[]): string {
+  const counts = countBySeverity(findings);
+  const total = Math.max(1, findings.length);
+  const severities: Array<keyof typeof counts> = ["critical", "high", "medium", "low", "info"];
+  return `<div class="severity-chart" aria-label="Finding severity distribution">
+    <span>Finding distribution</span>
+    ${severities
+      .map((severity) => {
+        const count = counts[severity];
+        const width = Math.round((count / total) * 1000) / 10;
+        return `<div class="severity-row">
+          <span>${severity}</span>
+          <div class="severity-track"><i class="${severity}" style="width: ${width}%"></i></div>
+          <strong>${count}</strong>
+        </div>`;
+      })
+      .join("")}
+  </div>`;
 }
 
 function renderHtmlSection(number: number, title: string, bundle: ReportBundle): string {
@@ -347,6 +400,21 @@ function slugify(input: string): string {
   );
 }
 
+function scorePercent(score: number, maxScore: number): number {
+  if (!Number.isFinite(score) || !Number.isFinite(maxScore) || maxScore <= 0) {
+    return 0;
+  }
+  return Math.max(0, Math.min(100, (score / maxScore) * 100));
+}
+
+function scoreColorVar(status: string): string {
+  if (status === "excellent") return "--sp-pass";
+  if (status === "strong") return "--sp-low";
+  if (status === "medium") return "--sp-medium";
+  if (status === "weak") return "--sp-high";
+  return "--sp-critical";
+}
+
 const REPORT_CSS = `
 :root {
   --sp-bg: #0b0f14;
@@ -371,8 +439,14 @@ body { margin: 0; background: var(--sp-bg); color: var(--sp-text); font-family: 
 .hero { display: flex; justify-content: space-between; gap: 24px; padding: 40px max(24px, 6vw); border-bottom: 1px solid var(--sp-border); background: linear-gradient(180deg, #111821, #0b0f14); }
 .hero h1 { margin: 0; font-size: 42px; letter-spacing: 0; }
 .eyebrow { color: var(--sp-muted); text-transform: uppercase; font-size: 12px; letter-spacing: .12em; }
-.score { min-width: 150px; height: 150px; border: 1px solid var(--sp-border); border-radius: var(--sp-radius); display: grid; place-items: center; font-size: 54px; font-weight: 800; background: var(--sp-surface); box-shadow: var(--sp-shadow); }
-.score span { font-size: 18px; color: var(--sp-muted); }
+.score-ring { flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--score-color) var(--score-angle), var(--sp-border) 0); box-shadow: var(--sp-shadow); }
+.score-ring.large { width: 154px; height: 154px; }
+.score-ring.small { width: 76px; height: 76px; box-shadow: none; }
+.score-ring-inner { width: calc(100% - 18px); height: calc(100% - 18px); border: 1px solid rgba(255,255,255,.08); border-radius: 50%; display: grid; place-items: center; align-content: center; background: var(--sp-surface); }
+.score-ring strong { font-size: 44px; line-height: .95; }
+.score-ring.small strong { font-size: 22px; }
+.score-ring span { font-size: 15px; color: var(--sp-muted); }
+.score-ring.small span { font-size: 11px; }
 .layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 28px; padding: 28px max(24px, 6vw); }
 .toc { position: sticky; top: 20px; align-self: start; display: grid; gap: 8px; max-height: calc(100vh - 40px); overflow: auto; }
 .toc a { color: var(--sp-muted); text-decoration: none; border-left: 2px solid var(--sp-border); padding: 4px 10px; }
@@ -382,14 +456,26 @@ button.is-active { border-color: var(--sp-low); box-shadow: 0 0 0 2px rgba(56,18
 section { margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid var(--sp-border); }
 h2 { margin-top: 0; font-size: 24px; letter-spacing: 0; }
 h3 { letter-spacing: 0; }
-.score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.score-overview { margin-bottom: 32px; }
+.score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.score-support { display: grid; grid-template-columns: minmax(260px, 1.35fr) minmax(220px, .65fr); gap: 12px; margin-top: 12px; }
 .intel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 16px 0 20px; }
 .intel-grid div { background: var(--sp-surface); border: 1px solid var(--sp-border); border-radius: 8px; padding: 12px; }
 .intel-grid span { display: block; color: var(--sp-muted); font-size: 12px; }
 .intel-grid strong { display: block; margin-top: 4px; overflow-wrap: anywhere; }
 .metric, .finding { background: var(--sp-surface); border: 1px solid var(--sp-border); border-radius: var(--sp-radius); padding: 16px; }
-.metric strong { display: block; margin: 8px 0; font-size: 30px; }
+.metric-head { display: flex; align-items: center; gap: 14px; }
+.metric strong { display: block; margin: 6px 0; font-size: 28px; }
 .metric small { color: var(--sp-muted); }
+.severity-chart, .score-model { background: var(--sp-surface); border: 1px solid var(--sp-border); border-radius: var(--sp-radius); padding: 16px; }
+.severity-chart > span, .score-model > span { display: block; color: var(--sp-muted); font-size: 12px; margin-bottom: 10px; }
+.score-model strong { display: block; font-size: 20px; margin-bottom: 8px; }
+.score-model p { margin: 0; color: var(--sp-muted); }
+.severity-row { display: grid; grid-template-columns: 74px minmax(0, 1fr) 34px; align-items: center; gap: 10px; margin: 9px 0; }
+.severity-row > span { color: var(--sp-muted); text-transform: capitalize; }
+.severity-row strong { text-align: right; }
+.severity-track { height: 10px; border-radius: 999px; background: #05070a; overflow: hidden; border: 1px solid var(--sp-border); }
+.severity-track i { display: block; height: 100%; border-radius: inherit; }
 .finding { margin: 14px 0; }
 .finding[hidden] { display: none; }
 .meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--sp-muted); }
@@ -406,9 +492,10 @@ code { font-family: var(--sp-mono); }
 .copy-status { margin-left: 10px; color: var(--sp-muted); font-size: 13px; }
 @media (max-width: 860px) {
   .hero { display: block; }
-  .score { margin-top: 20px; }
+  .score-ring.large { margin-top: 20px; }
   .layout { display: block; }
   .toc { position: static; margin-bottom: 20px; }
+  .score-support { grid-template-columns: 1fr; }
 }
 @media print {
   body { background: white; color: black; }

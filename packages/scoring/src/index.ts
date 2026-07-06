@@ -1,11 +1,16 @@
 import type {
   Finding,
   FindingCategory,
+  FindingStatus,
   Score,
   ScoreCategory,
   ScoreLevel,
   Severity
 } from "@seo-polish/schemas";
+
+const MAX_SCORE = 100;
+
+const SCOREABLE_STATUSES = new Set<FindingStatus>(["open", "warning"]);
 
 const SEVERITY_BASE_PENALTY: Record<Severity, number> = {
   critical: 30,
@@ -114,12 +119,7 @@ export function calculateScore(findings: Finding[]): Score {
     AREAS.map((area) => [area.id, scoreArea(findings, area.categories)])
   ) as Score["scores"];
 
-  const total = Math.round(
-    (Object.entries(scores) as Array<[keyof Score["scores"], number]>).reduce(
-      (sum, [key, value]) => sum + value * (COMBINED_WEIGHTS[key] / 100),
-      0
-    )
-  );
+  const total = weightedScore(scores, COMBINED_WEIGHTS);
 
   const categories: ScoreCategory[] = AREAS.map((area) => ({
     id: area.id,
@@ -173,7 +173,7 @@ function groupFindings(findings: Finding[], categories: FindingCategory[]): Find
   const groups = new Map<string, FindingGroup>();
 
   for (const finding of findings) {
-    if (!categories.includes(finding.category)) {
+    if (!categories.includes(finding.category) || !SCOREABLE_STATUSES.has(finding.status)) {
       continue;
     }
 
@@ -196,6 +196,11 @@ function groupFindings(findings: Finding[], categories: FindingCategory[]): Find
     for (const template of finding.affectedTemplates) {
       group.affectedTemplates.add(template);
     }
+    for (const evidence of finding.evidence) {
+      if (evidence.url) {
+        group.affectedUrls.add(evidence.url);
+      }
+    }
     groups.set(key, group);
   }
 
@@ -203,7 +208,7 @@ function groupFindings(findings: Finding[], categories: FindingCategory[]): Find
 }
 
 function scoreGroupPenalty(group: FindingGroup): number {
-  const confidenceFactor = group.confidence / 100;
+  const confidenceFactor = clamp(group.confidence, 0, 100) / 100;
   const basePenalty = SEVERITY_BASE_PENALTY[group.severity] * confidenceFactor;
   const repeatedInstances = Math.max(
     0,
@@ -236,5 +241,26 @@ function scoreLevel(score: number): ScoreLevel {
 }
 
 function clampScore(value: number): number {
-  return Math.max(0, Math.min(100, value));
+  return clamp(value, 0, MAX_SCORE);
+}
+
+function weightedScore(
+  scores: Record<keyof Score["scores"], number>,
+  weights: Record<keyof Score["scores"], number>
+): number {
+  const entries = Object.entries(weights) as Array<[keyof Score["scores"], number]>;
+  const weightTotal = entries.reduce((sum, [, weight]) => sum + weight, 0);
+  if (weightTotal <= 0) {
+    return MAX_SCORE;
+  }
+  return clampScore(
+    Math.round(entries.reduce((sum, [key, weight]) => sum + scores[key] * weight, 0) / weightTotal)
+  );
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  return Math.max(min, Math.min(max, value));
 }

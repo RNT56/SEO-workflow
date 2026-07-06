@@ -16,6 +16,9 @@ describe("report signal rendering", () => {
     const html = renderHtmlReport(bundle);
     expect(html).toContain('data-filter="info"');
     expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain('class="score-ring large"');
+    expect(html).toContain("Finding distribution");
+    expect(html).toContain("Score model");
     expect(html).toContain("function copyText");
     expect(html).toContain("document.execCommand('copy')");
     expect(html).toContain("Passed/not-applicable checks omitted: 2");
