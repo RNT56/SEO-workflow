@@ -4,14 +4,14 @@
   <a href="https://github.com/RNT56/SEO-workflow/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RNT56/SEO-workflow/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://github.com/RNT56/SEO-workflow/actions/workflows/report-quality.yml"><img alt="Report quality" src="https://github.com/RNT56/SEO-workflow/actions/workflows/report-quality.yml/badge.svg" /></a>
   <a href="https://github.com/RNT56/SEO-workflow/actions/workflows/security-audit.yml"><img alt="Security audit" src="https://github.com/RNT56/SEO-workflow/actions/workflows/security-audit.yml/badge.svg" /></a>
-  <img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" />
+  <img alt="License: Non-commercial only" src="https://img.shields.io/badge/license-Non--commercial--only-red.svg" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6.0-3178C6.svg" />
   <img alt="pnpm 11.10.0" src="https://img.shields.io/badge/pnpm-11.10.0-F69220.svg" />
 </p>
 
 SEO polish workflow audits live websites, scores their SEO and agent-readiness posture, fingerprints the site system, and writes a validated report bundle with evidence, remediation plans and safety gates.
 
-It is built for teams that need repeatable website audits instead of freeform notes: every finding is evidence-backed, every suggested change is classified by risk, and every scan produces machine-readable files that can be reviewed, validated and reused in CI or source-backed remediation work.
+It is built for maintainers, researchers and non-commercial teams that need repeatable website audits instead of freeform notes: every finding is evidence-backed, every suggested change is classified by risk, and every scan produces machine-readable files that can be reviewed, validated and reused in CI or source-backed remediation work.
 
 ## Status
 
@@ -20,7 +20,7 @@ It is built for teams that need repeatable website audits instead of freeform no
 | Current version   | `0.1.0`                                                         |
 | Stability         | Pre-1.0; strict report lint and validation enforce the contract |
 | Package manager   | `pnpm@11.10.0` through Corepack                                 |
-| License           | Apache-2.0                                                      |
+| License           | Custom non-commercial license; commercial use prohibited        |
 | Primary interface | `@seo-polish/cli`                                               |
 
 ## What it checks
@@ -169,6 +169,14 @@ SEO polish workflow is report-first and evidence-bound:
 - AI policy, auth, payment, crawler policy, index/noindex policy, ambiguous canonical strategy, mutating MCP behavior, product prices and local business data require explicit approval.
 - Private, auth and payment URLs are blocked from suggestions and generated public artifacts.
 - Secret-looking values are blocked by the security scan.
+
+## License
+
+This repository is available under the [SEO Polish Non-Commercial License v1.0](LICENSE). It is not open source.
+
+You may use it only for non-commercial personal learning, private experimentation, academic research, classroom teaching, non-commercial security review, or non-commercial evaluation. You may not use the software, its outputs, reports, recommendations, workflows, schemas, prompts, templates, architecture, know-how, or derived materials in commercial products, commercial services, client work, paid work, business operations, SEO programs, marketing programs, commercial strategy, commercial datasets, commercial models, or to inform commercial work in any way.
+
+Commercial rights require prior written permission from the copyright holder.
 
 ## CLI commands
 

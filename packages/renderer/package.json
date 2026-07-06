@@ -2,7 +2,7 @@
   "name": "@seo-polish/renderer",
   "version": "0.1.0",
   "description": "Renderer compatibility package for SEO polish reports.",
-  "license": "Apache-2.0",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

@@ -2,7 +2,7 @@
   "name": "@seo-polish/validation",
   "version": "0.1.0",
   "description": "Validation runner for SEO polish workflow outputs.",
-  "license": "Apache-2.0",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
