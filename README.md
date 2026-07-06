@@ -1,5 +1,14 @@
 # SEO polish workflow
 
+<p align="center">
+  <a href="https://github.com/RNT56/SEO-workflow/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RNT56/SEO-workflow/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://github.com/RNT56/SEO-workflow/actions/workflows/report-quality.yml"><img alt="Report quality" src="https://github.com/RNT56/SEO-workflow/actions/workflows/report-quality.yml/badge.svg" /></a>
+  <a href="https://github.com/RNT56/SEO-workflow/actions/workflows/security-audit.yml"><img alt="Security audit" src="https://github.com/RNT56/SEO-workflow/actions/workflows/security-audit.yml/badge.svg" /></a>
+  <img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6.0-3178C6.svg" />
+  <img alt="pnpm 11.10.0" src="https://img.shields.io/badge/pnpm-11.10.0-F69220.svg" />
+</p>
+
 SEO polish workflow audits live websites, scores their SEO and agent-readiness posture, and writes a validated report bundle with evidence, remediation plans and safety gates.
 
 It is built for teams that need repeatable website audits instead of freeform notes: every finding is evidence-backed, every suggested change is classified by risk, and every scan produces machine-readable files that can be reviewed, validated and reused in CI or source-backed remediation work.
