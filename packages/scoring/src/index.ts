@@ -7,11 +7,27 @@ import type {
   Severity
 } from "@seo-polish/schemas";
 
-const SEVERITY_PENALTY: Record<Severity, number> = {
-  critical: 25,
+const SEVERITY_BASE_PENALTY: Record<Severity, number> = {
+  critical: 30,
+  high: 16,
+  medium: 8,
+  low: 3,
+  info: 0.5
+};
+
+const REPEAT_PENALTY_PER_EXTRA_INSTANCE: Record<Severity, number> = {
+  critical: 2.5,
+  high: 1.5,
+  medium: 0.75,
+  low: 0.25,
+  info: 0.05
+};
+
+const REPEAT_PENALTY_CAP: Record<Severity, number> = {
+  critical: 20,
   high: 12,
-  medium: 6,
-  low: 2,
+  medium: 8,
+  low: 3,
   info: 0.5
 };
 
@@ -20,6 +36,14 @@ interface AreaDefinition {
   label: string;
   maxScore: number;
   categories: FindingCategory[];
+}
+
+interface FindingGroup {
+  severity: Severity;
+  confidence: number;
+  count: number;
+  affectedUrls: Set<string>;
+  affectedTemplates: Set<string>;
 }
 
 const AREAS: AreaDefinition[] = [
@@ -124,30 +148,79 @@ export function calculateScore(findings: Finding[]): Score {
 }
 
 function scoreArea(findings: Finding[], categories: FindingCategory[]): number {
-  const relevant = findings.filter((finding) => categories.includes(finding.category));
-  const penalty = relevant.reduce(
-    (sum, finding) => sum + SEVERITY_PENALTY[finding.severity] * (finding.confidence / 100),
-    0
-  );
+  const groups = groupFindings(findings, categories);
+  const penalty = groups.reduce((sum, group) => sum + scoreGroupPenalty(group), 0);
   return clampScore(Math.round(100 - penalty));
 }
 
 function categoryNotes(findings: Finding[], categories: FindingCategory[]): string {
-  const relevant = findings.filter((finding) => categories.includes(finding.category));
-  if (relevant.length === 0) {
+  const groups = groupFindings(findings, categories);
+  if (groups.length === 0) {
     return "No relevant issues found in this scan.";
   }
-  const counts = countBySeverity(relevant);
+  const counts = countGroupsBySeverity(groups);
   const parts = (Object.entries(counts) as Array<[Severity, number]>)
     .filter(([, count]) => count > 0)
     .map(([severity, count]) => `${count} ${severity}`);
-  return parts.join(", ");
+  const affectedUrlReferences = groups.reduce(
+    (sum, group) => sum + Math.max(group.affectedUrls.size, group.count),
+    0
+  );
+  return `${groups.length} unique issue${groups.length === 1 ? "" : "s"}, ${affectedUrlReferences} affected URL reference${affectedUrlReferences === 1 ? "" : "s"}; ${parts.join(", ")}`;
 }
 
-function countBySeverity(findings: Finding[]): Record<Severity, number> {
-  return findings.reduce<Record<Severity, number>>(
-    (acc, finding) => {
-      acc[finding.severity] += 1;
+function groupFindings(findings: Finding[], categories: FindingCategory[]): FindingGroup[] {
+  const groups = new Map<string, FindingGroup>();
+
+  for (const finding of findings) {
+    if (!categories.includes(finding.category)) {
+      continue;
+    }
+
+    const key = [finding.id, finding.title, finding.category, finding.severity].join("|");
+    const group =
+      groups.get(key) ??
+      ({
+        severity: finding.severity,
+        confidence: finding.confidence,
+        count: 0,
+        affectedUrls: new Set<string>(),
+        affectedTemplates: new Set<string>()
+      } satisfies FindingGroup);
+
+    group.count += 1;
+    group.confidence = Math.max(group.confidence, finding.confidence);
+    for (const url of finding.affectedUrls) {
+      group.affectedUrls.add(url);
+    }
+    for (const template of finding.affectedTemplates) {
+      group.affectedTemplates.add(template);
+    }
+    groups.set(key, group);
+  }
+
+  return [...groups.values()];
+}
+
+function scoreGroupPenalty(group: FindingGroup): number {
+  const confidenceFactor = group.confidence / 100;
+  const basePenalty = SEVERITY_BASE_PENALTY[group.severity] * confidenceFactor;
+  const repeatedInstances = Math.max(
+    0,
+    Math.max(group.count, group.affectedUrls.size, group.affectedTemplates.size) - 1
+  );
+  const repeatPenalty = Math.min(
+    repeatedInstances * REPEAT_PENALTY_PER_EXTRA_INSTANCE[group.severity] * confidenceFactor,
+    REPEAT_PENALTY_CAP[group.severity] * confidenceFactor
+  );
+
+  return basePenalty + repeatPenalty;
+}
+
+function countGroupsBySeverity(groups: FindingGroup[]): Record<Severity, number> {
+  return groups.reduce<Record<Severity, number>>(
+    (acc, group) => {
+      acc[group.severity] += 1;
       return acc;
     },
     { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
