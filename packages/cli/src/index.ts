@@ -31,6 +31,7 @@ interface ParsedArgs {
 }
 
 async function main(argv: string[]): Promise<void> {
+  restoreInvocationCwd();
   const args = parseArgs(argv);
   const [command, subcommand] = args.command;
 
@@ -234,6 +235,18 @@ async function main(argv: string[]): Promise<void> {
   }
 
   throw new Error(`Unknown command: ${args.command.join(" ")}`);
+}
+
+function restoreInvocationCwd(): void {
+  const initCwd = process.env.INIT_CWD;
+  if (!initCwd || initCwd === process.cwd()) {
+    return;
+  }
+  try {
+    process.chdir(initCwd);
+  } catch {
+    // Keep the package working directory when the package manager supplied an invalid INIT_CWD.
+  }
 }
 
 function parseArgs(argv: string[]): ParsedArgs {

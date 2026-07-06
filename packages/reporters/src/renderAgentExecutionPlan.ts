@@ -326,13 +326,14 @@ Target live site: ${targetUrl}
 Website source repo: current workspace
 
 Run the remediation plan end to end:
-1. Read agent-execution-plan.md, findings.json, remediation-plan.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
-2. Apply safe_auto_fix items first.
-3. Implement manual_strategy items where the source path is clear.
-4. Do not implement approval_required items until the owner explicitly approves them.
-5. Re-run the SEO Polish scan, report lint, validation, benchmark and this plan build.
-6. Run the website repo's lint, typecheck, test, build and security checks.
-7. Commit and push only after all required gates pass.
-8. Summarize before/after score, changed files, remaining approvals and verification results.
+1. Read agent-execution-plan.md first.
+2. Read findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, route-templates.json, performance-audit.json, resource-timing.json, baseline-comparison.json, suppression-report.json, quality-gate.json, validation.json and benchmark.json if present.
+3. Apply safe_auto_fix items first only when source candidates are clear and validation commands exist.
+4. Implement manual_strategy items where the source path is clear and normal project tests cover the change.
+5. Do not implement approval_required items until the owner explicitly approves them.
+6. Re-run the SEO Polish scan, report lint, validation, benchmark and this plan build.
+7. Run the website repo's lint, typecheck, test, build and security checks.
+8. Commit and push only after all required gates pass.
+9. Summarize before/after score, changed files, remaining approvals and verification results.
 \`\`\``;
 }

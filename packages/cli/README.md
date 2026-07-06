@@ -19,3 +19,6 @@ Core commands:
 `standards update` writes a local standards snapshot and validates rule-to-standard coverage.
 `plan build` writes `agent-execution-plan.md`, the final human/agent handoff plan for repo remediation.
 `doctor` reports runtime, safety defaults and standards registry health.
+
+When invoked through package managers such as `pnpm --filter`, relative paths are resolved from the
+directory where the user launched the command, not from the CLI package directory.
