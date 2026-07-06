@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seo-polish.dev/schemas/score.schema.json",
+  "type": "object",
+  "required": ["total", "level", "scores", "categories"],
+  "properties": {
+    "total": { "type": "number", "minimum": 0, "maximum": 100 },
+    "level": { "enum": ["excellent", "strong", "medium", "weak", "critical"] },
+    "categories": { "type": "array" }
+  }
+}

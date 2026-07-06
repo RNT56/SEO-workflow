@@ -1,0 +1,22 @@
+{
+  "name": "@seo-polish/renderer",
+  "version": "0.1.0",
+  "description": "Renderer compatibility package for SEO polish reports.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@seo-polish/reporters": "workspace:*"
+  }
+}

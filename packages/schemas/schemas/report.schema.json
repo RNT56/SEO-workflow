@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seo-polish.dev/schemas/report.schema.json",
+  "type": "object",
+  "required": ["scan", "findings", "score", "remediationPlan", "validation", "patchDiff"],
+  "properties": {
+    "scan": { "type": "object" },
+    "findings": { "type": "array" },
+    "score": { "type": "object" },
+    "remediationPlan": { "type": "object" },
+    "validation": { "type": "object" },
+    "patchDiff": { "type": "string" }
+  }
+}

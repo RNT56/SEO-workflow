@@ -1,0 +1,21 @@
+name: "SEO Polish Workflow"
+description: "Run SEO polish scan and lint the generated report."
+inputs:
+  url:
+    description: "Target URL to scan."
+    required: true
+  max-pages:
+    description: "Maximum pages to crawl."
+    required: false
+    default: "300"
+  output:
+    description: "Report output directory."
+    required: false
+    default: "seo-polish-report"
+  fail-on-critical:
+    description: "Fail when critical findings exist."
+    required: false
+    default: "true"
+runs:
+  using: "node24"
+  main: "dist/index.js"

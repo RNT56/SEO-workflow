@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seo-polish.dev/schemas/validation.schema.json",
+  "type": "object",
+  "required": ["ok", "generatedAt", "checks"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "generatedAt": { "type": "string" },
+    "checks": { "type": "array" }
+  }
+}

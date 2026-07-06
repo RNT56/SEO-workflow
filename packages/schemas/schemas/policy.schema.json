@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seo-polish.dev/schemas/policy.schema.json",
+  "type": "object",
+  "required": ["search", "aiInput", "aiTrain", "mcpMutations", "commerceActions"],
+  "properties": {
+    "search": { "enum": ["yes", "no", "neutral"] },
+    "aiInput": { "enum": ["yes", "no", "ask"] },
+    "aiTrain": { "enum": ["yes", "no", "ask"] },
+    "mcpMutations": { "enum": ["disabled", "approval-required", "enabled"] },
+    "commerceActions": { "enum": ["disabled", "approval-required", "enabled"] }
+  }
+}

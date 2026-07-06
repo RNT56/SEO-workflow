@@ -1,0 +1,3 @@
+# Example
+- Private: https://example.com/checkout/session?token=abc1234567890
+

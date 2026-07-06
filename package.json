@@ -1,0 +1,30 @@
+{
+  "name": "seo-polish-workflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SEO polish workflow audits, scores, reports and improves websites for modern SEO and AI-agent readiness.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "seo-polish": "pnpm --filter @seo-polish/cli seo-polish",
+    "test:fixtures": "pnpm --filter @seo-polish/core test",
+    "report:lint": "pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "@types/node": "^24.0.10",
+    "eslint": "^9.31.0",
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.36.0",
+    "vitest": "^3.2.4"
+  }
+}

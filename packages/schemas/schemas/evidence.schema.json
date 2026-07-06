@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seo-polish.dev/schemas/evidence.schema.json",
+  "type": "object",
+  "required": ["id", "type", "timestamp"],
+  "properties": {
+    "id": { "type": "string" },
+    "type": { "type": "string" },
+    "url": { "type": "string" },
+    "path": { "type": "string" },
+    "status": { "type": "number" },
+    "timestamp": { "type": "string" }
+  }
+}

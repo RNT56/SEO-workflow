@@ -1,0 +1,27 @@
+{
+  "name": "@seo-polish/cli",
+  "version": "0.1.0",
+  "description": "Command line interface for SEO polish workflow.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "seo-polish": "./dist/index.js"
+  },
+  "exports": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "seo-polish": "node ./dist/index.js"
+  },
+  "dependencies": {
+    "@seo-polish/core": "workspace:*",
+    "@seo-polish/schemas": "workspace:*"
+  }
+}

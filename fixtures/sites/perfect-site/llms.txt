@@ -1,0 +1,10 @@
+# Example
+> Canonical public website entry point for agents.
+
+## Primary pages
+- [Home](https://example.com/)
+
+## For AI agents
+- Sitemap: https://example.com/sitemap.xml
+- Policy: https://example.com/robots.txt
+

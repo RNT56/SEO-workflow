@@ -1,0 +1,17 @@
+name: Standard update
+description: Track a change in an SEO, web, search, agent, API or MCP standard.
+title: "[Standard]: "
+labels: ["standard"]
+body:
+  - type: input
+    id: standard
+    attributes:
+      label: Standard
+    validations:
+      required: true
+  - type: textarea
+    id: update
+    attributes:
+      label: Update
+    validations:
+      required: true

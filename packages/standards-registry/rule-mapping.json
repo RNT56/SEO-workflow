@@ -1,0 +1,26 @@
+{
+  "SEO-INDEX-003": {
+    "standard": "canonicalization",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-CRAWL-001": {
+    "standard": "robots-txt",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-LLMS-001": {
+    "standard": "llms-txt",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-MCP-001": {
+    "standard": "mcp",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  }
+}

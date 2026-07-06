@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.DS_Store
+*.tsbuildinfo
+seo-polish-report/
+reports/
+.env
+.env.*
+!.env.example
+

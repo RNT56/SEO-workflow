@@ -1,0 +1,24 @@
+{
+  "name": "@seo-polish/validation",
+  "version": "0.1.0",
+  "description": "Validation runner for SEO polish workflow outputs.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@seo-polish/reporters": "workspace:*",
+    "@seo-polish/schemas": "workspace:*",
+    "@seo-polish/security": "workspace:*"
+  }
+}

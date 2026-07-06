@@ -1,0 +1,24 @@
+{
+  "standards": [
+    {
+      "id": "canonicalization",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "robots-txt",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "llms-txt",
+      "status": "emerging",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "mcp",
+      "status": "emerging",
+      "lastReviewed": "2026-07-06"
+    }
+  ]
+}

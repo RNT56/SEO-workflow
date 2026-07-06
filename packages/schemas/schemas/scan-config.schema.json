@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seo-polish.dev/schemas/scan-config.schema.json",
+  "type": "object",
+  "required": ["url", "siteType", "maxPages", "maxDepth", "renderJs", "respectRobotsTxt", "outputDir"],
+  "properties": {
+    "url": { "type": "string" },
+    "siteType": { "type": "string" },
+    "maxPages": { "type": "number" },
+    "maxDepth": { "type": "number" },
+    "renderJs": { "type": "string" },
+    "respectRobotsTxt": { "type": "boolean" },
+    "outputDir": { "type": "string" }
+  }
+}

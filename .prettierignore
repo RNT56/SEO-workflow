@@ -1,0 +1,6 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+fixtures/sites/invalid-mcp/.well-known/mcp.json
+

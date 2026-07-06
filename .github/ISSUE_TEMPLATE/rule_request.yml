@@ -1,0 +1,15 @@
+name: Rule request
+description: Request a new SEO or agent-readiness rule.
+title: "[Rule]: "
+labels: ["rule"]
+body:
+  - type: input
+    id: rule_area
+    attributes:
+      label: Rule area
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and expected behavior
+    validations:
+      required: true

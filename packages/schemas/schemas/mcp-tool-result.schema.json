@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seo-polish.dev/schemas/mcp-tool-result.schema.json",
+  "type": "object",
+  "required": ["ok", "content"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "content": {}
+  }
+}

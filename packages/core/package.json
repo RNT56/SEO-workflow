@@ -1,0 +1,31 @@
+{
+  "name": "@seo-polish/core",
+  "version": "0.1.0",
+  "description": "Core orchestration for SEO polish workflow.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@seo-polish/evidence": "workspace:*",
+    "@seo-polish/patchers": "workspace:*",
+    "@seo-polish/remediation": "workspace:*",
+    "@seo-polish/reporters": "workspace:*",
+    "@seo-polish/rules": "workspace:*",
+    "@seo-polish/scanner": "workspace:*",
+    "@seo-polish/schemas": "workspace:*",
+    "@seo-polish/scoring": "workspace:*",
+    "@seo-polish/security": "workspace:*",
+    "@seo-polish/validation": "workspace:*"
+  }
+}

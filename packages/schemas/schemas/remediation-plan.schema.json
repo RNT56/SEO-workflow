@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seo-polish.dev/schemas/remediation-plan.schema.json",
+  "type": "object",
+  "required": ["phases", "safeFixes", "approvalRequired", "manualRecommendations", "userDecisions"],
+  "properties": {
+    "phases": { "type": "array" },
+    "safeFixes": { "type": "array" },
+    "approvalRequired": { "type": "array" },
+    "manualRecommendations": { "type": "array" },
+    "userDecisions": { "type": "array" }
+  }
+}

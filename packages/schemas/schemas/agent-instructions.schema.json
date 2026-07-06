@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seo-polish.dev/schemas/agent-instructions.schema.json",
+  "type": "object",
+  "required": ["agent", "instructions"],
+  "properties": {
+    "agent": { "type": "string" },
+    "instructions": { "type": "array", "items": { "type": "string" } }
+  }
+}
