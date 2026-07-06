@@ -1,5 +1,6 @@
 import { REPORT_SECTIONS, sectionHeading } from "@seo-polish/schemas";
 import type { Finding, ReportBundle, ReportSection, Severity } from "@seo-polish/schemas";
+import { renderAgentExecutionPlan } from "./renderAgentExecutionPlan.js";
 
 export function renderMarkdownReport(bundle: ReportBundle): string {
   const { scan, validation } = bundle;
@@ -51,6 +52,7 @@ export function renderAgentInstructionIndex(): string {
   return `# SEO Polish Agent Instructions
 
 Use the agent-specific file that matches the execution environment.
+Start every execution pass with \`../agent-execution-plan.md\`.
 
 - \`codex.md\`: end-to-end repo execution.
 - \`claude-code.md\`: structured remediation pass.
@@ -90,11 +92,11 @@ Rules:
 
 Execution order:
 
-1. Read \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
+1. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
 2. Implement safe fixes that are applicable to the current source repo.
 3. Do not implement policy/auth/payment/indexing/canonical/MCP mutation changes without explicit approval.
 4. Re-run \`seo-polish scan ${target} --output ${reportDir}\`.
-5. Re-run \`seo-polish report lint ${reportDir} --strict\` and project build/test/security gates.
+5. Re-run \`seo-polish report lint ${reportDir} --strict\`, \`seo-polish validate --report ${reportDir}\`, \`seo-polish benchmark --report ${reportDir}\`, \`seo-polish plan build --report ${reportDir}\`, and project build/test/security gates.
 `;
 }
 
@@ -131,6 +133,8 @@ function renderSection(section: ReportSection, bundle: ReportBundle): string {
       return renderUserDecisions(remediationPlan);
     case 26:
       return renderEvidence(bundle);
+    case 27:
+      return renderFinalExecutionPlanReference(bundle);
     default:
       return renderFindings(
         findings.filter((finding) => section.categories.includes(finding.category)),
@@ -254,7 +258,8 @@ function renderImplementationPlan(plan: ReportBundle["remediationPlan"], patchDi
 }
 
 function renderAgentSpecificInstructions(): string {
-  return `- Codex: use \`seo-polish scan\`, inspect structured JSON, then lint the report.
+  return `- Repo-capable agents: start from \`agent-execution-plan.md\`, then use structured JSON artifacts for details.
+- Codex: use \`seo-polish scan\`, inspect structured JSON, then lint the report.
 - Claude Code: use generated report files, do not invent findings outside \`findings.json\`.
 - Gemini CLI: validate evidence and keep policy/auth/payment changes approval-required.
 - OpenClaw: use the remediation plan as the execution queue.
@@ -307,6 +312,21 @@ function renderEvidence(bundle: ReportBundle): string {
     lines.push(`- ${item.id}: ${item.type} ${item.url ?? item.path ?? ""} ${item.status ?? ""}`);
   }
   return lines.join("\n");
+}
+
+function renderFinalExecutionPlanReference(bundle: ReportBundle): string {
+  const preview = renderAgentExecutionPlan(bundle).split("\n").slice(0, 18).join("\n");
+  return `The full executable handoff is written to \`agent-execution-plan.md\`.
+
+Use it as the final workflow step after scan, validation and benchmark data have been generated. Rebuild it with:
+
+\`\`\`bash
+seo-polish plan build --report ${bundle.scan.config.outputDir}
+\`\`\`
+
+Preview:
+
+${preview}`;
 }
 
 function countBySeverity(findings: Finding[]): Record<Severity, number> {

@@ -13,6 +13,7 @@
 - Add real fixture scan/report-lint gate and deterministic agent-experience benchmark output.
 - Add full rule-to-standard registry validation, standards snapshot export and CLI doctor diagnostics.
 - Generate priority action plan and agent-specific instruction sidecars with every report render.
+- Generate a final agent execution plan that consolidates scan, findings, benchmark, approval gates and verification steps.
 
 ## v0.2 SEO basics hardening
 

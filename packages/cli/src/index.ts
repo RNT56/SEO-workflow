@@ -13,7 +13,8 @@ import {
   type RenderJsMode,
   type SiteType
 } from "@seo-polish/core";
-import type { Finding, ScanResult } from "@seo-polish/schemas";
+import { renderAgentExecutionPlan, type AgentExecutionPlanBenchmark } from "@seo-polish/reporters";
+import type { Finding, ReportBundle, ScanResult } from "@seo-polish/schemas";
 import { buildStandardsSnapshot, validateStandardsRegistry } from "@seo-polish/standards-registry";
 
 interface ParsedArgs {
@@ -48,6 +49,17 @@ async function main(argv: string[]): Promise<void> {
       )
     });
     console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
+
+  if (command === "plan" && subcommand === "build") {
+    const reportDir = flagString(args, "report", flagString(args, "output", "seo-polish-report"));
+    const outputPath = flagString(args, "output-file", join(reportDir, "agent-execution-plan.md"));
+    const bundle = await readReportBundle(reportDir);
+    const benchmark = await readOptionalJson<AgentExecutionPlanBenchmark>(join(reportDir, "benchmark.json"));
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, renderAgentExecutionPlan(bundle, { benchmark }), "utf8");
+    console.log(JSON.stringify({ outputPath, benchmarkIncluded: Boolean(benchmark) }, null, 2));
     return;
   }
 
@@ -155,6 +167,12 @@ async function main(argv: string[]): Promise<void> {
     await mkdir(reportDir, { recursive: true });
     await writeFile(join(reportDir, "benchmark.json"), `${JSON.stringify(result, null, 2)}\n`, "utf8");
     await writeFile(join(reportDir, "benchmark.md"), renderBenchmarkMarkdown(result), "utf8");
+    const bundle = await readReportBundle(reportDir);
+    await writeFile(
+      join(reportDir, "agent-execution-plan.md"),
+      renderAgentExecutionPlan(bundle, { benchmark: result }),
+      "utf8"
+    );
     console.log(JSON.stringify(result, null, 2));
     return;
   }
@@ -173,6 +191,7 @@ async function main(argv: string[]): Promise<void> {
             "plan",
             "apply",
             "validate",
+            "plan build",
             "report lint",
             "report render",
             "policy init",
@@ -221,6 +240,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     if (
       command.length === 0 ||
       (command[0] === "report" && command.length === 1) ||
+      (command[0] === "plan" && command.length === 1) ||
       (command[0] === "policy" && command.length === 1) ||
       (command[0] === "standards" && command.length === 1)
     ) {
@@ -252,6 +272,7 @@ function printHelp(): void {
 Usage:
   seo-polish scan <url> [--output ./seo-polish-report] [--max-pages 50]
   seo-polish plan --scan ./seo-polish-report/findings.json
+  seo-polish plan build --report ./seo-polish-report
   seo-polish apply --plan ./seo-polish-report/remediation-plan.json --mode diff-only
   seo-polish validate --report ./seo-polish-report
   seo-polish report lint ./seo-polish-report --strict
@@ -265,6 +286,27 @@ Usage:
 
 async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, "utf8")) as T;
+}
+
+async function readOptionalJson<T>(path: string): Promise<T | null> {
+  try {
+    return await readJson<T>(path);
+  } catch {
+    return null;
+  }
+}
+
+async function readReportBundle(reportDir: string): Promise<ReportBundle> {
+  return {
+    scan: await readJson<ReportBundle["scan"]>(join(reportDir, "scan-result.json")),
+    findings: await readJson<ReportBundle["findings"]>(join(reportDir, "findings.json")),
+    score: await readJson<ReportBundle["score"]>(join(reportDir, "score.json")),
+    remediationPlan: await readJson<ReportBundle["remediationPlan"]>(
+      join(reportDir, "remediation-plan.json")
+    ),
+    validation: await readJson<ReportBundle["validation"]>(join(reportDir, "validation.json")),
+    patchDiff: await readFile(join(reportDir, "patch.diff"), "utf8")
+  };
 }
 
 main(process.argv.slice(2)).catch((error) => {

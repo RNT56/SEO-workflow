@@ -10,3 +10,4 @@
 - Added fixture scan runner, expanded report artifacts, crawl graph output and agent-experience benchmark output.
 - Added full standards registry coverage, registry validation, standards snapshot export and richer CLI doctor diagnostics.
 - Added priority action plan sidecar output and target-aware agent instruction files.
+- Added final agent execution plan output and `seo-polish plan build` handoff generation.

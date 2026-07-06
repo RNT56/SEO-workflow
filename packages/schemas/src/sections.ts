@@ -44,7 +44,8 @@ export const REPORT_SECTIONS: ReportSection[] = [
   { number: 23, title: "Agent-Specific Execution Instructions", categories: [] },
   { number: 24, title: "Validation Results", categories: [] },
   { number: 25, title: "Remaining User Decisions", categories: [] },
-  { number: 26, title: "Appendix: Evidence", categories: [] }
+  { number: 26, title: "Appendix: Evidence", categories: [] },
+  { number: 27, title: "Final Agent Execution Plan", categories: [] }
 ];
 
 export const REQUIRED_REPORT_FILES = [
@@ -60,6 +61,7 @@ export const REQUIRED_REPORT_FILES = [
 export const OPTIONAL_REPORT_FILES = [
   "executive-summary.md",
   "priority-action-plan.md",
+  "agent-execution-plan.md",
   "patch.diff",
   "crawl-graph.json",
   "crawl-graph.svg",

@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { writeReportBundle } from "@seo-polish/reporters";
+import type { AgentExecutionPlanBenchmark } from "@seo-polish/reporters";
 import type {
   Finding,
   RemediationPlan,
@@ -20,12 +21,21 @@ export async function runReportRender(reportDir: string): Promise<void> {
     validation: await readJson<ValidationResult>(join(reportDir, "validation.json")),
     patchDiff: await readText(join(reportDir, "patch.diff"))
   };
-  await writeReportBundle(reportDir, bundle);
+  const benchmark = await readOptionalJson<AgentExecutionPlanBenchmark>(join(reportDir, "benchmark.json"));
+  await writeReportBundle(reportDir, bundle, { benchmark });
   await writeRenderSupportFiles(reportDir, bundle);
 }
 
 async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, "utf8")) as T;
+}
+
+async function readOptionalJson<T>(path: string): Promise<T | null> {
+  try {
+    return await readJson<T>(path);
+  } catch {
+    return null;
+  }
 }
 
 async function readText(path: string): Promise<string> {

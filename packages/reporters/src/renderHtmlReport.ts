@@ -87,6 +87,9 @@ function renderHtmlSection(number: number, title: string, bundle: ReportBundle):
   if (number === 26) {
     return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages.</p></section>`;
   }
+  if (number === 27) {
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>The final executable handoff is written to <code>agent-execution-plan.md</code>. Rebuild it after benchmark data with <code>seo-polish plan build --report ${escapeHtml(bundle.scan.config.outputDir)}</code>.</p></section>`;
+  }
 
   const section = REPORT_SECTIONS.find((item) => item.number === number);
   const findings = section

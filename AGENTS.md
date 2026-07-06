@@ -52,6 +52,7 @@ Required outputs:
 - `seo-polish-report/crawl-graph.json`
 - `seo-polish-report/raw-render-diff.json`
 - `seo-polish-report/priority-action-plan.md`
+- `seo-polish-report/agent-execution-plan.md`
 - `seo-polish-report/standards-registry.json`
 - `seo-polish-report/agent-instructions/codex.md`
 

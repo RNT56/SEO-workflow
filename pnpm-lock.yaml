@@ -46,6 +46,9 @@ importers:
       "@seo-polish/core":
         specifier: workspace:*
         version: link:../core
+      "@seo-polish/reporters":
+        specifier: workspace:*
+        version: link:../reporters
       "@seo-polish/schemas":
         specifier: workspace:*
         version: link:../schemas

@@ -9,7 +9,8 @@ Use this skill when scanning, reporting, validating or improving a website for S
 3. Do not create a freeform-only audit report.
 4. Do not emit a finding without evidence.
 5. Do not publish policy, auth, payment, crawler, index/noindex, ambiguous canonical or mutating MCP changes without explicit approval.
-6. Validate with `seo-polish report lint ./seo-polish-report --strict`.
+6. Build the final handoff with `seo-polish plan build --report ./seo-polish-report`.
+7. Validate with `seo-polish report lint ./seo-polish-report --strict`.
 
 ## Required outputs
 
@@ -21,6 +22,7 @@ Use this skill when scanning, reporting, validating or improving a website for S
 - `seo-polish-report/remediation-plan.json`
 - `seo-polish-report/validation.json`
 - `seo-polish-report/priority-action-plan.md`
+- `seo-polish-report/agent-execution-plan.md`
 - `seo-polish-report/standards-registry.json`
 - `seo-polish-report/agent-instructions/codex.md`
 

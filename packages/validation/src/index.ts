@@ -33,6 +33,7 @@ const RECOMMENDED_SCAN_FILES = [
   "before-after-score.json",
   "remaining-user-decisions.md",
   "priority-action-plan.md",
+  "agent-execution-plan.md",
   "github-pr-comment.md",
   "executive-summary.md",
   "standards-registry.json",

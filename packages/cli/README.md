@@ -6,6 +6,7 @@ Core commands:
 
 - `seo-polish scan <url>`
 - `seo-polish plan`
+- `seo-polish plan build`
 - `seo-polish apply --mode diff-only`
 - `seo-polish validate`
 - `seo-polish report lint`
@@ -16,4 +17,5 @@ Core commands:
 - `seo-polish doctor`
 
 `standards update` writes a local standards snapshot and validates rule-to-standard coverage.
+`plan build` writes `agent-execution-plan.md`, the final human/agent handoff plan for repo remediation.
 `doctor` reports runtime, safety defaults and standards registry health.

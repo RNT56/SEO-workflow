@@ -1,6 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ReportBundle } from "@seo-polish/schemas";
+import type { AgentExecutionPlanOptions } from "./renderAgentExecutionPlan.js";
+import { renderAgentExecutionPlan } from "./renderAgentExecutionPlan.js";
 import {
   renderAgentInstructionIndex,
   renderAgentInstruction,
@@ -10,7 +12,11 @@ import {
 } from "./renderMarkdownReport.js";
 import { renderHtmlReport } from "./renderHtmlReport.js";
 
-export async function writeReportBundle(outputDir: string, bundle: ReportBundle): Promise<void> {
+export async function writeReportBundle(
+  outputDir: string,
+  bundle: ReportBundle,
+  options: AgentExecutionPlanOptions = {}
+): Promise<void> {
   await mkdir(outputDir, { recursive: true });
   await mkdir(join(outputDir, "agent-instructions"), { recursive: true });
 
@@ -31,6 +37,11 @@ export async function writeReportBundle(outputDir: string, bundle: ReportBundle)
   await writeFile(join(outputDir, "patch.diff"), bundle.patchDiff, "utf8");
   await writeFile(join(outputDir, "executive-summary.md"), renderExecutiveSummary(bundle), "utf8");
   await writeFile(join(outputDir, "priority-action-plan.md"), renderPriorityActionPlan(bundle), "utf8");
+  await writeFile(
+    join(outputDir, "agent-execution-plan.md"),
+    renderAgentExecutionPlan(bundle, options),
+    "utf8"
+  );
   await writeFile(join(outputDir, "github-pr-comment.md"), renderGitHubPrComment(bundle), "utf8");
   await writeFile(join(outputDir, "agent-instructions", "README.md"), renderAgentInstructionIndex(), "utf8");
 

@@ -32,6 +32,7 @@ pnpm --filter @seo-polish/cli seo-polish scan https://example.com --output ./seo
 pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
 pnpm --filter @seo-polish/cli seo-polish standards update --output ./seo-polish-report/standards-registry.json
 pnpm --filter @seo-polish/cli seo-polish benchmark --report ./seo-polish-report
+pnpm --filter @seo-polish/cli seo-polish plan build --report ./seo-polish-report
 pnpm --filter @seo-polish/cli seo-polish doctor
 ```
 
@@ -48,6 +49,7 @@ seo-polish-report/
   validation.json
   patch.diff
   priority-action-plan.md
+  agent-execution-plan.md
   crawl-graph.json
   crawl-graph.svg
   raw-render-diff.json
@@ -87,6 +89,7 @@ pnpm build
 pnpm --filter @seo-polish/cli seo-polish scan https://your-site.com --output ./seo-polish-report
 pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
 pnpm --filter @seo-polish/cli seo-polish benchmark --report ./seo-polish-report
+pnpm --filter @seo-polish/cli seo-polish plan build --report ./seo-polish-report
 ```
 
 The agent system should treat the report bundle as the source of truth, especially these files:
@@ -97,6 +100,7 @@ The agent system should treat the report bundle as the source of truth, especial
 - `seo-polish-report/evidence.jsonl`
 - `seo-polish-report/remediation-plan.json`
 - `seo-polish-report/priority-action-plan.md`
+- `seo-polish-report/agent-execution-plan.md`
 - `seo-polish-report/patch.diff`
 - `seo-polish-report/manual-actions.md`
 - `seo-polish-report/remaining-user-decisions.md`
@@ -117,16 +121,16 @@ Website source repo: current workspace
 Run the workflow end to end:
 1. Build the SEO workflow if needed.
 2. Scan the live site into ./seo-polish-report.
-3. Read findings.json, remediation-plan.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md and validation.json.
+3. Read agent-execution-plan.md first, then findings.json, remediation-plan.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md and validation.json.
 4. Apply only safe_auto_fix items directly in the website source repo.
 5. Do not make policy, auth, payment, indexing, canonical, crawler or MCP mutation changes without explicit approval.
 6. Preserve approval_required items in remaining-user-decisions.md.
-7. Re-run scan, report lint, validation, project tests, build and security checks.
+7. Re-run scan, report lint, validation, benchmark, plan build, project tests, build and security checks.
 8. Commit and push only after the verification gates pass.
 9. Summarize final score, changed files, remaining user decisions and verification results.
 ```
 
-The important boundary is that the agent is not being asked to browse freely and invent fixes. The workflow produces evidence-backed findings, fix classes, patch suggestions, manual actions and validation output. The agent executes against that contract, applies low-risk fixes, stops at approval gates and verifies the result with both SEO polish checks and the website repo's own gates.
+The important boundary is that the agent is not being asked to browse freely and invent fixes. The workflow produces evidence-backed findings, fix classes, patch suggestions, manual actions, validation output and a final `agent-execution-plan.md`. The agent executes against that contract, applies low-risk fixes, stops at approval gates and verifies the result with both SEO polish checks and the website repo's own gates.
 
 ## Safety contract
 
