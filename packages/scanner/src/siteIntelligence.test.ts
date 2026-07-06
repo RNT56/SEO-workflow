@@ -131,6 +131,48 @@ describe("site intelligence", () => {
     expect(fingerprint.analytics).toContain("google-tag-manager");
   });
 
+  it("prefers structural SvelteKit assets over prose mentions of Next.js", () => {
+    const resources = discoverResources(
+      `<script type="module" src="/_app/immutable/chunks/app.js"></script>
+       <link rel="stylesheet" href="/_app/immutable/assets/app.css">`,
+      "https://example.com/"
+    );
+    const fingerprint = inferTechStack({
+      framework: "unknown",
+      pages: [
+        {
+          ...page("https://example.com/"),
+          bodyExcerpt:
+            "Case study copy mentions Next.js API routes as an integration option, but this page is served by SvelteKit assets."
+        }
+      ],
+      endpoints: {},
+      resources,
+      repo: {
+        generatedAt: new Date().toISOString(),
+        status: "not_configured",
+        frameworks: [],
+        dependencies: [],
+        scripts: [],
+        sourceFiles: [],
+        routeFiles: [],
+        staticFiles: [],
+        deploymentFiles: [],
+        seoFiles: [],
+        confidence: 0,
+        limitations: []
+      }
+    });
+
+    expect(fingerprint.framework).toBe("sveltekit");
+    expect(fingerprint.signals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ category: "framework", name: "nextjs", source: "html", confidence: 48 }),
+        expect.objectContaining({ category: "framework", name: "sveltekit", source: "asset_path" })
+      ])
+    );
+  });
+
   it("builds HTTP fallback performance metrics without browser-only claims", async () => {
     const config = scanConfig();
     const performance = await buildPerformanceAudit({

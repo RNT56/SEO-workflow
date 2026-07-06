@@ -30,10 +30,21 @@ export function detectFramework(headers: Record<string, string>, html: string): 
     .map(([key, value]) => `${key}:${value}`)
     .join("\n")}\n${html}`.toLowerCase();
 
-  if (haystack.includes("next.js") || haystack.includes("/_next/")) return "nextjs";
+  if (
+    haystack.includes("/_next/") ||
+    haystack.includes("__next_data__") ||
+    haystack.includes("x-nextjs") ||
+    haystack.includes("next-router-state-tree")
+  )
+    return "nextjs";
   if (haystack.includes("astro")) return "astro";
   if (haystack.includes("__nuxt")) return "nuxt";
-  if (haystack.includes("sveltekit")) return "sveltekit";
+  if (
+    haystack.includes("/_app/immutable") ||
+    haystack.includes("data-sveltekit") ||
+    haystack.includes("sveltekit")
+  )
+    return "sveltekit";
   if (haystack.includes("docusaurus")) return "docusaurus";
   if (haystack.includes("wp-content")) return "wordpress";
   if (haystack.includes("shopify")) return "shopify";

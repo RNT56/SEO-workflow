@@ -87,7 +87,7 @@ export function inferTechStack(input: InferTechStackInput): TechStackFingerprint
     }
   }
 
-  const framework = topSignal(signals, "framework")?.name ?? input.framework;
+  const framework = topAggregatedSignal(signals, "framework")?.name ?? input.framework;
   return {
     generatedAt: new Date().toISOString(),
     framework,
@@ -109,10 +109,12 @@ function detectFromText(
   add: (signal: TechStackSignal) => void
 ): void {
   const matchers: Array<[RegExp, TechStackSignal["category"], string, number]> = [
-    [/\/_next\/|next\.js|x-nextjs|next-router-state-tree/, "framework", "nextjs", 92],
+    [/\/_next\/|__next_data__|x-nextjs|next-router-state-tree/, "framework", "nextjs", 93],
+    [/\bnext\.js\b/i, "framework", "nextjs", 48],
     [/astro-island|astro\.assets|\/_astro\//, "framework", "astro", 92],
     [/\/_nuxt\/|__nuxt|nuxt/i, "framework", "nuxt", 90],
-    [/\/_app\/immutable|sveltekit|svelte-kit/i, "framework", "sveltekit", 90],
+    [/\/_app\/immutable|data-sveltekit/i, "framework", "sveltekit", 94],
+    [/sveltekit|svelte-kit/i, "framework", "sveltekit", 62],
     [/___gatsby|gatsby/i, "framework", "gatsby", 90],
     [/docusaurus/i, "framework", "docusaurus", 88],
     [/wp-content|wp-includes|wordpress/i, "cms", "wordpress", 94],
@@ -175,13 +177,65 @@ function uniqueNames(signals: TechStackSignal[], category: TechStackSignal["cate
   return [...new Set(signals.filter((signal) => signal.category === category).map((signal) => signal.name))];
 }
 
-function topSignal(
+function topAggregatedSignal(
   signals: TechStackSignal[],
   category: TechStackSignal["category"]
 ): TechStackSignal | undefined {
-  return signals
-    .filter((signal) => signal.category === category)
-    .sort((a, b) => b.confidence - a.confidence)[0];
+  const candidates = signals.filter((signal) => signal.category === category);
+  const scores = new Map<
+    string,
+    { name: string; score: number; maxConfidence: number; signals: TechStackSignal[] }
+  >();
+  for (const signal of candidates) {
+    const current = scores.get(signal.name) ?? {
+      name: signal.name,
+      score: 0,
+      maxConfidence: 0,
+      signals: []
+    };
+    current.signals.push(signal);
+    current.maxConfidence = Math.max(current.maxConfidence, signal.confidence);
+    current.score = aggregatedSignalScore(current.signals);
+    scores.set(signal.name, current);
+  }
+
+  const winner = [...scores.values()].sort(
+    (a, b) =>
+      b.score - a.score ||
+      b.maxConfidence - a.maxConfidence ||
+      b.signals.length - a.signals.length ||
+      a.name.localeCompare(b.name)
+  )[0];
+  if (!winner) {
+    return undefined;
+  }
+
+  return winner.signals.sort((a, b) => b.confidence - a.confidence || a.source.localeCompare(b.source))[0];
+}
+
+function aggregatedSignalScore(signals: TechStackSignal[]): number {
+  const maxConfidence = Math.max(...signals.map((signal) => signal.confidence));
+  const maxSourceWeight = Math.max(...signals.map(sourceWeight));
+  const structuralSignals = signals.filter((signal) =>
+    ["repo", "asset_path", "headers", "endpoint"].includes(signal.source)
+  ).length;
+  const sourceDiversity = new Set(signals.map((signal) => signal.source)).size;
+  return (
+    maxConfidence + maxSourceWeight + Math.min(24, structuralSignals * 4) + Math.min(8, sourceDiversity * 2)
+  );
+}
+
+function sourceWeight(signal: TechStackSignal): number {
+  const sourceWeights: Record<TechStackSignal["source"], number> = {
+    repo: 40,
+    asset_path: 18,
+    headers: 12,
+    endpoint: 8,
+    inference: 6,
+    dns: 5,
+    html: 0
+  };
+  return sourceWeights[signal.source];
 }
 
 function average(values: number[]): number {
