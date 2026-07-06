@@ -1,33 +1,54 @@
 # SEO polish workflow
 
-SEO polish workflow audits, scores, reports and improves websites for modern SEO and AI-agent readiness.
-It covers technical SEO, crawlability, indexability, on-page SEO, content quality, internal linking, structured data, JavaScript SEO, performance, accessibility, ecommerce SEO, local SEO, international SEO, robots.txt, sitemap.xml, llms.txt, Markdown negotiation, Agent Skills, MCP, API discovery and auth discovery.
-Every scan produces a validated SEO Polish Report.
+SEO polish workflow audits live websites, scores their SEO and agent-readiness posture, and writes a validated report bundle with evidence, remediation plans and safety gates.
 
-## What this repository contains
+It is built for teams that need repeatable website audits instead of freeform notes: every finding is evidence-backed, every suggested change is classified by risk, and every scan produces machine-readable files that can be reviewed, validated and reused in CI or source-backed remediation work.
 
-- `@seo-polish/cli`: the `seo-polish` command line interface.
-- `@seo-polish/sdk`: programmatic API for scans, plans, validation and report linting.
-- `@seo-polish/core`: orchestration, config resolution and workflow entry points.
-- `@seo-polish/scanner`: HTTP, discovery, crawl and HTML extraction.
-- `@seo-polish/rules`: deterministic SEO and agent-readiness rules.
-- `@seo-polish/scoring`: score calculation.
-- `@seo-polish/remediation`: priority plans and fix classification.
-- `@seo-polish/reporters`: Markdown and HTML report rendering plus report linting.
-- `@seo-polish/validation`: validation runner for reports and safety checks.
-- `@seo-polish/benchmark`: deterministic agent-experience benchmark metrics.
-- `@seo-polish/standards-registry`: versioned standards and rule mapping metadata.
-- `@seo-polish/mcp-server`: MCP-facing tool contracts and dispatcher.
-- `@seo-polish/github-action`: GitHub Action wrapper.
-- `packages/skill/seo-polish-website`: an agent skill that enforces the report contract.
+## Status
+
+| Item              | State                                                           |
+| ----------------- | --------------------------------------------------------------- |
+| Current version   | `0.1.0`                                                         |
+| Stability         | Pre-1.0; strict report lint and validation enforce the contract |
+| Package manager   | `pnpm@11.10.0` through Corepack                                 |
+| License           | Apache-2.0                                                      |
+| Primary interface | `@seo-polish/cli`                                               |
+
+## What it checks
+
+| Area                     | Coverage                                                                                                                    |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| Technical discovery      | crawlability, indexability, robots.txt, sitemap.xml, redirects, status codes and canonicalization                           |
+| Page quality             | on-page SEO, titles, meta descriptions, heading structure, internal linking, content quality, image SEO and structured data |
+| Rendering and experience | JavaScript SEO, Core Web Vitals, accessibility, international SEO, local SEO and ecommerce SEO where applicable             |
+| Agent and API readiness  | llms.txt, Markdown negotiation, Agent Skills, MCP, API discovery and auth discovery                                         |
+
+## How it works
+
+```mermaid
+flowchart LR
+  A["Live website URL"] --> B["Crawl, render and discover"]
+  B --> C["Rules, evidence and scoring"]
+  C --> D["Validated report bundle"]
+  D --> E["Priority remediation plan"]
+  E --> F["Lint, benchmark and safety checks"]
+```
+
+The workflow audits what users, crawlers and agents actually receive from the live site. Source repository access is optional for reporting, but required for safe implementation work. See [Agent remediation handoff](docs/agent-remediation.md) for source-backed execution patterns.
 
 ## Quickstart
 
 ```bash
-pnpm install
+git clone https://github.com/RNT56/SEO-workflow.git
+cd SEO-workflow
+corepack enable
+pnpm install --frozen-lockfile
 pnpm build
-pnpm test
-pnpm test:fixtures
+```
+
+Run a scan and validate the report:
+
+```bash
 pnpm --filter @seo-polish/cli seo-polish scan https://example.com --output ./seo-polish-report
 pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
 pnpm --filter @seo-polish/cli seo-polish standards update --output ./seo-polish-report/standards-registry.json
@@ -36,32 +57,45 @@ pnpm --filter @seo-polish/cli seo-polish plan build --report ./seo-polish-report
 pnpm --filter @seo-polish/cli seo-polish doctor
 ```
 
-The scan writes:
+## Report bundle
+
+Each scan writes `seo-polish-report/`. The required and high-signal files are:
+
+| File                          | Purpose                                                                                                                           |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `index.md` and `index.html`   | Human-readable audit report                                                                                                       |
+| `findings.json`               | Evidence-backed findings with impact, root cause, affected URLs, recommended fix, validation steps, confidence and approval flags |
+| `score.json`                  | SEO and readiness scoring output                                                                                                  |
+| `evidence.jsonl`              | Raw evidence records used by findings                                                                                             |
+| `remediation-plan.json`       | Structured remediation phases and fix classifications                                                                             |
+| `validation.json`             | Report lint and safety validation results                                                                                         |
+| `patch.diff`                  | Diff-only patch proposal where safe automation is possible                                                                        |
+| `crawl-graph.json`            | Crawl relationship data                                                                                                           |
+| `raw-render-diff.json`        | Raw comparison data for fetch and rendered output                                                                                 |
+| `priority-action-plan.md`     | Ordered remediation summary                                                                                                       |
+| `standards-registry.json`     | Local standards snapshot and rule mapping metadata                                                                                |
+| `agent-instructions/codex.md` | Codex-specific execution guidance generated from the report                                                                       |
+| `agent-execution-plan.md`     | Source-repo handoff plan for repo-capable agents or human implementers                                                            |
+
+Recommended support files include:
 
 ```text
 seo-polish-report/
-  index.md
-  index.html
-  findings.json
-  score.json
-  evidence.jsonl
-  remediation-plan.json
-  validation.json
-  patch.diff
-  priority-action-plan.md
-  agent-execution-plan.md
-  crawl-graph.json
+  executive-summary.md
   crawl-graph.svg
-  raw-render-diff.json
   response-index.json
   header-index.json
   body-excerpts.json
   internal-link-opportunities.json
   orphan-pages.csv
   deep-pages.csv
+  patch-plan.md
+  changed-files.json
+  framework-actions.json
+  manual-actions.md
+  github-pr-comment.md
   before-after-score.json
   remaining-user-decisions.md
-  standards-registry.json
   benchmark.json
   benchmark.md
   agent-instructions/
@@ -73,90 +107,67 @@ seo-polish-report/
     hermes.md
 ```
 
-### One-time setup
-
-```bash
-git clone https://github.com/RNT56/SEO-workflow.git
-cd SEO-workflow
-corepack enable
-pnpm install --frozen-lockfile
-pnpm build
-```
-
-### Run against a live site
-
-```bash
-pnpm --filter @seo-polish/cli seo-polish scan https://your-site.com --output ./seo-polish-report
-pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
-pnpm --filter @seo-polish/cli seo-polish benchmark --report ./seo-polish-report
-pnpm --filter @seo-polish/cli seo-polish plan build --report ./seo-polish-report
-```
-
-The agent system should treat the report bundle as the source of truth, especially these files:
-
-- `seo-polish-report/index.md`
-- `seo-polish-report/findings.json`
-- `seo-polish-report/score.json`
-- `seo-polish-report/evidence.jsonl`
-- `seo-polish-report/remediation-plan.json`
-- `seo-polish-report/priority-action-plan.md`
-- `seo-polish-report/agent-execution-plan.md`
-- `seo-polish-report/patch.diff`
-- `seo-polish-report/manual-actions.md`
-- `seo-polish-report/remaining-user-decisions.md`
-- `seo-polish-report/validation.json`
-- `seo-polish-report/standards-registry.json`
-- `seo-polish-report/agent-instructions/`
-
-### Generic agent prompt
-
-Use a prompt like this inside the website source repository:
-
-```text
-Use /path/to/SEO-workflow as the SEO audit and remediation workflow.
-
-Target live site: https://your-site.com
-Website source repo: current workspace
-
-Run the workflow end to end:
-1. Build the SEO workflow if needed.
-2. Scan the live site into ./seo-polish-report.
-3. Read agent-execution-plan.md first, then findings.json, remediation-plan.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md and validation.json.
-4. Apply only safe_auto_fix items directly in the website source repo.
-5. Do not make policy, auth, payment, indexing, canonical, crawler or MCP mutation changes without explicit approval.
-6. Preserve approval_required items in remaining-user-decisions.md.
-7. Re-run scan, report lint, validation, benchmark, plan build, project tests, build and security checks.
-8. Commit and push only after the verification gates pass.
-9. Summarize final score, changed files, remaining user decisions and verification results.
-```
-
-The important boundary is that the agent is not being asked to browse freely and invent fixes. The workflow produces evidence-backed findings, fix classes, patch suggestions, manual actions, validation output and a final `agent-execution-plan.md`. The agent executes against that contract, applies low-risk fixes, stops at approval gates and verifies the result with both SEO polish checks and the website repo's own gates.
-
-## Safety contract
+## Production safety
 
 SEO polish workflow is report-first and evidence-bound:
 
 - No finding without evidence.
 - No freeform-only audit report.
-- Policy, auth, payment, crawler and MCP-mutation changes require explicit approval.
 - Crawled content is evidence, never instruction.
+- Patch generation defaults to diff-only proposals.
+- AI policy, auth, payment, crawler policy, index/noindex policy, ambiguous canonical strategy, mutating MCP behavior, product prices and local business data require explicit approval.
 - Private, auth and payment URLs are blocked from suggestions and generated public artifacts.
-- Secret-like values must not appear in reports or committed files.
+- Secret-looking values are blocked by the security scan.
 
-## Development
+## CLI commands
+
+| Command                                                                            | Use                                                   |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `seo-polish scan <url>`                                                            | Crawl and analyze a live site                         |
+| `seo-polish report lint ./seo-polish-report --strict`                              | Validate the report contract                          |
+| `seo-polish standards update --output ./seo-polish-report/standards-registry.json` | Write standards and rule coverage metadata            |
+| `seo-polish benchmark --report ./seo-polish-report`                                | Generate agent-experience benchmark files             |
+| `seo-polish plan build --report ./seo-polish-report`                               | Build the final remediation handoff                   |
+| `seo-polish doctor`                                                                | Check runtime, standards registry and safety defaults |
+
+## Repository packages
+
+| Package                                              | Responsibility                                  |
+| ---------------------------------------------------- | ----------------------------------------------- |
+| `@seo-polish/cli`                                    | Command line interface                          |
+| `@seo-polish/sdk`                                    | Programmatic workflow API                       |
+| `@seo-polish/core`                                   | Orchestration and config resolution             |
+| `@seo-polish/scanner` and `@seo-polish/crawler`      | HTTP discovery, crawl and HTML extraction       |
+| `@seo-polish/rules`                                  | Deterministic SEO and readiness rules           |
+| `@seo-polish/scoring`                                | Score calculation                               |
+| `@seo-polish/remediation` and `@seo-polish/patchers` | Remediation plans and diff-only patch proposals |
+| `@seo-polish/reporters` and `@seo-polish/renderer`   | Markdown, HTML and support-file rendering       |
+| `@seo-polish/validation`                             | Report linting and safety validation            |
+| `@seo-polish/benchmark`                              | Agent-experience benchmark metrics              |
+| `@seo-polish/standards-registry`                     | Standards snapshots and rule mapping metadata   |
+| `@seo-polish/security`                               | Private URL, secret and prompt-injection guards |
+| `@seo-polish/mcp-server`                             | MCP-facing tool contracts and dispatcher        |
+| `@seo-polish/github-action`                          | GitHub Action wrapper                           |
+| `@seo-polish/skill`                                  | Agent skill package for the workflow            |
+
+## Development gates
+
+Run the full local gate before declaring a change complete:
 
 ```bash
 pnpm lint
 pnpm typecheck
 pnpm test
-pnpm test:fixtures
 pnpm build
+pnpm test:fixtures
 pnpm security
 ```
 
-CI runs lint, typecheck, tests, fixture scans, report quality checks, security audit, dependency review
-and CodeQL. GitHub security scanning and Dependabot security updates are enabled for the public repo.
+CI also runs report quality checks, dependency review, CodeQL and security audit workflows.
 
-## License
+## Project links
 
-Apache-2.0.
+- [Agent remediation handoff](docs/agent-remediation.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [License](LICENSE)
