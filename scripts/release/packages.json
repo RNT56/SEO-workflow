@@ -1,0 +1,22 @@
+[
+  { "name": "@seo-polish/schemas", "path": "packages/schemas" },
+  { "name": "@seo-polish/security", "path": "packages/security" },
+  { "name": "@seo-polish/evidence", "path": "packages/evidence" },
+  { "name": "@seo-polish/patchers", "path": "packages/patchers" },
+  { "name": "@seo-polish/reporters", "path": "packages/reporters" },
+  { "name": "@seo-polish/rules", "path": "packages/rules" },
+  { "name": "@seo-polish/scanner", "path": "packages/scanner" },
+  { "name": "@seo-polish/scoring", "path": "packages/scoring" },
+  { "name": "@seo-polish/remediation", "path": "packages/remediation" },
+  { "name": "@seo-polish/benchmark", "path": "packages/benchmark" },
+  { "name": "@seo-polish/standards-registry", "path": "packages/standards-registry" },
+  { "name": "@seo-polish/validation", "path": "packages/validation" },
+  { "name": "@seo-polish/core", "path": "packages/core" },
+  { "name": "@seo-polish/crawler", "path": "packages/crawler" },
+  { "name": "@seo-polish/renderer", "path": "packages/renderer" },
+  { "name": "@seo-polish/integrations", "path": "packages/integrations" },
+  { "name": "@seo-polish/skill", "path": "packages/skill" },
+  { "name": "@seo-polish/github-action", "path": "packages/github-action" },
+  { "name": "@seo-polish/mcp-server", "path": "packages/mcp-server" },
+  { "name": "@seo-polish/cli", "path": "packages/cli" }
+]

@@ -21,7 +21,11 @@
     "report:lint": "pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict",
     "standards:update": "pnpm --filter @seo-polish/cli seo-polish standards update --output ./seo-polish-report/standards-registry.json",
     "plan:build": "pnpm --filter @seo-polish/cli seo-polish plan build --report ./seo-polish-report",
-    "doctor": "pnpm --filter @seo-polish/cli seo-polish doctor"
+    "doctor": "pnpm --filter @seo-polish/cli seo-polish doctor",
+    "release:check": "node scripts/release/check-release.mjs",
+    "release:pack": "node scripts/release/pack-release.mjs",
+    "release:publish:npm": "node scripts/release/publish-npm.mjs",
+    "release:verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:fixtures && pnpm security && pnpm release:check && pnpm release:pack"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

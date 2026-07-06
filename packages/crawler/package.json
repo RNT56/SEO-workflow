@@ -18,5 +18,8 @@
   },
   "dependencies": {
     "@seo-polish/scanner": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

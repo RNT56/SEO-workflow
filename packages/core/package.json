@@ -28,5 +28,8 @@
     "@seo-polish/security": "workspace:*",
     "@seo-polish/standards-registry": "workspace:*",
     "@seo-polish/validation": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -11,3 +11,5 @@
 - Added full standards registry coverage, registry validation, standards snapshot export and richer CLI doctor diagnostics.
 - Added priority action plan sidecar output and target-aware agent instruction files.
 - Added final agent execution plan output and `seo-polish plan build` handoff generation.
+- Added non-commercial package release preparation for `@seo-polish/cli` and its runtime package set.
+- Kept `@seo-polish/sdk` private and excluded from the npm release set.

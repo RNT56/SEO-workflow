@@ -18,5 +18,8 @@
   },
   "dependencies": {
     "@seo-polish/reporters": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

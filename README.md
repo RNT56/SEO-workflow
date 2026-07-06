@@ -61,6 +61,19 @@ The workflow can audit with only a URL. It can produce repo-specific source cand
 
 ## Quickstart
 
+Package usage after the npm release is published:
+
+```bash
+pnpm dlx @seo-polish/cli seo-polish scan https://example.com --output ./seo-polish-report
+pnpm dlx @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
+pnpm dlx @seo-polish/cli seo-polish benchmark --report ./seo-polish-report
+pnpm dlx @seo-polish/cli seo-polish plan build --report ./seo-polish-report
+```
+
+The npm package is non-commercial only. Review [License](LICENSE) before installing or running it.
+
+Repository development setup:
+
 ```bash
 git clone https://github.com/RNT56/SEO-workflow.git
 cd SEO-workflow
@@ -193,23 +206,41 @@ Commercial rights require prior written permission from the copyright holder.
 
 ## Repository packages
 
-| Package                                              | Responsibility                                  |
-| ---------------------------------------------------- | ----------------------------------------------- |
-| `@seo-polish/cli`                                    | Command line interface                          |
-| `@seo-polish/sdk`                                    | Programmatic workflow API                       |
-| `@seo-polish/core`                                   | Orchestration and config resolution             |
-| `@seo-polish/scanner` and `@seo-polish/crawler`      | HTTP discovery, crawl and HTML extraction       |
-| `@seo-polish/rules`                                  | Deterministic SEO and readiness rules           |
-| `@seo-polish/scoring`                                | Score calculation                               |
-| `@seo-polish/remediation` and `@seo-polish/patchers` | Remediation plans and diff-only patch proposals |
-| `@seo-polish/reporters` and `@seo-polish/renderer`   | Markdown, HTML and support-file rendering       |
-| `@seo-polish/validation`                             | Report linting and safety validation            |
-| `@seo-polish/benchmark`                              | Agent-experience benchmark metrics              |
-| `@seo-polish/standards-registry`                     | Standards snapshots and rule mapping metadata   |
-| `@seo-polish/security`                               | Private URL, secret and prompt-injection guards |
-| `@seo-polish/mcp-server`                             | MCP-facing tool contracts and dispatcher        |
-| `@seo-polish/github-action`                          | GitHub Action wrapper                           |
-| `@seo-polish/skill`                                  | Agent skill package for the workflow            |
+| Package                                              | Release status               | Responsibility                                  |
+| ---------------------------------------------------- | ---------------------------- | ----------------------------------------------- |
+| `@seo-polish/cli`                                    | Public npm entrypoint        | Command line interface                          |
+| `@seo-polish/core`                                   | Public dependency            | Orchestration and config resolution             |
+| `@seo-polish/scanner` and `@seo-polish/crawler`      | Public dependencies          | HTTP discovery, crawl and HTML extraction       |
+| `@seo-polish/rules`                                  | Public dependency            | Deterministic SEO and readiness rules           |
+| `@seo-polish/scoring`                                | Public dependency            | Score calculation                               |
+| `@seo-polish/remediation` and `@seo-polish/patchers` | Public dependencies          | Remediation plans and diff-only patch proposals |
+| `@seo-polish/reporters` and `@seo-polish/renderer`   | Public dependencies          | Markdown, HTML and support-file rendering       |
+| `@seo-polish/validation`                             | Public dependency            | Report linting and safety validation            |
+| `@seo-polish/benchmark`                              | Public dependency            | Agent-experience benchmark metrics              |
+| `@seo-polish/standards-registry`                     | Public dependency            | Standards snapshots and rule mapping metadata   |
+| `@seo-polish/security`                               | Public dependency            | Private URL, secret and prompt-injection guards |
+| `@seo-polish/mcp-server`                             | Public package               | MCP-facing tool contracts and dispatcher        |
+| `@seo-polish/github-action`                          | Public package               | GitHub Action wrapper                           |
+| `@seo-polish/skill`                                  | Public package               | Agent skill package for the workflow            |
+| `@seo-polish/sdk`                                    | Private; not released to npm | Experimental programmatic API                   |
+
+## Release
+
+Release validation is explicit and excludes `@seo-polish/sdk`:
+
+```bash
+pnpm release:verify
+```
+
+That runs the normal project gates, validates the release package manifest, and creates npm tarballs in `.release-tarballs/`. Those tarballs are release inspection artifacts until the ordered npm publish has completed, because the CLI depends on the internal runtime package set. The release package order is defined in `scripts/release/packages.json`.
+
+Publishing to npm requires authentication:
+
+```bash
+pnpm release:publish:npm
+```
+
+The GitHub `Release` workflow runs the same release checks and can publish to npm when started manually with `publish_npm=true` and an `NPM_TOKEN` repository secret. The workflow does not publish `@seo-polish/sdk`.
 
 ## Development gates
 

@@ -26,5 +26,8 @@
     "@seo-polish/reporters": "workspace:*",
     "@seo-polish/schemas": "workspace:*",
     "@seo-polish/standards-registry": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

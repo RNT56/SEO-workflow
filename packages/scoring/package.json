@@ -18,5 +18,8 @@
   },
   "dependencies": {
     "@seo-polish/schemas": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

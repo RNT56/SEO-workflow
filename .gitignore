@@ -6,7 +6,7 @@ coverage/
 *.tsbuildinfo
 seo-polish-report/
 reports/
+.release-tarballs/
 .env
 .env.*
 !.env.example
-

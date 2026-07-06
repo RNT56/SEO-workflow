@@ -2,6 +2,16 @@
 
 Provides the `seo-polish` CLI.
 
+Non-commercial only. This package is distributed under the SEO Polish Non-Commercial License v1.0 and cannot be used for commercial products, commercial services, paid work, client work, business operations, or to inform commercial work.
+
+Run without installing globally:
+
+```bash
+pnpm dlx @seo-polish/cli seo-polish scan https://example.com --output ./seo-polish-report
+pnpm dlx @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
+pnpm dlx @seo-polish/cli seo-polish plan build --report ./seo-polish-report
+```
+
 Core commands:
 
 - `seo-polish scan <url>`
