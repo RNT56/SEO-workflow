@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 
@@ -20,12 +20,10 @@ const tempDir = await mkdtemp(join(tmpdir(), "seo-polish-report-ui-"));
 const fixturePath = join(tempDir, "index.html");
 await writeFile(fixturePath, renderHtmlReport(makeBundle()), "utf8");
 
+const localReportTargets = await discoverLocalReportTargets();
 const candidateReports = [
   { path: fixturePath, required: true },
-  {
-    path: join(root, "packages/cli/reports/portfolio-rnt56-netlify-2026-07-06-production/index.html"),
-    required: false
-  }
+  ...localReportTargets.map((path) => ({ path, required: false }))
 ].filter((report) => existsSync(report.path));
 
 let browser;
@@ -50,6 +48,32 @@ try {
   console.log(`Report UI smoke passed for ${passed} report(s).`);
 } finally {
   await browser.close();
+}
+
+async function discoverLocalReportTargets() {
+  const explicitTargets = (process.env.SEO_POLISH_REPORT_UI_TARGETS ?? "")
+    .split(delimiter)
+    .map((target) => target.trim())
+    .filter(Boolean)
+    .map((target) => resolve(target));
+  if (explicitTargets.length > 0) {
+    return Array.from(new Set(explicitTargets));
+  }
+
+  const reportsDir = join(root, "packages/cli/reports");
+  if (!existsSync(reportsDir)) {
+    return [];
+  }
+
+  const entries = await readdir(reportsDir, { withFileTypes: true });
+  return Array.from(
+    new Set(
+      entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => join(reportsDir, entry.name, "index.html"))
+        .filter((target) => existsSync(target))
+    )
+  ).sort();
 }
 
 async function smokeReport(browserInstance, reportPath, required) {
