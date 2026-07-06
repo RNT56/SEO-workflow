@@ -1,17 +1,13 @@
 import type {
   Finding,
-  RemediationOption,
+  ReportDashboard,
+  ReportDashboardQueueItem,
   ReportBundle,
   ScoreCategory,
   ValidationCheck
 } from "@seo-polish/schemas";
-import {
-  FIX_CLASS_LABEL,
-  countBySeverity,
-  formatSet,
-  groupFindings,
-  uniqueRemediationOptions
-} from "./reportSignal.js";
+import { buildReportDashboard } from "./buildReportDashboard.js";
+import { FIX_CLASS_LABEL, countBySeverity, formatSet, groupFindings } from "./reportSignal.js";
 
 export interface AgentExecutionPlanBenchmark {
   score: number;
@@ -25,12 +21,14 @@ export interface AgentExecutionPlanBenchmark {
 
 export interface AgentExecutionPlanOptions {
   benchmark?: AgentExecutionPlanBenchmark | null;
+  dashboard?: ReportDashboard;
 }
 
 export function renderAgentExecutionPlan(
   bundle: ReportBundle,
   options: AgentExecutionPlanOptions = {}
 ): string {
+  const dashboard = options.dashboard ?? buildReportDashboard(bundle);
   const lines: string[] = [
     "# Agent Execution Plan",
     "",
@@ -53,6 +51,7 @@ export function renderAgentExecutionPlan(
     "- `suppression-report.json`: non-destructive ledger of intentional exceptions.",
     "- `findings.json`: evidence-backed issue inventory.",
     "- `score.json`: current score and category breakdown.",
+    "- `report-dashboard.json`: execution cockpit queues, template heatmap, performance summary and comparison data.",
     "- `remediation-plan.json`: fix classes, phases, risks and validation commands.",
     "- `priority-action-plan.md`: ordered remediation summary.",
     "- `patch.diff` and `patch-plan.md`: diff-only proposals where available.",
@@ -74,6 +73,8 @@ export function renderAgentExecutionPlan(
     "",
     renderFindingSummary(bundle.findings),
     "",
+    renderDashboardSummary(dashboard),
+    "",
     renderBenchmarkSummary(options.benchmark),
     "",
     "## Execution Policy",
@@ -92,11 +93,23 @@ export function renderAgentExecutionPlan(
     "4. Run the website repo's existing lint, typecheck, test, build and security checks.",
     "5. Keep the generated `seo-polish-report/` folder available in the website repo or reference this report directory directly.",
     "",
-    renderSafeFixQueue(bundle.remediationPlan.safeFixes),
+    renderDashboardQueue(
+      "## Phase 1 - Next Best Fixes",
+      "Start here. These are the highest-signal non-approval items ranked by severity, expected impact, fix class and effort.",
+      dashboard.nextBestFixes
+    ),
     "",
-    renderManualStrategyQueue(bundle.remediationPlan.manualRecommendations),
+    renderDashboardQueue(
+      "## Phase 2 - Implementation Queue",
+      "Implement these after the next-best queue, keeping each change tied to its validation command.",
+      dashboard.implementationQueue.filter((item) => !item.approvalRequired)
+    ),
     "",
-    renderApprovalQueue(bundle.remediationPlan.approvalRequired),
+    renderDashboardQueue(
+      "## Phase 3 - Approval-Required Queue",
+      "Do not apply these until the site owner makes the required policy, canonical, indexing, auth, payment, crawler or MCP decision.",
+      dashboard.approvalQueue
+    ),
     "",
     renderFindingGroups(bundle.findings),
     "",
@@ -142,6 +155,19 @@ function renderFindingSummary(findings: Finding[]): string {
     `- Low: ${counts.low}`,
     `- Info: ${counts.info}`,
     `- Unique finding groups: ${groupFindings(findings).length}`
+  ].join("\n");
+}
+
+function renderDashboardSummary(dashboard: ReportDashboard): string {
+  return [
+    "Execution cockpit:",
+    "",
+    `- Next best fixes: ${dashboard.nextBestFixes.length}`,
+    `- Implementation queue items: ${dashboard.implementationQueue.length}`,
+    `- Approval-required items: ${dashboard.approvalQueue.length}`,
+    `- Route template heatmap entries: ${dashboard.templateHeatmap.length}`,
+    `- Performance budget failures: ${dashboard.performanceSummary.statusCounts.failed}`,
+    `- Baseline status: ${dashboard.baselineSummary.status}`
   ].join("\n");
 }
 
@@ -193,45 +219,26 @@ Benchmark data is not present. Run \`seo-polish benchmark --report <report-dir>\
   return lines.join("\n");
 }
 
-function renderSafeFixQueue(items: RemediationOption[]): string {
-  return renderRemediationQueue(
-    "## Phase 1 - Safe Auto-Fix Queue",
-    "These items can be implemented without owner approval when the repository implementation path is clear.",
-    items
-  );
-}
-
-function renderManualStrategyQueue(items: RemediationOption[]): string {
-  return renderRemediationQueue(
-    "## Phase 2 - Manual Strategy Queue",
-    "These items should be implemented by inspecting the source templates, metadata generators, content records or hosting configuration.",
-    items
-  );
-}
-
-function renderApprovalQueue(items: RemediationOption[]): string {
-  return renderRemediationQueue(
-    "## Phase 3 - Approval-Required Queue",
-    "These items must not be applied until the owner makes the required decision.",
-    items
-  );
-}
-
-function renderRemediationQueue(title: string, intro: string, items: RemediationOption[]): string {
+function renderDashboardQueue(title: string, intro: string, items: ReportDashboardQueueItem[]): string {
   const lines = [title, "", intro, ""];
-  const uniqueItems = uniqueRemediationOptions(items);
-  if (uniqueItems.length === 0) {
+  if (items.length === 0) {
     lines.push("No items.");
     return lines.join("\n");
   }
 
-  uniqueItems.forEach((item, index) => {
+  items.forEach((item, index) => {
     lines.push(`${index + 1}. ${item.findingId} - ${item.title}`);
     lines.push(`   - Class: ${FIX_CLASS_LABEL[item.fixClass]}`);
+    lines.push(`   - Owner: ${item.owner}`);
+    lines.push(`   - Automation readiness: ${item.automationReadiness}`);
+    lines.push(`   - Expected impact: ${item.expectedImpact}`);
     lines.push(`   - Risk: ${item.risk}`);
     lines.push(`   - Effort: ${item.effort}`);
-    lines.push(`   - Implementation path: ${item.implementationPath}`);
-    lines.push(`   - Validation: ${item.validation.join("; ")}`);
+    lines.push(`   - Approval required: ${item.approvalRequired ? "yes" : "no"}`);
+    lines.push(`   - Source candidates: ${item.sourceCandidates.join(", ") || "needs repo access"}`);
+    lines.push(`   - Affected templates: ${item.affectedTemplates.join(", ") || "N/A"}`);
+    lines.push(`   - Validation: ${item.validationCommand}`);
+    lines.push(`   - Next step: ${item.nextStep}`);
   });
   return lines.join("\n");
 }

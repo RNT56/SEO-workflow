@@ -15,16 +15,31 @@ describe("report signal rendering", () => {
 
     const html = renderHtmlReport(bundle);
     expect(html).toContain('data-filter="info"');
+    expect(html).toContain('data-view-tab="overview"');
+    expect(html).toContain('data-view-tab="implementation"');
+    expect(html).toContain('data-view-tab="performance"');
+    expect(html).toContain('data-view-tab="templates"');
+    expect(html).toContain('data-view-tab="comparison"');
+    expect(html).toContain('data-view-tab="evidence"');
+    expect(html).toContain('data-queue-filter="owner"');
+    expect(html).toContain('data-queue-filter="fixClass"');
+    expect(html).toContain('data-queue-filter="readiness"');
+    expect(html).toContain('data-queue-filter="approval"');
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('class="score-ring large"');
     expect(html).toContain("Finding distribution");
     expect(html).toContain("Score model");
+    expect(html).toContain("Executive Summary");
+    expect(html).toContain("Implementation Queue");
+    expect(html).toContain("Impact vs Effort");
+    expect(html).toContain("Grouped Evidence Drawers");
     expect(html).toContain("function copyText");
     expect(html).toContain("document.execCommand('copy')");
     expect(html).toContain("Passed/not-applicable checks omitted: 2");
+    expect(html).toContain("evidence-drawer");
     expect(html).not.toContain("Passed detail that should stay in validation.json");
-    expect(html.match(/class="finding"/g) ?? []).toHaveLength(1);
-    expect(html.match(/id="validation-[^"]+"/g) ?? []).toHaveLength(1);
+    expect(html.match(/data-finding-card/g) ?? []).toHaveLength(3);
+    expect(html.match(/id="validation-[^"]+"/g) ?? []).toHaveLength(2);
   });
 });
 

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { writeEvidenceStore } from "@seo-polish/evidence";
 import { generatePatchBundle } from "@seo-polish/patchers";
 import { createRemediationPlan } from "@seo-polish/remediation";
-import { lintReport, writeReportBundle } from "@seo-polish/reporters";
+import { lintReport, writeReportBundle, type ReportDashboardQualityGate } from "@seo-polish/reporters";
 import { evaluateRules } from "@seo-polish/rules";
 import { scanSite } from "@seo-polish/scanner";
 import type {
@@ -71,14 +71,19 @@ export async function runScan(input: ScanConfigInput): Promise<ScanSummary> {
   await writePatchSupportFiles(config.outputDir, patchBundle);
   await writeIntelligenceSupportFiles(config.outputDir, findings, baselineComparison, suppressionReport);
   await writeFile(join(config.outputDir, "scan-result.json"), `${JSON.stringify(scan, null, 2)}\n`, "utf8");
-  await writeReportBundle(config.outputDir, bundle);
+  await writeReportBundle(config.outputDir, bundle, { baselineComparison });
   await writeFinalSupportFiles(config.outputDir, bundle, baselineComparison);
   await writeQualityGate(config.outputDir, bundle, suppressionReport, baselineComparison);
 
   const validation = await runValidation({ reportDir: config.outputDir, findings, strict: true });
   const finalBundle: ReportBundle = { ...bundle, validation };
-  await writeQualityGate(config.outputDir, finalBundle, suppressionReport, baselineComparison);
-  await writeReportBundle(config.outputDir, finalBundle);
+  const qualityGate = await writeQualityGate(
+    config.outputDir,
+    finalBundle,
+    suppressionReport,
+    baselineComparison
+  );
+  await writeReportBundle(config.outputDir, finalBundle, { baselineComparison, qualityGate });
   await writeFinalSupportFiles(config.outputDir, finalBundle, baselineComparison);
 
   return {
@@ -178,7 +183,7 @@ async function writeQualityGate(
   bundle: ReportBundle,
   suppressionReport: SuppressionReport,
   baselineComparison: BaselineComparison
-): Promise<void> {
+): Promise<ReportDashboardQualityGate> {
   const missingActionability = bundle.findings.filter((finding) => !finding.actionability).length;
   const evidenceFreeFindings = bundle.findings.filter((finding) => finding.evidence.length === 0).length;
   const invalidSafeFixes = bundle.findings.filter(
@@ -215,6 +220,7 @@ async function writeQualityGate(
     `${JSON.stringify(qualityGate, null, 2)}\n`,
     "utf8"
   );
+  return qualityGate;
 }
 
 async function writeFinalSupportFiles(

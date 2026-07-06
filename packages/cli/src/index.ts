@@ -17,6 +17,7 @@ import { renderAgentExecutionPlan, type AgentExecutionPlanBenchmark } from "@seo
 import type {
   Finding,
   PerformanceBudget,
+  ReportDashboard,
   ReportBundle,
   ScanResult,
   ValidationResult,
@@ -76,8 +77,13 @@ async function main(argv: string[]): Promise<void> {
     const outputPath = flagString(args, "output-file", join(reportDir, "agent-execution-plan.md"));
     const bundle = await readReportBundle(reportDir);
     const benchmark = await readOptionalJson<AgentExecutionPlanBenchmark>(join(reportDir, "benchmark.json"));
+    const dashboard = await readOptionalJson<ReportDashboard>(join(reportDir, "report-dashboard.json"));
     await mkdir(dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, renderAgentExecutionPlan(bundle, { benchmark }), "utf8");
+    await writeFile(
+      outputPath,
+      renderAgentExecutionPlan(bundle, { benchmark, ...(dashboard ? { dashboard } : {}) }),
+      "utf8"
+    );
     console.log(JSON.stringify({ outputPath, benchmarkIncluded: Boolean(benchmark) }, null, 2));
     return;
   }
@@ -187,9 +193,10 @@ async function main(argv: string[]): Promise<void> {
     await writeFile(join(reportDir, "benchmark.json"), `${JSON.stringify(result, null, 2)}\n`, "utf8");
     await writeFile(join(reportDir, "benchmark.md"), renderBenchmarkMarkdown(result), "utf8");
     const bundle = await readReportBundle(reportDir);
+    const dashboard = await readOptionalJson<ReportDashboard>(join(reportDir, "report-dashboard.json"));
     await writeFile(
       join(reportDir, "agent-execution-plan.md"),
-      renderAgentExecutionPlan(bundle, { benchmark: result }),
+      renderAgentExecutionPlan(bundle, { benchmark: result, ...(dashboard ? { dashboard } : {}) }),
       "utf8"
     );
     console.log(JSON.stringify(result, null, 2));

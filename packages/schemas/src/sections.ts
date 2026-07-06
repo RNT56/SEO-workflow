@@ -48,7 +48,7 @@ export const REPORT_SECTIONS: ReportSection[] = [
   { number: 27, title: "Final Agent Execution Plan", categories: [] }
 ];
 
-export const REPORT_CONTRACT_VERSION = "2026-07-06.production-intelligence";
+export const REPORT_CONTRACT_VERSION = "2026-07-06.execution-cockpit";
 
 export const REQUIRED_REPORT_FILES = [
   "index.md",
@@ -56,6 +56,7 @@ export const REQUIRED_REPORT_FILES = [
   "scan-result.json",
   "findings.json",
   "score.json",
+  "report-dashboard.json",
   "evidence.jsonl",
   "remediation-plan.json",
   "validation.json",

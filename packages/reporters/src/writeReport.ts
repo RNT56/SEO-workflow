@@ -3,6 +3,8 @@ import { join } from "node:path";
 import type { ReportBundle } from "@seo-polish/schemas";
 import type { AgentExecutionPlanOptions } from "./renderAgentExecutionPlan.js";
 import { renderAgentExecutionPlan } from "./renderAgentExecutionPlan.js";
+import type { ReportDashboardOptions } from "./buildReportDashboard.js";
+import { buildReportDashboard } from "./buildReportDashboard.js";
 import {
   renderAgentInstructionIndex,
   renderAgentInstruction,
@@ -13,18 +15,26 @@ import {
 import { renderHtmlReport } from "./renderHtmlReport.js";
 import { findingInstanceCounts, formatInstanceSuffix, uniqueRemediationOptions } from "./reportSignal.js";
 
+export interface ReportBundleWriteOptions extends AgentExecutionPlanOptions, ReportDashboardOptions {}
+
 export async function writeReportBundle(
   outputDir: string,
   bundle: ReportBundle,
-  options: AgentExecutionPlanOptions = {}
+  options: ReportBundleWriteOptions = {}
 ): Promise<void> {
   await mkdir(outputDir, { recursive: true });
   await mkdir(join(outputDir, "agent-instructions"), { recursive: true });
 
+  const dashboard = buildReportDashboard(bundle, options);
   await writeFile(join(outputDir, "index.md"), renderMarkdownReport(bundle), "utf8");
-  await writeFile(join(outputDir, "index.html"), renderHtmlReport(bundle), "utf8");
+  await writeFile(join(outputDir, "index.html"), renderHtmlReport(bundle, { dashboard }), "utf8");
   await writeFile(join(outputDir, "findings.json"), `${JSON.stringify(bundle.findings, null, 2)}\n`, "utf8");
   await writeFile(join(outputDir, "score.json"), `${JSON.stringify(bundle.score, null, 2)}\n`, "utf8");
+  await writeFile(
+    join(outputDir, "report-dashboard.json"),
+    `${JSON.stringify(dashboard, null, 2)}\n`,
+    "utf8"
+  );
   await writeFile(
     join(outputDir, "remediation-plan.json"),
     `${JSON.stringify(bundle.remediationPlan, null, 2)}\n`,
@@ -40,7 +50,7 @@ export async function writeReportBundle(
   await writeFile(join(outputDir, "priority-action-plan.md"), renderPriorityActionPlan(bundle), "utf8");
   await writeFile(
     join(outputDir, "agent-execution-plan.md"),
-    renderAgentExecutionPlan(bundle, options),
+    renderAgentExecutionPlan(bundle, { ...options, dashboard }),
     "utf8"
   );
   await writeFile(join(outputDir, "github-pr-comment.md"), renderGitHubPrComment(bundle), "utf8");

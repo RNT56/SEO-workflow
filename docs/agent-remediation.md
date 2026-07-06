@@ -16,6 +16,7 @@ If only the live URL is available, SEO polish workflow can still produce a full 
 Treat the generated report bundle as the execution contract. Start with:
 
 - `seo-polish-report/agent-execution-plan.md`
+- `seo-polish-report/report-dashboard.json`
 - `seo-polish-report/findings.json`
 - `seo-polish-report/remediation-plan.json`
 - `seo-polish-report/actionability.json`
@@ -50,7 +51,7 @@ Website source repo: current workspace
 Run the workflow end to end:
 1. Build the SEO workflow if needed.
 2. Scan the live site into ./seo-polish-report with --repo pointing at the website source repo when available.
-3. Read agent-execution-plan.md first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
+3. Read agent-execution-plan.md and report-dashboard.json first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
 4. Apply only safe_auto_fix items directly in the website source repo when source candidates are clear and validation commands exist.
 5. Treat manual_strategy items as normal implementation work that needs source inspection and engineering judgment.
 6. Do not make policy, auth, payment, indexing, canonical, crawler or MCP mutation changes without explicit approval.
@@ -96,6 +97,7 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm test:fixtures
+pnpm test:report-ui
 pnpm security
 ```
 

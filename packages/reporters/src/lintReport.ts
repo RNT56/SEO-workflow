@@ -6,9 +6,10 @@ import {
   sectionHeading,
   validateFindings,
   validateRemediationPlan,
+  validateReportDashboard,
   validateScore
 } from "@seo-polish/schemas";
-import type { Finding, ValidationCheck, ValidationResult } from "@seo-polish/schemas";
+import type { Finding, ReportDashboard, ValidationCheck, ValidationResult } from "@seo-polish/schemas";
 import { findPrivateReferences, requiresApprovalForText } from "@seo-polish/security";
 
 export interface ReportLintOptions {
@@ -27,6 +28,7 @@ export async function lintReport(
   }
 
   const indexMd = await readText(join(reportDir, "index.md"));
+  const indexHtml = await readText(join(reportDir, "index.html"));
   if (indexMd) {
     for (const section of REPORT_SECTIONS) {
       const heading = sectionHeading(section);
@@ -51,6 +53,11 @@ export async function lintReport(
 
   const findings = await readJson<Finding[]>(join(reportDir, "findings.json"), checks, "findings.json");
   const score = await readJson<unknown>(join(reportDir, "score.json"), checks, "score.json");
+  const dashboard = await readJson<unknown>(
+    join(reportDir, "report-dashboard.json"),
+    checks,
+    "report-dashboard.json"
+  );
   const remediationPlan = await readJson<unknown>(
     join(reportDir, "remediation-plan.json"),
     checks,
@@ -67,6 +74,10 @@ export async function lintReport(
 
   if (score && typeof score === "object") {
     checks.push(...validateScore(score as Parameters<typeof validateScore>[0]).checks);
+  }
+
+  if (dashboard && typeof dashboard === "object") {
+    checks.push(...validateReportDashboard(dashboard as ReportDashboard).checks);
   }
 
   if (remediationPlan && typeof remediationPlan === "object") {
@@ -87,11 +98,98 @@ export async function lintReport(
     );
   }
 
+  if (strict && indexHtml) {
+    checks.push(...lintHtmlReport(indexHtml));
+  }
+
+  if (strict && dashboard) {
+    checks.push(
+      check(
+        "dashboard.size",
+        "Dashboard payload size",
+        Buffer.byteLength(JSON.stringify(dashboard), "utf8") <= 3_000_000,
+        "report-dashboard.json should stay below 3 MB for agent and browser consumption."
+      )
+    );
+  }
+
   return {
     ok: checks.every((item) => item.status !== "failed"),
     generatedAt: new Date().toISOString(),
     checks
   };
+}
+
+function lintHtmlReport(html: string): ValidationCheck[] {
+  const ids = matchAll(html, /\sid="([^"]+)"/g);
+  const duplicateIds = duplicates(ids);
+  const copyTargets = matchAll(html, /data-copy="([^"]+)"/g);
+  const missingCopyTargets = copyTargets.filter((target) => !ids.includes(target));
+  const viewTabs = matchAll(html, /data-view-tab="([^"]+)"/g);
+  const viewPanels = matchAll(html, /data-view-panel="([^"]+)"/g);
+  const missingViewPanels = viewTabs.filter((tab) => !viewPanels.includes(tab));
+  const emptyPanels = matchAll(html, /<div[^>]+data-view-panel="([^"]+)"[^>]*>\s*<\/div>/g);
+
+  return [
+    check(
+      "html.duplicate-ids",
+      "HTML duplicate IDs",
+      duplicateIds.length === 0,
+      duplicateIds.length === 0
+        ? "HTML IDs are unique."
+        : `Duplicate HTML IDs: ${duplicateIds.slice(0, 12).join(", ")}.`
+    ),
+    check(
+      "html.copy-targets",
+      "Copy controls target existing elements",
+      missingCopyTargets.length === 0,
+      missingCopyTargets.length === 0
+        ? "All copy buttons have valid targets."
+        : `Missing copy targets: ${missingCopyTargets.slice(0, 12).join(", ")}.`
+    ),
+    check(
+      "html.view-tabs",
+      "View tabs target existing panels",
+      missingViewPanels.length === 0,
+      missingViewPanels.length === 0
+        ? "All view tabs have matching panels."
+        : `Missing view panels: ${missingViewPanels.slice(0, 12).join(", ")}.`
+    ),
+    check(
+      "html.empty-view-panels",
+      "View panels are not empty",
+      emptyPanels.length === 0,
+      emptyPanels.length === 0
+        ? "No empty view panels detected."
+        : `Empty view panels: ${emptyPanels.slice(0, 12).join(", ")}.`
+    ),
+    check(
+      "html.queue-filters",
+      "Implementation queue filters present",
+      ["owner", "fixClass", "readiness", "approval"].every((filter) =>
+        html.includes(`data-queue-filter="${filter}"`)
+      ),
+      "Report must include owner, fix class, readiness and approval filters."
+    )
+  ];
+}
+
+function matchAll(input: string, pattern: RegExp): string[] {
+  return [...input.matchAll(pattern)]
+    .map((match) => match[1])
+    .filter((value): value is string => Boolean(value));
+}
+
+function duplicates(values: string[]): string[] {
+  const seen = new Set<string>();
+  const repeated = new Set<string>();
+  for (const value of values) {
+    if (seen.has(value)) {
+      repeated.add(value);
+    }
+    seen.add(value);
+  }
+  return [...repeated].sort();
 }
 
 async function fileExists(reportDir: string, file: string): Promise<ValidationCheck> {

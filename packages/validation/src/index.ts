@@ -22,6 +22,7 @@ const RECOMMENDED_SCAN_FILES = [
   "response-index.json",
   "header-index.json",
   "body-excerpts.json",
+  "report-dashboard.json",
   "tech-stack.json",
   "repo-analysis.json",
   "route-templates.json",

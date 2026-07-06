@@ -207,6 +207,131 @@ export interface Score {
   categories: ScoreCategory[];
 }
 
+export interface ReportDashboardQueueItem {
+  id: string;
+  findingId: string;
+  title: string;
+  severity: Severity;
+  category: FindingCategory;
+  owner: ActionOwner;
+  automationReadiness: AutomationReadiness;
+  fixClass: FixClass;
+  effort: Effort;
+  risk: Risk;
+  expectedImpact: "low" | "medium" | "high";
+  approvalRequired: boolean;
+  safeToAutoFix: boolean;
+  sourceCandidates: string[];
+  affectedTemplates: string[];
+  affectedUrls: string[];
+  validationCommand: string;
+  nextStep: string;
+  instances: number;
+  evidenceCount: number;
+}
+
+export interface ReportDashboardMatrixQuadrant {
+  id: "quick_wins" | "major_projects" | "fill_ins" | "strategic_approvals";
+  label: string;
+  summary: string;
+  items: ReportDashboardQueueItem[];
+}
+
+export interface ReportDashboardTemplateHeatmapItem {
+  template: string;
+  urlPattern: string | null;
+  representativeUrl: string | null;
+  pageCount: number;
+  issueCount: number;
+  criticalHighCount: number;
+  findingIds: string[];
+  sourceCandidates: string[];
+  affectedUrls: string[];
+  owners: ActionOwner[];
+}
+
+export interface ReportDashboardPerformanceSummary {
+  statusCounts: Record<BudgetStatus, number>;
+  metrics: PerformanceMetricSnapshot[];
+  largestAssets: Array<{
+    url: string;
+    type: ResourceTimingSnapshot["type"];
+    bytes: number;
+    thirdParty: boolean;
+    renderBlocking: boolean;
+  }>;
+  thirdParty: {
+    requests: number;
+    knownKb: number;
+    hosts: string[];
+  };
+  renderBlocking: Array<{
+    url: string;
+    type: ResourceTimingSnapshot["type"];
+    bytes: number | null;
+    totalMs: number | null;
+  }>;
+  timing: {
+    runs: number;
+    minDocumentFetchMs: number | null;
+    medianDocumentFetchMs: number | null;
+    p95DocumentFetchMs: number | null;
+    maxDocumentFetchMs: number | null;
+  };
+  limitations: string[];
+}
+
+export interface ReportDashboardBaselineSummary {
+  status: BaselineComparison["status"];
+  scoreDelta: number | null;
+  newFindingGroups: string[];
+  resolvedFindingGroups: string[];
+  recurringFindingGroups: string[];
+  unchangedFindingGroups: string[];
+  performanceDeltas: Record<string, number>;
+  notes: string[];
+}
+
+export interface ReportDashboardEvidenceStats {
+  evidenceEntries: number;
+  findings: number;
+  groupedFindings: number;
+  pages: number;
+  resources: number;
+  validationCommands: number;
+  approvalRequired: number;
+  safeAutoFixes: number;
+}
+
+export interface ReportDashboard {
+  generatedAt: string;
+  targetUrl: string;
+  score: Score;
+  validationOk: boolean;
+  qualityGateStatus: "passed" | "failed" | "unknown";
+  executiveSummary: {
+    topRisks: ReportDashboardQueueItem[];
+    topWins: ReportDashboardQueueItem[];
+    remainingApprovals: number;
+    validationState: "passed" | "failed";
+    qualityGateStatus: "passed" | "failed" | "unknown";
+  };
+  filters: {
+    owners: ActionOwner[];
+    fixClasses: FixClass[];
+    automationReadiness: AutomationReadiness[];
+    approvalStates: Array<"approval_required" | "no_approval_required">;
+  };
+  nextBestFixes: ReportDashboardQueueItem[];
+  implementationQueue: ReportDashboardQueueItem[];
+  approvalQueue: ReportDashboardQueueItem[];
+  impactEffortMatrix: ReportDashboardMatrixQuadrant[];
+  templateHeatmap: ReportDashboardTemplateHeatmapItem[];
+  performanceSummary: ReportDashboardPerformanceSummary;
+  baselineSummary: ReportDashboardBaselineSummary;
+  evidenceStats: ReportDashboardEvidenceStats;
+}
+
 export interface RemediationPhase {
   id: string;
   title: string;

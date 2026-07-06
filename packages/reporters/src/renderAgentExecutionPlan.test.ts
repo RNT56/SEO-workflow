@@ -13,7 +13,9 @@ describe("renderAgentExecutionPlan", () => {
     });
 
     expect(plan).toContain("# Agent Execution Plan");
-    expect(plan).toContain("## Phase 1 - Safe Auto-Fix Queue");
+    expect(plan).toContain("`report-dashboard.json`");
+    expect(plan).toContain("Execution cockpit:");
+    expect(plan).toContain("## Phase 1 - Next Best Fixes");
     expect(plan).toContain("Publish llms.txt");
     expect(plan).toContain("## Phase 3 - Approval-Required Queue");
     expect(plan).toContain("Confirm canonical strategy");

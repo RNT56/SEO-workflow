@@ -1,8 +1,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { writeReportBundle } from "@seo-polish/reporters";
-import type { AgentExecutionPlanBenchmark } from "@seo-polish/reporters";
+import type { AgentExecutionPlanBenchmark, ReportDashboardQualityGate } from "@seo-polish/reporters";
 import type {
+  BaselineComparison,
   Finding,
   RemediationPlan,
   ReportBundle,
@@ -22,7 +23,13 @@ export async function runReportRender(reportDir: string): Promise<void> {
     patchDiff: await readText(join(reportDir, "patch.diff"))
   };
   const benchmark = await readOptionalJson<AgentExecutionPlanBenchmark>(join(reportDir, "benchmark.json"));
-  await writeReportBundle(reportDir, bundle, { benchmark });
+  const baselineComparison = await readOptionalJson<BaselineComparison>(
+    join(reportDir, "baseline-comparison.json")
+  );
+  const qualityGate = await readOptionalJson<ReportDashboardQualityGate>(
+    join(reportDir, "quality-gate.json")
+  );
+  await writeReportBundle(reportDir, bundle, { benchmark, baselineComparison, qualityGate });
   await writeRenderSupportFiles(reportDir, bundle);
 }
 

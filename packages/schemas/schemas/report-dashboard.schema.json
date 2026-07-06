@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seo-polish.dev/schemas/report-dashboard.schema.json",
+  "type": "object",
+  "required": [
+    "generatedAt",
+    "targetUrl",
+    "score",
+    "validationOk",
+    "qualityGateStatus",
+    "executiveSummary",
+    "filters",
+    "nextBestFixes",
+    "implementationQueue",
+    "approvalQueue",
+    "impactEffortMatrix",
+    "templateHeatmap",
+    "performanceSummary",
+    "baselineSummary",
+    "evidenceStats"
+  ],
+  "properties": {
+    "generatedAt": { "type": "string" },
+    "targetUrl": { "type": "string" },
+    "score": { "type": "object" },
+    "validationOk": { "type": "boolean" },
+    "qualityGateStatus": { "enum": ["passed", "failed", "unknown"] },
+    "executiveSummary": { "type": "object" },
+    "filters": { "type": "object" },
+    "nextBestFixes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/queueItem" }
+    },
+    "implementationQueue": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/queueItem" }
+    },
+    "approvalQueue": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/queueItem" }
+    },
+    "impactEffortMatrix": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "templateHeatmap": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "performanceSummary": { "type": "object" },
+    "baselineSummary": { "type": "object" },
+    "evidenceStats": { "type": "object" }
+  },
+  "$defs": {
+    "queueItem": {
+      "type": "object",
+      "required": [
+        "id",
+        "findingId",
+        "title",
+        "severity",
+        "category",
+        "owner",
+        "automationReadiness",
+        "fixClass",
+        "effort",
+        "risk",
+        "expectedImpact",
+        "approvalRequired",
+        "safeToAutoFix",
+        "sourceCandidates",
+        "affectedTemplates",
+        "affectedUrls",
+        "validationCommand",
+        "nextStep",
+        "instances",
+        "evidenceCount"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "findingId": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "severity": { "type": "string" },
+        "category": { "type": "string" },
+        "owner": { "type": "string" },
+        "automationReadiness": { "type": "string" },
+        "fixClass": { "type": "string" },
+        "effort": { "type": "string" },
+        "risk": { "type": "string" },
+        "expectedImpact": { "enum": ["low", "medium", "high"] },
+        "approvalRequired": { "type": "boolean" },
+        "safeToAutoFix": { "type": "boolean" },
+        "sourceCandidates": { "type": "array", "items": { "type": "string" } },
+        "affectedTemplates": { "type": "array", "items": { "type": "string" } },
+        "affectedUrls": { "type": "array", "items": { "type": "string" } },
+        "validationCommand": { "type": "string", "minLength": 1 },
+        "nextStep": { "type": "string", "minLength": 1 },
+        "instances": { "type": "number", "minimum": 0 },
+        "evidenceCount": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

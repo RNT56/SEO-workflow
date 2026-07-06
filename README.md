@@ -114,6 +114,7 @@ Each scan writes `seo-polish-report/`. The required and high-signal files are:
 | `index.md` and `index.html` | Human-readable audit report                                                                                                       |
 | `findings.json`             | Evidence-backed findings with impact, root cause, affected URLs, recommended fix, validation steps, confidence and approval flags |
 | `score.json`                | SEO and readiness scoring output                                                                                                  |
+| `report-dashboard.json`     | Stable execution cockpit model for the HTML report, implementation queue, impact/effort matrix and visual summaries               |
 | `evidence.jsonl`            | Raw evidence records used by findings                                                                                             |
 | `remediation-plan.json`     | Structured remediation phases and fix classifications                                                                             |
 | `validation.json`           | Report lint, signal-quality and safety validation results                                                                         |
@@ -134,11 +135,17 @@ Each scan writes `seo-polish-report/`. The required and high-signal files are:
 | `agent-instructions/*.md`   | Environment-specific execution guidance generated from the report                                                                 |
 | `agent-execution-plan.md`   | Source-repo handoff plan for repo-capable agents or human implementers                                                            |
 
+The HTML report is a static execution cockpit. It has file-safe tabs for overview, implementation,
+performance, route templates, baseline comparison and evidence review. The implementation view is driven
+by `report-dashboard.json`, so humans and repo-capable agents consume the same ordered queue, approval
+boundaries, validation commands and source candidates.
+
 Recommended support files include:
 
 ```text
 seo-polish-report/
   executive-summary.md
+  report-dashboard.json
   crawl-graph.svg
   response-index.json
   header-index.json
@@ -252,6 +259,7 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm test:fixtures
+pnpm test:report-ui
 pnpm security
 ```
 
