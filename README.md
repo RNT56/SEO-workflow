@@ -71,17 +71,6 @@ seo-polish-report/
     hermes.md
 ```
 
-## Agentic workflow integration
-
-Yes, this is the intended way to build an agentic SEO remediation workflow: use SEO polish workflow as the deterministic audit and remediation engine, then let a repo-capable agent system consume the generated report contract.
-
-The clean integration pattern gives the agent system two inputs:
-
-- The live website URL, so the workflow can audit what users and crawlers actually receive.
-- The website source repository and build system, so the agent can apply safe fixes, run local validation and commit real changes.
-
-If an agent only has the live URL, it can audit the site and produce a high-quality report, but it cannot safely repair the implementation. True end-to-end remediation requires source access.
-
 ### One-time setup
 
 ```bash
