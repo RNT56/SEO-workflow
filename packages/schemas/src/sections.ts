@@ -61,9 +61,16 @@ export const OPTIONAL_REPORT_FILES = [
   "executive-summary.md",
   "patch.diff",
   "crawl-graph.json",
+  "crawl-graph.svg",
   "raw-render-diff.json",
+  "internal-link-opportunities.json",
+  "orphan-pages.csv",
+  "deep-pages.csv",
   "github-pr-comment.md",
-  "before-after-score.json"
+  "before-after-score.json",
+  "remaining-user-decisions.md",
+  "benchmark.json",
+  "benchmark.md"
 ] as const;
 
 export function sectionHeading(section: ReportSection): string {

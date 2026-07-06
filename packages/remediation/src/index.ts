@@ -25,6 +25,8 @@ export function createRemediationPlan(findings: Finding[]): RemediationPlan {
     const rightSeverity = rightFinding?.severity ?? "info";
     return (
       SEVERITY_ORDER[leftSeverity] - SEVERITY_ORDER[rightSeverity] ||
+      fixClassWeight(left.fixClass) - fixClassWeight(right.fixClass) ||
+      affectedWeight(rightFinding) - affectedWeight(leftFinding) ||
       effortWeight(left.effort) - effortWeight(right.effort)
     );
   });
@@ -72,6 +74,12 @@ export function createRemediationPlan(findings: Finding[]): RemediationPlan {
           isFindingIn(findings, option.findingId, ["medium", "low"]) &&
           isAgentFinding(findings, option.findingId)
       )
+    ),
+    phase(
+      "user_decision_required",
+      "User decision required",
+      "Approval-required policy, auth, MCP, canonical and commerce decisions.",
+      sorted.filter((option) => option.fixClass === "approval_required")
     ),
     phase(
       "later",
@@ -152,6 +160,17 @@ function effortWeight(effort: RemediationOption["effort"]): number {
   if (effort === "small") return 0;
   if (effort === "medium") return 1;
   return 2;
+}
+
+function fixClassWeight(fixClass: RemediationOption["fixClass"]): number {
+  if (fixClass === "safe_auto_fix") return 0;
+  if (fixClass === "approval_required") return 1;
+  if (fixClass === "manual_strategy") return 2;
+  return 3;
+}
+
+function affectedWeight(finding: Finding | undefined): number {
+  return finding ? finding.affectedUrls.length + finding.affectedTemplates.length : 0;
 }
 
 function defaultPolicyFromFindings() {

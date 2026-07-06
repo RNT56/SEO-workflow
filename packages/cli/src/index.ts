@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-import { writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { benchmarkAgentExperience, renderBenchmarkMarkdown } from "@seo-polish/benchmark";
 import {
   DEFAULT_CONFIG,
   runApply,
@@ -12,6 +13,7 @@ import {
   type RenderJsMode,
   type SiteType
 } from "@seo-polish/core";
+import type { Finding, ScanResult } from "@seo-polish/schemas";
 
 interface ParsedArgs {
   command: string[];
@@ -123,12 +125,14 @@ async function main(argv: string[]): Promise<void> {
   }
 
   if (command === "benchmark") {
-    await writeFile(
-      join(flagString(args, "output", "seo-polish-report"), "benchmark.json"),
-      `${JSON.stringify({ status: "not_configured", metrics: [] }, null, 2)}\n`,
-      "utf8"
-    );
-    console.log("Benchmark placeholder written.");
+    const reportDir = flagString(args, "report", flagString(args, "output", "seo-polish-report"));
+    const scan = await readJson<ScanResult>(join(reportDir, "scan-result.json"));
+    const findings = await readJson<Finding[]>(join(reportDir, "findings.json"));
+    const result = benchmarkAgentExperience(scan, findings);
+    await mkdir(reportDir, { recursive: true });
+    await writeFile(join(reportDir, "benchmark.json"), `${JSON.stringify(result, null, 2)}\n`, "utf8");
+    await writeFile(join(reportDir, "benchmark.md"), renderBenchmarkMarkdown(result), "utf8");
+    console.log(JSON.stringify(result, null, 2));
     return;
   }
 
@@ -210,9 +214,13 @@ Usage:
   seo-polish report render ./seo-polish-report
   seo-polish policy init
   seo-polish standards update
-  seo-polish benchmark
+  seo-polish benchmark --report ./seo-polish-report
   seo-polish doctor
 `);
+}
+
+async function readJson<T>(path: string): Promise<T> {
+  return JSON.parse(await readFile(path, "utf8")) as T;
 }
 
 main(process.argv.slice(2)).catch((error) => {

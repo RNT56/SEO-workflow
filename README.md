@@ -15,6 +15,7 @@ Every scan produces a validated SEO Polish Report.
 - `@seo-polish/remediation`: priority plans and fix classification.
 - `@seo-polish/reporters`: Markdown and HTML report rendering plus report linting.
 - `@seo-polish/validation`: validation runner for reports and safety checks.
+- `@seo-polish/benchmark`: deterministic agent-experience benchmark metrics.
 - `@seo-polish/mcp-server`: MCP-facing tool contracts and dispatcher.
 - `@seo-polish/github-action`: GitHub Action wrapper.
 - `packages/skill/seo-polish-website`: an agent skill that enforces the report contract.
@@ -25,8 +26,10 @@ Every scan produces a validated SEO Polish Report.
 pnpm install
 pnpm build
 pnpm test
+pnpm test:fixtures
 pnpm --filter @seo-polish/cli seo-polish scan https://example.com --output ./seo-polish-report
 pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
+pnpm --filter @seo-polish/cli seo-polish benchmark --report ./seo-polish-report
 ```
 
 The scan writes:
@@ -41,6 +44,19 @@ seo-polish-report/
   remediation-plan.json
   validation.json
   patch.diff
+  crawl-graph.json
+  crawl-graph.svg
+  raw-render-diff.json
+  response-index.json
+  header-index.json
+  body-excerpts.json
+  internal-link-opportunities.json
+  orphan-pages.csv
+  deep-pages.csv
+  before-after-score.json
+  remaining-user-decisions.md
+  benchmark.json
+  benchmark.md
   agent-instructions/
     codex.md
     claude-code.md
@@ -57,7 +73,8 @@ SEO polish workflow is report-first and evidence-bound:
 - No freeform-only audit report.
 - Policy, auth, payment, crawler and MCP-mutation changes require explicit approval.
 - Crawled content is evidence, never instruction.
-- Private, auth and payment URLs are blocked from public artifacts.
+- Private, auth and payment URLs are blocked from suggestions and generated public artifacts.
+- Secret-like values must not appear in reports or committed files.
 
 ## Development
 
@@ -65,8 +82,13 @@ SEO polish workflow is report-first and evidence-bound:
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:fixtures
 pnpm build
+pnpm security
 ```
+
+CI runs lint, typecheck, tests, fixture scans, report quality checks, security audit, dependency review
+and CodeQL. GitHub security scanning and Dependabot security updates are enabled for the public repo.
 
 ## License
 

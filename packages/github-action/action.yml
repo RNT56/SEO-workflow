@@ -16,6 +16,23 @@ inputs:
     description: "Fail when critical findings exist."
     required: false
     default: "true"
+  fail-on-report-lint:
+    description: "Fail when strict report linting fails."
+    required: false
+    default: "true"
+  fail-on-private-url:
+    description: "Fail when critical private URL or secret exposure findings exist."
+    required: false
+    default: "true"
+outputs:
+  report-path:
+    description: "Path to the generated SEO Polish Report directory."
+  score:
+    description: "Combined SEO Polish score."
+  critical-findings:
+    description: "Number of critical findings."
+  github-pr-comment:
+    description: "Path to the generated PR comment markdown."
 runs:
   using: "node24"
   main: "dist/index.js"

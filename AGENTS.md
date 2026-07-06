@@ -33,6 +33,7 @@ Every scan must cover:
 - MCP
 - Agent Skills
 - API discovery
+- auth discovery
 
 ## Mandatory report contract
 
@@ -46,6 +47,10 @@ Required outputs:
 - `seo-polish-report/score.json`
 - `seo-polish-report/remediation-plan.json`
 - `seo-polish-report/validation.json`
+- `seo-polish-report/evidence.jsonl`
+- `seo-polish-report/patch.diff`
+- `seo-polish-report/crawl-graph.json`
+- `seo-polish-report/raw-render-diff.json`
 
 Every finding must include:
 
@@ -76,3 +81,16 @@ Do not change without explicit approval:
 - mutating MCP behavior
 - product prices
 - local business data
+
+## Validation
+
+Before declaring work complete, run:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm test:fixtures
+pnpm security
+```

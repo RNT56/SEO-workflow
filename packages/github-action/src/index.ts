@@ -1,20 +1,34 @@
 import { appendFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { runReportLint, runScan } from "@seo-polish/core";
+import type { Finding } from "@seo-polish/schemas";
 
 async function main(): Promise<void> {
   const url = requiredInput("url");
   const outputDir = input("output", false) ?? "seo-polish-report";
   const maxPages = Number(input("max-pages", false) ?? "300");
   const failOnCritical = (input("fail-on-critical", false) ?? "true") === "true";
+  const failOnReportLint = (input("fail-on-report-lint", false) ?? "true") === "true";
+  const failOnPrivateUrl = (input("fail-on-private-url", false) ?? "true") === "true";
 
   const summary = await runScan({ url, outputDir, maxPages });
   const lint = await runReportLint(outputDir, true);
+  const findings = JSON.parse(await readFile(`${outputDir}/findings.json`, "utf8")) as Finding[];
+  const privateCriticals = findings.filter(
+    (finding) =>
+      finding.severity === "critical" && (finding.id === "SEO-SITEMAP-008" || finding.id === "AR-LLMS-008")
+  );
 
   writeOutput("report-path", outputDir);
   writeOutput("score", String(summary.score.total));
   writeOutput("critical-findings", String(summary.findingCounts.critical));
+  writeOutput("github-pr-comment", `${outputDir}/github-pr-comment.md`);
 
-  if (!lint.ok || (failOnCritical && summary.findingCounts.critical > 0)) {
+  if (
+    (failOnReportLint && !lint.ok) ||
+    (failOnCritical && summary.findingCounts.critical > 0) ||
+    (failOnPrivateUrl && privateCriticals.length > 0)
+  ) {
     process.exitCode = 1;
   }
 }

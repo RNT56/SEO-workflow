@@ -21,6 +21,7 @@
     "seo-polish": "node ./dist/index.js"
   },
   "dependencies": {
+    "@seo-polish/benchmark": "workspace:*",
     "@seo-polish/core": "workspace:*",
     "@seo-polish/schemas": "workspace:*"
   }

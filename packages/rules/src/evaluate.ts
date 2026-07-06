@@ -74,6 +74,7 @@ export function evaluateRules(scan: ScanResult): Finding[] {
   const robots = scan.discovery.robotsTxt;
   const sitemap = scan.discovery.sitemapXml;
   const llms = scan.discovery.llmsTxt;
+  const robotsAnalysis = robots?.ok ? analyzeRobotsBody(robots.bodyExcerpt) : null;
 
   if (!robots?.ok) {
     add({
@@ -142,7 +143,12 @@ export function evaluateRules(scan: ScanResult): Finding[] {
       });
     }
 
-    const privateSitemapUrls = scan.discovery.sitemapUrls.filter((url) => isPrivateUrl(url));
+    const privateSitemapUrls = [
+      ...new Set([
+        ...scan.discovery.sitemapUrls.filter((url) => isPrivateUrl(url)),
+        ...findPrivateReferences(sitemap.bodyExcerpt)
+      ])
+    ];
     if (privateSitemapUrls.length > 0) {
       add({
         id: "SEO-SITEMAP-008",
@@ -181,9 +187,49 @@ export function evaluateRules(scan: ScanResult): Finding[] {
     });
   }
 
+  if (robots?.ok && robotsAnalysis && !robotsAnalysis.hasAiPolicySignal) {
+    add({
+      id: "AR-ROBOTS-004",
+      title: "robots.txt does not state AI/content policy signals",
+      severity: "info",
+      confidence: 82,
+      evidence: [endpointEvidence("/robots.txt")],
+      affectedUrls: [robots.url],
+      impact:
+        "Agents and AI crawlers cannot distinguish owner-approved search, AI-input or AI-training policy.",
+      rootCause: "No Content-Signal, ai-input, ai-train or known AI crawler policy signal was detected.",
+      recommendation:
+        "Add policy placeholders or owner-approved content-signal comments after explicit decision.",
+      implementationPath: "Prepare robots.txt policy fields, but keep final AI policy values owner-approved.",
+      validation: ["Review robots.txt policy comments before publishing."],
+      approvalRequired: true
+    });
+  }
+
+  if (robots?.ok && robotsAnalysis && !robotsAnalysis.hasPrivateDisallows) {
+    add({
+      id: "AR-ROBOTS-006",
+      title: "robots.txt does not block common private areas",
+      confidence: 90,
+      evidence: [endpointEvidence("/robots.txt")],
+      affectedUrls: [robots.url],
+      affectedTemplates: ["robots.txt"],
+      impact:
+        "Agents may receive no explicit public signal to avoid admin, account, checkout or internal API paths.",
+      rootCause: "No private-path Disallow directives were detected for the wildcard user agent.",
+      recommendation: "Add Disallow rules for common private, auth, checkout and internal API paths.",
+      implementationPath:
+        "Append private-path Disallow entries to robots.txt without changing public crawl policy.",
+      validation: ["seo-polish validate --check security"],
+      safeToAutoFix: true
+    });
+  }
+
   for (const page of scan.pages) {
     evaluatePage(page, scan, add);
   }
+
+  evaluateCrossPageRules(scan, add);
 
   if (!llms?.ok) {
     add({
@@ -267,6 +313,7 @@ export function evaluateRules(scan: ScanResult): Finding[] {
   );
   discoveryJsonRule(scan, add, "/.well-known/mcp.json", "AR-MCP-001", "AR-MCP-002", "MCP discovery");
   discoveryJsonRule(scan, add, "/.well-known/api-catalog", "AR-API-001", "AR-API-002", "API Catalog");
+  evaluateMcpSafety(scan, add);
 
   if (
     (scan.siteType === "api" || scan.siteType === "app") &&
@@ -306,6 +353,48 @@ export function evaluateRules(scan: ScanResult): Finding[] {
     });
   }
 
+  if (
+    (scan.siteType === "api" || scan.siteType === "app") &&
+    !scan.discovery.endpoints["/.well-known/oauth-authorization-server"]?.ok
+  ) {
+    add({
+      id: "AR-AUTH-002",
+      title: "OAuth authorization server metadata is missing",
+      severity: "info",
+      confidence: 75,
+      evidence: [endpointEvidence("/.well-known/oauth-authorization-server")],
+      affectedUrls: [new URL("/.well-known/oauth-authorization-server", scan.config.url).toString()],
+      affectedTemplates: ["auth discovery"],
+      impact: "Agents cannot discover authorization endpoints from standard metadata.",
+      rootCause: "The OAuth authorization server metadata endpoint was not published.",
+      recommendation: "Publish OAuth metadata only if the site intentionally supports agent authentication.",
+      implementationPath: "Document supported auth flows and expose metadata after owner approval.",
+      validation: ["Review OAuth metadata and scopes before publishing."],
+      approvalRequired: true
+    });
+  }
+
+  if (
+    (scan.siteType === "api" || scan.siteType === "app") &&
+    !scan.discovery.endpoints["/.well-known/oauth-protected-resource"]?.ok
+  ) {
+    add({
+      id: "AR-AUTH-003",
+      title: "OAuth protected resource metadata is missing",
+      severity: "info",
+      confidence: 75,
+      evidence: [endpointEvidence("/.well-known/oauth-protected-resource")],
+      affectedUrls: [new URL("/.well-known/oauth-protected-resource", scan.config.url).toString()],
+      affectedTemplates: ["auth discovery"],
+      impact: "Agents cannot discover protected resource metadata and scope expectations.",
+      rootCause: "The OAuth protected resource metadata endpoint was not published.",
+      recommendation: "Publish protected resource metadata only when authenticated agent access is approved.",
+      implementationPath: "Document scopes and resource metadata after owner approval.",
+      validation: ["Review OAuth metadata and scopes before publishing."],
+      approvalRequired: true
+    });
+  }
+
   if (scan.config.includeSearchIntegrations) {
     add({
       id: "SEO-SEARCH-001",
@@ -319,6 +408,20 @@ export function evaluateRules(scan: ScanResult): Finding[] {
       recommendation:
         "Optionally import Search Console data and label it separately from crawler-observed evidence.",
       implementationPath: "Configure a Search Console integration in a future scan.",
+      validation: ["Confirm imported data is clearly labeled in the report."],
+      safeToAutoFix: false
+    });
+    add({
+      id: "SEO-SEARCH-002",
+      title: "Bing Webmaster Tools data was not imported",
+      severity: "info",
+      confidence: 70,
+      evidence: [endpointEvidence("/")],
+      affectedTemplates: ["search integration"],
+      impact: "Crawler-observed findings cannot be reconciled with Bing indexing and crawl data.",
+      rootCause: "No Bing Webmaster Tools connector data was provided to this scan.",
+      recommendation: "Optionally import Bing data and label it separately from crawler-observed evidence.",
+      implementationPath: "Configure a Bing Webmaster Tools integration in a future scan.",
       validation: ["Confirm imported data is clearly labeled in the report."],
       safeToAutoFix: false
     });
@@ -371,6 +474,38 @@ function evaluatePage(page: PageSnapshot, scan: ScanResult, add: (input: Finding
       recommendation: "Fix the route or remove it from public discovery files.",
       implementationPath: "Repair the route handler, redirect target or sitemap source for this URL.",
       validation: ["seo-polish validate --check seo"],
+      safeToAutoFix: false
+    });
+  }
+
+  if (!hasCacheHeader(page.headers)) {
+    add({
+      id: "SEO-PERF-010",
+      title: "HTML response is missing cache headers",
+      confidence: 78,
+      evidence: [pageEvidence("headers.cache-control", page.headers["cache-control"] ?? null)],
+      affectedUrls: [page.finalUrl],
+      impact: "Missing cache guidance can increase repeat-load cost and weaken performance consistency.",
+      rootCause: "No Cache-Control or Expires header was captured for the HTML response.",
+      recommendation: "Set explicit cache policy for HTML and static assets according to deployment needs.",
+      implementationPath: "Configure framework or edge response headers for public pages.",
+      validation: ["curl -I https://example.com/"],
+      safeToAutoFix: false
+    });
+  }
+
+  if (!hasCompressionHeader(page.headers) && likelyCompressible(page)) {
+    add({
+      id: "SEO-PERF-011",
+      title: "Compressible HTML response has no compression header",
+      confidence: 70,
+      evidence: [pageEvidence("headers.content-encoding", page.headers["content-encoding"] ?? null)],
+      affectedUrls: [page.finalUrl],
+      impact: "Uncompressed HTML can increase transfer size and hurt perceived performance.",
+      rootCause: "No Content-Encoding header was captured for a text/html response.",
+      recommendation: "Enable gzip, Brotli or equivalent compression at the server or edge.",
+      implementationPath: "Configure compression in the hosting platform, reverse proxy or framework server.",
+      validation: ["curl -H 'Accept-Encoding: br,gzip' -I https://example.com/"],
       safeToAutoFix: false
     });
   }
@@ -700,6 +835,22 @@ function evaluatePage(page: PageSnapshot, scan: ScanResult, add: (input: Finding
     });
   }
 
+  if (page.internalLinks.length === 0 && page.wordCount >= 30) {
+    add({
+      id: "SEO-LINK-003",
+      title: "Page has weak internal linking",
+      confidence: 76,
+      evidence: [pageEvidence("a[href]", { internalLinks: page.internalLinks.length })],
+      affectedUrls: [page.finalUrl],
+      impact: "Users, crawlers and agents have fewer paths to related canonical content.",
+      rootCause: "No crawlable internal links were extracted from the page.",
+      recommendation: "Add contextual internal links to related pages, hubs or next-step content.",
+      implementationPath: "Update page content or navigation to include relevant internal links.",
+      validation: ["seo-polish validate --check seo"],
+      safeToAutoFix: false
+    });
+  }
+
   const imagesMissingAlt = page.images.filter((image) => image.alt === null || image.alt.trim() === "");
   if (imagesMissingAlt.length > 0) {
     add({
@@ -750,6 +901,240 @@ function evaluatePage(page: PageSnapshot, scan: ScanResult, add: (input: Finding
       safeToAutoFix: true
     });
   }
+
+  if (scan.siteType === "local-business" && !schemaTypes.has("LocalBusiness")) {
+    add({
+      id: "SEO-LOCAL-003",
+      title: "LocalBusiness structured data is missing",
+      confidence: 82,
+      evidence: [pageEvidence("jsonld.types", [...schemaTypes])],
+      affectedUrls: [page.finalUrl],
+      affectedTemplates: ["local business page"],
+      impact: "Local search systems lack structured location, contact and opening-hours signals.",
+      rootCause: "The site appears local-business oriented, but no LocalBusiness JSON-LD was found.",
+      recommendation: "Add LocalBusiness JSON-LD from owner-approved business details.",
+      implementationPath: "Generate LocalBusiness schema only after confirming NAP and opening-hours data.",
+      validation: ["Validate LocalBusiness schema with approved business details."],
+      approvalRequired: true
+    });
+  }
+
+  if (scan.siteType === "local-business" && lacksNapSignals(page.bodyExcerpt)) {
+    add({
+      id: "SEO-LOCAL-001",
+      title: "Local business NAP signals are incomplete",
+      confidence: 70,
+      evidence: [pageEvidence("body.nap-signals", page.bodyExcerpt.slice(0, 400))],
+      affectedUrls: [page.finalUrl],
+      affectedTemplates: ["local business page"],
+      impact: "Local users and search systems may not find a consistent name, address and phone signal.",
+      rootCause: "The visible page excerpt lacks clear address or phone patterns.",
+      recommendation: "Add owner-approved name, address and phone information where appropriate.",
+      implementationPath: "Update contact/location content after confirming business details.",
+      validation: ["Manually verify published NAP details against the owner-approved source."],
+      approvalRequired: true
+    });
+  }
+
+  if (scan.siteType === "commerce" && !schemaTypes.has("Product")) {
+    add({
+      id: "SEO-ECOM-001",
+      title: "Product structured data is missing",
+      confidence: 84,
+      evidence: [pageEvidence("jsonld.types", [...schemaTypes])],
+      affectedUrls: [page.finalUrl],
+      affectedTemplates: ["product or commerce page"],
+      impact: "Product search surfaces cannot read product identity, image, price or availability metadata.",
+      rootCause: "The site appears commerce oriented, but no Product JSON-LD was found.",
+      recommendation: "Add Product JSON-LD on product detail templates.",
+      implementationPath:
+        "Generate Product schema from existing product records and approved merchant fields.",
+      validation: ["Validate Product schema and visible product data consistency."],
+      safeToAutoFix: false
+    });
+  }
+
+  if (scan.siteType === "commerce" && !schemaTypes.has("Offer")) {
+    add({
+      id: "SEO-ECOM-002",
+      title: "Offer structured data is missing",
+      confidence: 80,
+      evidence: [pageEvidence("jsonld.types", [...schemaTypes])],
+      affectedUrls: [page.finalUrl],
+      affectedTemplates: ["product or commerce page"],
+      impact: "Commerce search surfaces cannot read price, currency and availability metadata.",
+      rootCause: "The site appears commerce oriented, but no Offer JSON-LD was found.",
+      recommendation: "Add Offer JSON-LD using owner-approved price, currency and availability data.",
+      implementationPath: "Generate Offer schema from product records after confirming commercial data.",
+      validation: ["Manually verify price and availability values before publishing."],
+      approvalRequired: true
+    });
+  }
+}
+
+function evaluateCrossPageRules(scan: ScanResult, add: (input: FindingInput) => void): void {
+  const sitemapSet = new Set(scan.discovery.sitemapUrls.map(normalizeForCanonical));
+  const sitemapEvidence = scan.discovery.sitemapXml
+    ? toEvidence(scan.discovery.sitemapXml, "sitemap-cross-page")
+    : fallbackEvidence("/sitemap.xml", scan);
+
+  if (sitemapSet.size > 0) {
+    const missingFromSitemap = scan.pages
+      .filter((page) => page.status >= 200 && page.status < 300)
+      .filter((page) => !sitemapSet.has(normalizeForCanonical(page.finalUrl)))
+      .map((page) => page.finalUrl);
+    if (missingFromSitemap.length > 0) {
+      add({
+        id: "SEO-SITEMAP-011",
+        title: "Crawled public pages are missing from sitemap.xml",
+        confidence: 84,
+        evidence: [sitemapEvidence],
+        affectedUrls: missingFromSitemap,
+        impact: "Search crawlers and agents may miss canonical public pages not listed in the sitemap.",
+        rootCause: "The crawler found public pages through links that are absent from sitemap loc entries.",
+        recommendation:
+          "Include canonical public pages in the sitemap or intentionally remove crawlable links.",
+        implementationPath: "Update the sitemap generator to include linked canonical pages.",
+        validation: ["seo-polish validate --check sitemap"],
+        safeToAutoFix: false
+      });
+    }
+  }
+
+  const duplicateTitles = duplicateGroups(
+    scan.pages.filter((page) => Boolean(page.title)),
+    (page) => (page.title ?? "").trim().toLowerCase()
+  );
+  for (const group of duplicateTitles) {
+    add({
+      id: "SEO-ONPAGE-002",
+      title: "Duplicate title tags found",
+      confidence: 88,
+      evidence: [
+        crossPageEvidence(
+          "title",
+          group.map((page) => page.title)
+        )
+      ],
+      affectedUrls: group.map((page) => page.finalUrl),
+      impact: "Duplicate titles make pages harder to distinguish in search results and agent summaries.",
+      rootCause: "Multiple crawled pages share the same title string.",
+      recommendation: "Make page titles unique while preserving template consistency.",
+      implementationPath: "Update metadata templates or route-specific title fields.",
+      validation: ["seo-polish validate --check seo"],
+      safeToAutoFix: false
+    });
+  }
+
+  const duplicateDescriptions = duplicateGroups(
+    scan.pages.filter((page) => Boolean(page.metaDescription)),
+    (page) => (page.metaDescription ?? "").trim().toLowerCase()
+  );
+  for (const group of duplicateDescriptions) {
+    add({
+      id: "SEO-ONPAGE-006",
+      title: "Duplicate meta descriptions found",
+      confidence: 84,
+      evidence: [
+        crossPageEvidence(
+          "meta[name=description]",
+          group.map((page) => page.metaDescription)
+        )
+      ],
+      affectedUrls: group.map((page) => page.finalUrl),
+      impact: "Duplicate descriptions weaken page-specific search snippets and agent previews.",
+      rootCause: "Multiple pages share the same meta description.",
+      recommendation: "Write page-specific descriptions that match each page intent.",
+      implementationPath: "Update metadata templates or route-specific description fields.",
+      validation: ["seo-polish validate --check seo"],
+      safeToAutoFix: false
+    });
+  }
+
+  const duplicateContent = duplicateGroups(
+    scan.pages.filter((page) => page.wordCount >= 80),
+    (page) => page.bodyExcerpt.slice(0, 600).trim().toLowerCase()
+  );
+  for (const group of duplicateContent) {
+    add({
+      id: "SEO-CONTENT-002",
+      title: "Duplicate visible content found across pages",
+      confidence: 78,
+      evidence: [
+        crossPageEvidence(
+          "body-excerpt",
+          group.map((page) => page.bodyExcerpt.slice(0, 160))
+        )
+      ],
+      affectedUrls: group.map((page) => page.finalUrl),
+      impact: "Duplicate pages can split ranking signals and confuse agents about the canonical source.",
+      rootCause: "Multiple crawled pages expose the same leading body content.",
+      recommendation: "Consolidate duplicate pages, differentiate content, or canonicalize intentionally.",
+      implementationPath: "Review duplicate templates and canonical strategy before changing URLs.",
+      validation: ["seo-polish validate --check seo"],
+      approvalRequired: true
+    });
+  }
+
+  const hubCandidates = scan.pages.filter((page) => page.internalLinks.length >= 4);
+  if (scan.pages.length >= 4 && hubCandidates.length === 0) {
+    add({
+      id: "SEO-LINK-009",
+      title: "No clear internal hub page was detected",
+      confidence: 68,
+      evidence: [
+        crossPageEvidence(
+          "crawl-graph",
+          scan.pages.map((page) => [page.finalUrl, page.internalLinks.length])
+        )
+      ],
+      affectedTemplates: ["internal linking"],
+      impact:
+        "A site without hub pages can be harder for crawlers, users and agents to navigate efficiently.",
+      rootCause: "No crawled page links to four or more internal pages.",
+      recommendation: "Create or strengthen hub/navigation pages for important topic or product clusters.",
+      implementationPath: "Review information architecture and add contextual hub links.",
+      validation: ["Review crawl-graph.json and internal-link-opportunities.json."],
+      safeToAutoFix: false
+    });
+  }
+}
+
+function evaluateMcpSafety(scan: ScanResult, add: (input: FindingInput) => void): void {
+  const probe = scan.discovery.endpoints["/.well-known/mcp.json"];
+  if (!probe?.ok || !probe.bodyExcerpt.trim().startsWith("{")) {
+    return;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(probe.bodyExcerpt);
+  } catch {
+    return;
+  }
+
+  const riskyTools = collectRiskyToolNames(parsed);
+  if (riskyTools.length === 0) {
+    return;
+  }
+
+  add({
+    id: "AR-MCP-005",
+    title: "MCP metadata appears to expose mutating tools",
+    severity: "critical",
+    confidence: 82,
+    evidence: [toEvidence(probe, "mcp-mutating-tools")],
+    affectedUrls: [probe.url],
+    affectedTemplates: riskyTools,
+    impact:
+      "Agents could discover write, delete, checkout or payment-like capabilities without an approval boundary.",
+    rootCause: "MCP metadata contains tool names or descriptions that look mutating.",
+    recommendation: "Require auth, rate limits and explicit user approval for any mutating MCP tool.",
+    implementationPath:
+      "Mark mutating tools approval-required or remove them from public discovery until reviewed.",
+    validation: ["Review MCP server card and tool schemas manually before publication."],
+    approvalRequired: true
+  });
 }
 
 function discoveryJsonRule(
@@ -842,6 +1227,134 @@ function firstHeadingJump(page: PageSnapshot): { from: number; to: number } | nu
     previous = heading.level;
   }
   return null;
+}
+
+function duplicateGroups<T>(items: T[], keyFor: (item: T) => string): T[][] {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const key = keyFor(item);
+    if (!key) {
+      continue;
+    }
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  return [...groups.values()].filter((group) => group.length > 1);
+}
+
+function crossPageEvidence(selector: string, value: unknown): Evidence {
+  return {
+    id: `cross-page-${selector.replace(/[^a-z0-9]+/gi, "-")}`,
+    type: selector === "crawl-graph" ? "crawl_graph" : "html_selector",
+    selector,
+    value,
+    timestamp: new Date().toISOString()
+  };
+}
+
+function hasCacheHeader(headers: Record<string, string>): boolean {
+  return Boolean(headers["cache-control"] || headers.expires);
+}
+
+function hasCompressionHeader(headers: Record<string, string>): boolean {
+  return Boolean(headers["content-encoding"]);
+}
+
+function likelyCompressible(page: PageSnapshot): boolean {
+  return page.contentType.includes("text/html") && page.bodyExcerpt.length > 500;
+}
+
+function lacksNapSignals(text: string): boolean {
+  const lower = text.toLowerCase();
+  const hasAddressWord =
+    lower.includes("street") ||
+    lower.includes("st.") ||
+    lower.includes("road") ||
+    lower.includes("avenue") ||
+    lower.includes("suite") ||
+    lower.includes("address");
+  const digits = [...text].filter((char) => char >= "0" && char <= "9").length;
+  const hasPhoneLikeNumber = digits >= 7;
+  return !hasAddressWord || !hasPhoneLikeNumber;
+}
+
+function collectRiskyToolNames(value: unknown): string[] {
+  const risky = new Set<string>();
+  const visit = (item: unknown): void => {
+    if (Array.isArray(item)) {
+      item.forEach(visit);
+      return;
+    }
+    if (!item || typeof item !== "object") {
+      return;
+    }
+    const record = item as Record<string, unknown>;
+    const name = stringField(record, "name") ?? stringField(record, "id") ?? stringField(record, "title");
+    const description = stringField(record, "description") ?? stringField(record, "summary") ?? "";
+    const combined = `${name ?? ""} ${description}`.toLowerCase();
+    if (name && isMutatingToolText(combined)) {
+      risky.add(name);
+    }
+    Object.values(record).forEach(visit);
+  };
+  visit(value);
+  return [...risky];
+}
+
+function stringField(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key];
+  return typeof value === "string" ? value : null;
+}
+
+function isMutatingToolText(text: string): boolean {
+  const terms = [
+    "create",
+    "update",
+    "delete",
+    "remove",
+    "write",
+    "mutate",
+    "checkout",
+    "payment",
+    "purchase",
+    "refund",
+    "cancel",
+    "send"
+  ];
+  return terms.some((term) => text.includes(term));
+}
+
+function analyzeRobotsBody(body: string): { hasAiPolicySignal: boolean; hasPrivateDisallows: boolean } {
+  let hasAiPolicySignal = false;
+  let hasPrivateDisallows = false;
+  for (const rawLine of body.split("\n")) {
+    const line = rawLine.trim().toLowerCase();
+    if (
+      line.includes("content-signal") ||
+      line.includes("ai-input") ||
+      line.includes("ai-train") ||
+      line.includes("gptbot") ||
+      line.includes("google-extended") ||
+      line.includes("ccbot")
+    ) {
+      hasAiPolicySignal = true;
+    }
+    if (
+      line.startsWith("disallow:") &&
+      (line.includes("/admin") ||
+        line.includes("/account") ||
+        line.includes("/login") ||
+        line.includes("/logout") ||
+        line.includes("/checkout") ||
+        line.includes("/cart") ||
+        line.includes("/payment") ||
+        line.includes("/private") ||
+        line.includes("/preview") ||
+        line.includes("/api/internal"))
+    ) {
+      hasPrivateDisallows = true;
+    }
+  }
+  return { hasAiPolicySignal, hasPrivateDisallows };
 }
 
 function normalizeForCanonical(input: string): string {

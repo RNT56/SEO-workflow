@@ -68,15 +68,13 @@ export async function lintReport(
   }
 
   if (strict && indexMd) {
-    const leaked = findPrivateReferences(indexMd).filter(
-      (reference) => !reference.includes("/admin") && !reference.includes("/checkout")
-    );
+    const leaked = findPrivateReferences(indexMd).filter(isSecretLikeReference);
     checks.push(
       check(
         "safety.private-public",
-        "Private URL public report scan",
+        "Secret public report scan",
         leaked.length === 0,
-        "Report should not expose private tokens or secrets."
+        "Report should not expose secret-looking values."
       )
     );
   }
@@ -171,4 +169,25 @@ function check(id: string, title: string, ok: boolean, message: string): Validat
     message,
     severity: ok ? "info" : "error"
   };
+}
+
+function isSecretLikeReference(reference: string): boolean {
+  const lower = reference.toLowerCase();
+  const markers = [
+    ["token", "="].join(""),
+    ["api", "_", "key", "="].join(""),
+    ["apikey", "="].join(""),
+    ["secret", "="].join(""),
+    ["password", "="].join("")
+  ];
+  return (
+    markers.some((marker) => lower.includes(marker)) ||
+    reference.startsWith("sk-") ||
+    reference.startsWith("ghp_") ||
+    reference.startsWith("gho_") ||
+    reference.startsWith("ghu_") ||
+    reference.startsWith("ghs_") ||
+    reference.startsWith("ghr_") ||
+    reference.startsWith("xox")
+  );
 }

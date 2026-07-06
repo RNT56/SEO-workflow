@@ -8,6 +8,7 @@ import { evaluateRules } from "@seo-polish/rules";
 import { scanSite } from "@seo-polish/scanner";
 import type { Finding, ReportBundle, ScanSummary, Severity, ValidationResult } from "@seo-polish/schemas";
 import { calculateScore } from "@seo-polish/scoring";
+import { redactSensitiveValue } from "@seo-polish/security";
 import { runValidation } from "@seo-polish/validation";
 import type { ScanConfigInput } from "../config/resolveConfig.js";
 import { resolveConfig } from "../config/resolveConfig.js";
@@ -16,8 +17,10 @@ export async function runScan(input: ScanConfigInput): Promise<ScanSummary> {
   const config = await resolveConfig(input);
   await mkdir(config.outputDir, { recursive: true });
 
-  const scan = await scanSite(config);
-  const findings = evaluateRules(scan);
+  const rawScan = await scanSite(config);
+  const rawFindings = evaluateRules(rawScan);
+  const scan = redactSensitiveValue(rawScan);
+  const findings = rawFindings.map((finding) => redactSensitiveValue(finding));
   const score = calculateScore(findings);
   const remediationPlan = createRemediationPlan(findings);
   const patchBundle = generatePatchBundle(config, findings, remediationPlan);
@@ -49,10 +52,12 @@ export async function runScan(input: ScanConfigInput): Promise<ScanSummary> {
   await writePatchSupportFiles(config.outputDir, patchBundle);
   await writeFile(join(config.outputDir, "scan-result.json"), `${JSON.stringify(scan, null, 2)}\n`, "utf8");
   await writeReportBundle(config.outputDir, bundle);
+  await writeFinalSupportFiles(config.outputDir, bundle);
 
   const validation = await runValidation({ reportDir: config.outputDir, findings, strict: true });
   const finalBundle: ReportBundle = { ...bundle, validation };
   await writeReportBundle(config.outputDir, finalBundle);
+  await writeFinalSupportFiles(config.outputDir, finalBundle);
 
   return {
     scanId: scan.scanId,
@@ -121,6 +126,37 @@ async function writePatchSupportFiles(
     `${patchBundle.manualActions.map((item) => `- ${item}`).join("\n")}\n`,
     "utf8"
   );
+}
+
+async function writeFinalSupportFiles(outputDir: string, bundle: ReportBundle): Promise<void> {
+  await writeFile(
+    join(outputDir, "before-after-score.json"),
+    `${JSON.stringify(
+      {
+        baseline: null,
+        current: bundle.score,
+        after: null,
+        status: "baseline_not_available",
+        message: "Run a second scan after applying safe fixes to populate before/after score comparison."
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+
+  const decisionLines = [
+    "# Remaining User Decisions",
+    "",
+    ...bundle.remediationPlan.userDecisions.flatMap((decision, index) => [
+      `${index + 1}. ${decision.title}`,
+      `   Reason: ${decision.reason}`,
+      `   Default: ${decision.default}`,
+      `   Options: ${decision.options.join(", ")}`,
+      ""
+    ])
+  ];
+  await writeFile(join(outputDir, "remaining-user-decisions.md"), decisionLines.join("\n"), "utf8");
 }
 
 async function readJson<T>(path: string): Promise<T> {

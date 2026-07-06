@@ -76,7 +76,10 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
     }
     const probe = sitemapUrl === sitemapXml?.url ? sitemapXml : await probeEndpoint(sitemapUrl, "", config);
     const parsed = parseSitemapXml(probe.bodyExcerpt);
-    for (const url of parsed.urls) {
+    const urls = hasSitemapIndexRoot(probe.bodyExcerpt)
+      ? await collectNestedSitemapUrls(parsed.urls, origin, config)
+      : parsed.urls;
+    for (const url of urls) {
       try {
         const normalized = normalizeUrl(url);
         if (sameOrigin(normalized, origin)) {
@@ -171,4 +174,32 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
     evidence,
     crawlGraph
   };
+}
+
+async function collectNestedSitemapUrls(
+  sitemapUrls: string[],
+  origin: string,
+  config: ScanConfig
+): Promise<string[]> {
+  const pageUrls: string[] = [];
+  for (const sitemapUrl of sitemapUrls.slice(0, 20)) {
+    try {
+      const normalized = normalizeUrl(sitemapUrl);
+      if (!sameOrigin(normalized, origin)) {
+        continue;
+      }
+      const probe = await probeEndpoint(normalized, "", config);
+      if (!probe.ok) {
+        continue;
+      }
+      pageUrls.push(...parseSitemapXml(probe.bodyExcerpt).urls);
+    } catch {
+      // Malformed nested sitemap URL is surfaced by sitemap rules from endpoint evidence.
+    }
+  }
+  return pageUrls;
+}
+
+function hasSitemapIndexRoot(xml: string): boolean {
+  return xml.toLowerCase().includes("<sitemapindex");
 }

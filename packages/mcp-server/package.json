@@ -20,6 +20,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@seo-polish/benchmark": "workspace:*",
     "@seo-polish/core": "workspace:*",
     "@seo-polish/schemas": "workspace:*"
   }

@@ -32,15 +32,23 @@ const AREAS: AreaDefinition[] = [
       "crawlability",
       "indexability",
       "onpage_seo",
+      "content_seo",
       "internal_linking",
-      "structured_data"
+      "structured_data",
+      "javascript_seo",
+      "media_seo",
+      "performance_seo",
+      "accessibility",
+      "international_seo",
+      "local_seo",
+      "ecommerce_seo"
     ]
   },
   {
     id: "agentReadiness",
     label: "Agent Readiness",
     maxScore: 100,
-    categories: ["agent_readiness", "protocol_discovery", "api_auth_mcp"]
+    categories: ["agent_readiness", "protocol_discovery", "api_auth_mcp", "policy"]
   },
   {
     id: "technicalHealth",
@@ -58,7 +66,7 @@ const AREAS: AreaDefinition[] = [
     id: "performanceAccessibility",
     label: "Performance & Accessibility",
     maxScore: 100,
-    categories: ["performance_seo", "media_seo", "accessibility"]
+    categories: ["performance_seo", "media_seo", "accessibility", "javascript_seo"]
   },
   {
     id: "securityPolicy",

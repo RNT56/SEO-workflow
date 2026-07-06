@@ -72,6 +72,75 @@ new file mode 100644
 `);
   }
 
+  if (safeFindingIds.has("AR-SKILL-001")) {
+    changedFiles.push({
+      path: "public/.well-known/agent-skills/index.json",
+      reason: "Add an agent skills discovery index.",
+      mode: "create"
+    });
+    chunks.push(`diff --git a/public/.well-known/agent-skills/index.json b/public/.well-known/agent-skills/index.json
+new file mode 100644
+--- /dev/null
++++ b/public/.well-known/agent-skills/index.json
+@@ -0,0 +1,9 @@
++{
++  "skills": [
++    {
++      "name": "use-${new URL(config.url).hostname.replace(/[^a-z0-9]+/gi, "-")}",
++      "type": "skill-md",
++      "description": "Find canonical public content and avoid private or deprecated paths.",
++      "url": "/.well-known/agent-skills/use-site/SKILL.md"
++    }
++  ]
++}
+`);
+  }
+
+  if (safeFindingIds.has("AR-API-001")) {
+    changedFiles.push({
+      path: "public/.well-known/api-catalog",
+      reason: "Add API catalog linkset placeholder.",
+      mode: "create"
+    });
+    chunks.push(`diff --git a/public/.well-known/api-catalog b/public/.well-known/api-catalog
+new file mode 100644
+--- /dev/null
++++ b/public/.well-known/api-catalog
+@@ -0,0 +1,15 @@
++{
++  "linkset": [
++    {
++      "anchor": "${origin}",
++      "service-doc": [
++        {
++          "href": "${origin}/docs/api",
++          "type": "text/html",
++          "title": "API documentation"
++        }
++      ]
++    }
++  ]
++}
+`);
+  }
+
+  if (safeFindingIds.has("SEO-ONPAGE-010") || safeFindingIds.has("SEO-ONPAGE-011")) {
+    changedFiles.push({
+      path: "templates/document-head.example.html",
+      reason: "Show safe html lang and viewport defaults.",
+      mode: "create"
+    });
+    chunks.push(`diff --git a/templates/document-head.example.html b/templates/document-head.example.html
+new file mode 100644
+--- /dev/null
++++ b/templates/document-head.example.html
+@@ -0,0 +1,3 @@
++<html lang="en">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<!-- Copy these defaults into the framework root document after confirming the site language. -->
+`);
+  }
+
   const manualActions = findings
     .filter((finding) => !safeFindingIds.has(finding.id))
     .map((finding) => `${finding.id}: ${finding.recommendation}`);
@@ -87,6 +156,21 @@ new file mode 100644
       {
         framework: config.framework ?? "auto",
         action: "Use framework adapter to place public artifacts in the correct static or route directory."
+      },
+      {
+        framework: "nextjs",
+        action:
+          "Map public artifacts to app/robots.ts, app/sitemap.ts and route handlers for llms.txt or .well-known metadata."
+      },
+      {
+        framework: "astro-static",
+        action:
+          "Place public artifacts under public/ and update src/pages/sitemap.xml.ts or the shared SEO component."
+      },
+      {
+        framework: "shopify-wordpress",
+        action:
+          "Keep commerce, price, availability, address and policy changes approval-required before theme/plugin changes."
       }
     ],
     manualActions

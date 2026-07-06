@@ -40,6 +40,9 @@ importers:
 
   packages/cli:
     dependencies:
+      "@seo-polish/benchmark":
+        specifier: workspace:*
+        version: link:../benchmark
       "@seo-polish/core":
         specifier: workspace:*
         version: link:../core
@@ -97,11 +100,17 @@ importers:
       "@seo-polish/core":
         specifier: workspace:*
         version: link:../core
+      "@seo-polish/schemas":
+        specifier: workspace:*
+        version: link:../schemas
 
   packages/integrations: {}
 
   packages/mcp-server:
     dependencies:
+      "@seo-polish/benchmark":
+        specifier: workspace:*
+        version: link:../benchmark
       "@seo-polish/core":
         specifier: workspace:*
         version: link:../core

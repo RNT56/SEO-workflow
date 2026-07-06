@@ -9,17 +9,19 @@
 - Render schema-bound Markdown and HTML reports.
 - Enforce report linting, evidence requirements and safety gates.
 - Ship CLI, SDK, MCP tool dispatcher, GitHub Action wrapper and agent skill.
+- Add security automation, Dependabot, dependency review, CodeQL and local secret scanning.
+- Add real fixture scan/report-lint gate and deterministic agent-experience benchmark output.
 
 ## v0.2 SEO basics hardening
 
-- Broaden canonical, redirect, broken-link, noindex and sitemap coverage.
-- Add richer fixtures and golden report snapshots.
-- Improve report filtering and crawl graph visualization.
+- Broaden redirect, broken-link, parameter duplicate and canonical conflict coverage.
+- Add exact golden report snapshots for fixtures.
+- Add richer rendered HTML comparison where Playwright/Lighthouse are available.
 
 ## v0.3 Agent readiness hardening
 
 - Deepen llms.txt, Agent Skills, API Catalog, MCP, OAuth and auth.md validation.
-- Add benchmark tasks for agent paths through documentation and APIs.
+- Add live benchmark tasks for agent paths through documentation and APIs.
 
 ## v0.4 Advanced SEO
 
