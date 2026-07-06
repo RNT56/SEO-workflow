@@ -41,6 +41,7 @@ jobs:
           name: npm-release-tarballs
           path: .release-tarballs/*.tgz
           if-no-files-found: error
+          include-hidden-files: true
 
   publish-npm:
     runs-on: ubuntu-latest
