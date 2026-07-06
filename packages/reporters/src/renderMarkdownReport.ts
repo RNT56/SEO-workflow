@@ -102,7 +102,7 @@ Rules:
 
 Execution order:
 
-1. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
+1. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/actionability.json\`, \`${reportDir}/repo-analysis.json\`, \`${reportDir}/tech-stack.json\`, \`${reportDir}/performance-audit.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
 2. Implement safe fixes that are applicable to the current source repo.
 3. Do not implement policy/auth/payment/indexing/canonical/MCP mutation changes without explicit approval.
 4. Re-run \`seo-polish scan ${target} --output ${reportDir}\`.
@@ -173,8 +173,26 @@ function renderSummary(bundle: ReportBundle): string {
 Findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info.
 Unique grouped issues: ${groupFindings(bundle.findings).length}.
 
+${renderSiteIntelligence(bundle)}
+
 ${top.length > 0 ? `Top grouped findings:\n${top.join("\n")}` : "No open findings."}
 `;
+}
+
+function renderSiteIntelligence(bundle: ReportBundle): string {
+  const tech = bundle.scan.techStack;
+  const repo = bundle.scan.repo;
+  const perf = bundle.scan.performance;
+  const templates = bundle.scan.routeTemplates ?? [];
+  const failedMetrics = perf?.metrics.filter((metric) => metric.status === "failed") ?? [];
+  return [
+    "Site intelligence:",
+    `- Tech stack: ${tech ? `${tech.framework} (${tech.confidence}% confidence)` : "not collected"}`,
+    `- Hosting/CDN: ${tech ? [...tech.hosting, ...tech.cdn].join(", ") || "no strong signal" : "not collected"}`,
+    `- Repo analysis: ${repo ? `${repo.status}${repo.path ? ` (${repo.path})` : ""}` : "not configured"}`,
+    `- Route templates: ${templates.length}`,
+    `- Performance evidence: ${perf ? `${perf.summary.totalRequests} requests, ${failedMetrics.length} failed budget metrics` : "not collected"}`
+  ].join("\n");
 }
 
 function renderScorecard(
@@ -261,6 +279,13 @@ export function renderFindingCard(finding: Finding): string {
 **Affected templates:** ${finding.affectedTemplates.length > 0 ? finding.affectedTemplates.join(", ") : "N/A"}  
 **Safe to auto-fix:** ${finding.safeToAutoFix ? "Yes" : "No"}  
 **Approval required:** ${finding.approvalRequired ? "Yes" : "No"}  
+**Owner:** ${finding.actionability?.owner ?? "unknown"}
+**Automation readiness:** ${finding.actionability?.automationReadiness ?? "manual"}
+**Source candidates:** ${
+    finding.actionability && finding.actionability.sourceLocations.length > 0
+      ? finding.actionability.sourceLocations.join(", ")
+      : "N/A"
+  }
 
 **Problem**  
 ${finding.title}
@@ -296,6 +321,10 @@ function renderFindingGroupCard(finding: ReturnType<typeof groupFindings>[number
 **Affected templates:** ${formatSet(finding.affectedTemplates)}
 **Safe to auto-fix:** ${finding.safeToAutoFix ? "Yes" : "No"}
 **Approval required:** ${finding.approvalRequired ? "Yes" : "No"}
+**Owner:** ${formatSet(finding.owners)}
+**Automation readiness:** ${formatSet(finding.automationReadiness)}
+**Source candidates:** ${formatSet(finding.sourceLocations)}
+**Blockers:** ${formatSet(finding.blockers)}
 
 **Impact**
 ${finding.impact}
@@ -408,6 +437,23 @@ function renderEvidence(bundle: ReportBundle): string {
     `Evidence entries: ${bundle.scan.evidence.length}`,
     `Crawled pages: ${bundle.scan.pages.length}`,
     `Discovery endpoints checked: ${Object.keys(bundle.scan.discovery.endpoints).length}`,
+    `Tech stack signals: ${bundle.scan.techStack?.signals.length ?? 0}`,
+    `Route template clusters: ${bundle.scan.routeTemplates?.length ?? 0}`,
+    `Performance resources: ${bundle.scan.performance?.resources.length ?? 0}`,
+    "",
+    "Structured intelligence artifacts:",
+    "- `tech-stack.json`",
+    "- `repo-analysis.json`",
+    "- `route-templates.json`",
+    "- `performance-audit.json`",
+    "- `resource-timing.json`",
+    "- `performance-runs.jsonl`",
+    "- `third-party-cost.json`",
+    "- `largest-assets.json`",
+    "- `critical-request-chain.json`",
+    "- `actionability.json`",
+    "- `baseline-comparison.json`",
+    "- `suppression-report.json`",
     "",
     "Representative evidence:"
   ];

@@ -43,6 +43,14 @@ export function renderAgentExecutionPlan(
     "## Source Artifacts",
     "",
     "- `scan-result.json`: crawled pages, discovery probes and evidence surface.",
+    "- `tech-stack.json`: framework, hosting, CDN, CMS, analytics, bundler and rendering signals.",
+    "- `repo-analysis.json`: source repo path, dependency, route, metadata, deployment and SEO file candidates.",
+    "- `route-templates.json`: URL template clusters and source candidates.",
+    "- `performance-audit.json`, `resource-timing.json`, `performance-runs.jsonl`: measured fetch/resource performance evidence.",
+    "- `third-party-cost.json`, `largest-assets.json`, `critical-request-chain.json`: resource pressure drill-downs.",
+    "- `actionability.json`: owner, readiness, source candidate and blocker summary for every finding.",
+    "- `baseline-comparison.json`: score, finding and performance deltas versus a configured prior report.",
+    "- `suppression-report.json`: non-destructive ledger of intentional exceptions.",
     "- `findings.json`: evidence-backed issue inventory.",
     "- `score.json`: current score and category breakdown.",
     "- `remediation-plan.json`: fix classes, phases, risks and validation commands.",
@@ -59,6 +67,8 @@ export function renderAgentExecutionPlan(
     "## Current State",
     "",
     `Combined score: ${bundle.score.total}/100 (${bundle.score.level})`,
+    "",
+    renderSiteIntelligence(bundle),
     "",
     renderScoreTable(bundle.score.categories),
     "",
@@ -132,6 +142,31 @@ function renderFindingSummary(findings: Finding[]): string {
     `- Low: ${counts.low}`,
     `- Info: ${counts.info}`,
     `- Unique finding groups: ${groupFindings(findings).length}`
+  ].join("\n");
+}
+
+function renderSiteIntelligence(bundle: ReportBundle): string {
+  const tech = bundle.scan.techStack;
+  const repo = bundle.scan.repo;
+  const perf = bundle.scan.performance;
+  const templates = bundle.scan.routeTemplates ?? [];
+  return [
+    "Site intelligence:",
+    "",
+    `- Tech stack: ${tech ? `${tech.framework} (${tech.confidence}% confidence)` : "not collected"}`,
+    `- Hosting/CDN: ${tech ? [...tech.hosting, ...tech.cdn].join(", ") || "no strong signal" : "not collected"}`,
+    `- Repo analysis: ${repo ? repo.status : "not configured"}${repo?.path ? ` (${repo.path})` : ""}`,
+    `- Route template clusters: ${templates.length}`,
+    `- Performance evidence: ${
+      perf
+        ? `${perf.summary.totalRequests} requests, ${perf.metrics.filter((metric) => metric.status === "failed").length} failed budget metrics`
+        : "not collected"
+    }`,
+    `- Browser-only metrics: ${
+      perf?.metrics.some((metric) => metric.reliability === "not_measured")
+        ? "not measured in this run; use browser/CDP or field data before making CWV claims"
+        : "available"
+    }`
   ].join("\n");
 }
 
@@ -221,6 +256,10 @@ function renderFindingGroups(findings: Finding[]): string {
     lines.push(`   - Instances: ${group.count}`);
     lines.push(`   - Safe to auto-fix: ${group.safeToAutoFix ? "yes" : "no"}`);
     lines.push(`   - Approval required: ${group.approvalRequired ? "yes" : "no"}`);
+    lines.push(`   - Owner: ${formatSet(group.owners)}`);
+    lines.push(`   - Automation readiness: ${formatSet(group.automationReadiness)}`);
+    lines.push(`   - Source candidates: ${formatSet(group.sourceLocations)}`);
+    lines.push(`   - Blockers: ${formatSet(group.blockers)}`);
     lines.push(`   - Recommendation: ${group.recommendation}`);
     lines.push(`   - Affected URLs: ${formatSet(group.affectedUrls)}`);
     lines.push(`   - Affected templates: ${formatSet(group.affectedTemplates)}`);

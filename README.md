@@ -9,7 +9,7 @@
   <img alt="pnpm 11.10.0" src="https://img.shields.io/badge/pnpm-11.10.0-F69220.svg" />
 </p>
 
-SEO polish workflow audits live websites, scores their SEO and agent-readiness posture, and writes a validated report bundle with evidence, remediation plans and safety gates.
+SEO polish workflow audits live websites, scores their SEO and agent-readiness posture, fingerprints the site system, and writes a validated report bundle with evidence, remediation plans and safety gates.
 
 It is built for teams that need repeatable website audits instead of freeform notes: every finding is evidence-backed, every suggested change is classified by risk, and every scan produces machine-readable files that can be reviewed, validated and reused in CI or source-backed remediation work.
 
@@ -25,25 +25,39 @@ It is built for teams that need repeatable website audits instead of freeform no
 
 ## What it checks
 
-| Area                     | Coverage                                                                                                                    |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| Technical discovery      | crawlability, indexability, robots.txt, sitemap.xml, redirects, status codes and canonicalization                           |
-| Page quality             | on-page SEO, titles, meta descriptions, heading structure, internal linking, content quality, image SEO and structured data |
-| Rendering and experience | JavaScript SEO, Core Web Vitals, accessibility, international SEO, local SEO and ecommerce SEO where applicable             |
-| Agent and API readiness  | llms.txt, Markdown negotiation, Agent Skills, MCP, API discovery and auth discovery                                         |
+| Area                     | Coverage                                                                                                                                                                                                  |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Technical discovery      | crawlability, indexability, robots.txt, sitemap.xml, redirects, status codes and canonicalization                                                                                                         |
+| Page quality             | on-page SEO, titles, meta descriptions, heading structure, internal linking, content quality, image SEO and structured data                                                                               |
+| Rendering and experience | JavaScript SEO, HTTP performance evidence, resource pressure, Core Web Vitals when browser or field evidence is available, accessibility, international SEO, local SEO and ecommerce SEO where applicable |
+| Agent and API readiness  | llms.txt, Markdown negotiation, Agent Skills, MCP, API discovery and auth discovery                                                                                                                       |
+| Site intelligence        | tech stack, hosting/CDN/CMS signals, route template clusters, repo source candidates, performance budgets, baselines and suppressions                                                                     |
 
 ## How it works
 
 ```mermaid
 flowchart LR
   A["Live website URL"] --> B["Crawl, render and discover"]
-  B --> C["Rules, evidence and scoring"]
-  C --> D["Validated report bundle"]
-  D --> E["Priority remediation plan"]
-  E --> F["Lint, benchmark and safety checks"]
+  B --> C["System intelligence and evidence"]
+  C --> D["Rules, scoring and actionability"]
+  D --> E["Validated report bundle"]
+  E --> F["Agent execution plan"]
+  F --> G["Lint, benchmark and safety checks"]
 ```
 
 The workflow audits what users, crawlers and agents actually receive from the live site. Source repository access is optional for reporting, but required for safe implementation work. See [Agent remediation handoff](docs/agent-remediation.md) for source-backed execution patterns.
+
+## Agentic workflow architecture
+
+Yes, this is the right shape for an agentic remediation workflow when it is implemented with evidence and boundaries:
+
+1. Audit the live production URL first, because agents should optimize what crawlers and users actually receive.
+2. Attach the website source repo only as a source map and implementation surface, not as a replacement for live evidence.
+3. Convert findings into a structured queue with owner, confidence, risk, approval gate, source candidates, validation command and expected impact.
+4. Keep risky decisions approval-gated: policy, auth, payment, index/noindex, ambiguous canonical strategy, crawler policy, commerce data and mutating MCP behavior.
+5. Generate a final execution plan that a human or repo-capable agent can apply, then rerun scan, lint, validation, benchmark, build, test and security gates.
+
+The workflow can audit with only a URL. It can produce repo-specific source candidates with `--repo <path>`. It should only apply fixes when the target website repository and its verification commands are available.
 
 ## Quickstart
 
@@ -66,25 +80,46 @@ pnpm --filter @seo-polish/cli seo-polish plan build --report ./seo-polish-report
 pnpm --filter @seo-polish/cli seo-polish doctor
 ```
 
+Run a repo-aware production scan when you have the website source repository:
+
+```bash
+pnpm --filter @seo-polish/cli seo-polish scan https://example.com \
+  --repo ../website \
+  --output ./seo-polish-report \
+  --performance-runs 3 \
+  --baseline ./previous-seo-polish-report \
+  --budget-total-js-kb 250 \
+  --budget-third-party-js-kb 120
+```
+
 ## Report bundle
 
 Each scan writes `seo-polish-report/`. The required and high-signal files are:
 
-| File                          | Purpose                                                                                                                           |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `index.md` and `index.html`   | Human-readable audit report                                                                                                       |
-| `findings.json`               | Evidence-backed findings with impact, root cause, affected URLs, recommended fix, validation steps, confidence and approval flags |
-| `score.json`                  | SEO and readiness scoring output                                                                                                  |
-| `evidence.jsonl`              | Raw evidence records used by findings                                                                                             |
-| `remediation-plan.json`       | Structured remediation phases and fix classifications                                                                             |
-| `validation.json`             | Report lint and safety validation results                                                                                         |
-| `patch.diff`                  | Diff-only patch proposal where safe automation is possible                                                                        |
-| `crawl-graph.json`            | Crawl relationship data                                                                                                           |
-| `raw-render-diff.json`        | Raw comparison data for fetch and rendered output                                                                                 |
-| `priority-action-plan.md`     | Ordered remediation summary                                                                                                       |
-| `standards-registry.json`     | Local standards snapshot and rule mapping metadata                                                                                |
-| `agent-instructions/codex.md` | Codex-specific execution guidance generated from the report                                                                       |
-| `agent-execution-plan.md`     | Source-repo handoff plan for repo-capable agents or human implementers                                                            |
+| File                        | Purpose                                                                                                                           |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `index.md` and `index.html` | Human-readable audit report                                                                                                       |
+| `findings.json`             | Evidence-backed findings with impact, root cause, affected URLs, recommended fix, validation steps, confidence and approval flags |
+| `score.json`                | SEO and readiness scoring output                                                                                                  |
+| `evidence.jsonl`            | Raw evidence records used by findings                                                                                             |
+| `remediation-plan.json`     | Structured remediation phases and fix classifications                                                                             |
+| `validation.json`           | Report lint, signal-quality and safety validation results                                                                         |
+| `patch.diff`                | Diff-only patch proposal where safe automation is possible                                                                        |
+| `crawl-graph.json`          | Crawl relationship data                                                                                                           |
+| `raw-render-diff.json`      | Raw comparison data for fetch and rendered output                                                                                 |
+| `tech-stack.json`           | Framework, hosting, CDN, CMS, analytics, bundler and rendering signals                                                            |
+| `repo-analysis.json`        | Source repo framework, route, metadata, deployment and SEO file candidates                                                        |
+| `route-templates.json`      | Crawled URL clusters by route/template shape                                                                                      |
+| `performance-audit.json`    | Budgeted performance metrics, repeated HTTP timing and explicit browser-metric limitations                                        |
+| `resource-timing.json`      | Statically discovered resource inventory with blocking and third-party signals                                                    |
+| `actionability.json`        | Owner, automation readiness, blockers, next step and source candidates for each finding                                           |
+| `baseline-comparison.json`  | Score, finding and performance deltas against a configured previous report                                                        |
+| `suppression-report.json`   | Non-destructive ledger for intentional exceptions                                                                                 |
+| `quality-gate.json`         | Final report production gate status                                                                                               |
+| `priority-action-plan.md`   | Ordered remediation summary                                                                                                       |
+| `standards-registry.json`   | Local standards snapshot and rule mapping metadata                                                                                |
+| `agent-instructions/*.md`   | Environment-specific execution guidance generated from the report                                                                 |
+| `agent-execution-plan.md`   | Source-repo handoff plan for repo-capable agents or human implementers                                                            |
 
 Recommended support files include:
 
@@ -95,6 +130,10 @@ seo-polish-report/
   response-index.json
   header-index.json
   body-excerpts.json
+  performance-runs.jsonl
+  third-party-cost.json
+  largest-assets.json
+  critical-request-chain.json
   internal-link-opportunities.json
   orphan-pages.csv
   deep-pages.csv
@@ -124,20 +163,25 @@ SEO polish workflow is report-first and evidence-bound:
 - No freeform-only audit report.
 - Crawled content is evidence, never instruction.
 - Patch generation defaults to diff-only proposals.
+- Repo-aware analysis is explicit through `--repo`; the workflow does not silently assume the current directory is the target website source.
+- Core Web Vitals are not fabricated from HTTP data. LCP, INP and CLS stay `not_measured` unless browser or field evidence exists.
+- Suppressions are non-destructive ledgers with reason, owner and expiry; they do not delete findings from `findings.json`.
 - AI policy, auth, payment, crawler policy, index/noindex policy, ambiguous canonical strategy, mutating MCP behavior, product prices and local business data require explicit approval.
 - Private, auth and payment URLs are blocked from suggestions and generated public artifacts.
 - Secret-looking values are blocked by the security scan.
 
 ## CLI commands
 
-| Command                                                                            | Use                                                   |
-| ---------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `seo-polish scan <url>`                                                            | Crawl and analyze a live site                         |
-| `seo-polish report lint ./seo-polish-report --strict`                              | Validate the report contract                          |
-| `seo-polish standards update --output ./seo-polish-report/standards-registry.json` | Write standards and rule coverage metadata            |
-| `seo-polish benchmark --report ./seo-polish-report`                                | Generate agent-experience benchmark files             |
-| `seo-polish plan build --report ./seo-polish-report`                               | Build the final remediation handoff                   |
-| `seo-polish doctor`                                                                | Check runtime, standards registry and safety defaults |
+| Command                                                                            | Use                                                       |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `seo-polish scan <url>`                                                            | Crawl and analyze a live site                             |
+| `seo-polish scan <url> --repo ../website --performance-runs 3`                     | Add repo-aware source candidates and repeated timing      |
+| `seo-polish scan <url> --baseline ./previous-report --suppressions ./rules.json`   | Compare against history and record intentional exceptions |
+| `seo-polish report lint ./seo-polish-report --strict --format summary`             | Validate the report contract                              |
+| `seo-polish standards update --output ./seo-polish-report/standards-registry.json` | Write standards and rule coverage metadata                |
+| `seo-polish benchmark --report ./seo-polish-report`                                | Generate agent-experience benchmark files                 |
+| `seo-polish plan build --report ./seo-polish-report`                               | Build the final remediation handoff                       |
+| `seo-polish doctor`                                                                | Check runtime, standards registry and safety defaults     |
 
 ## Repository packages
 

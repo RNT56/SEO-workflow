@@ -50,6 +50,39 @@ export const RULE_CATALOG: RuleDefinition[] = [
   rule("SEO-MEDIA-005", "missing-width-height", "media_seo", "low", true, "image-dimensions"),
   rule("SEO-PERF-010", "missing-cache-headers", "performance_seo", "low", true, "http-headers"),
   rule("SEO-PERF-011", "missing-compression", "performance_seo", "low", true, "http-headers"),
+  rule(
+    "SEO-PERF-020",
+    "javascript-budget-exceeded",
+    "performance_seo",
+    "medium",
+    true,
+    "performance-budgets"
+  ),
+  rule(
+    "SEO-PERF-021",
+    "third-party-javascript-budget-exceeded",
+    "performance_seo",
+    "medium",
+    true,
+    "performance-budgets"
+  ),
+  rule(
+    "SEO-PERF-022",
+    "render-blocking-request-budget-exceeded",
+    "performance_seo",
+    "low",
+    true,
+    "performance-budgets"
+  ),
+  rule("SEO-PERF-023", "request-budget-exceeded", "performance_seo", "low", true, "performance-budgets"),
+  rule(
+    "SEO-PERF-024",
+    "document-fetch-budget-exceeded",
+    "performance_seo",
+    "medium",
+    true,
+    "performance-budgets"
+  ),
   rule("SEO-A11Y-002", "heading-order-invalid", "accessibility", "low", true, "wcag-headings"),
   rule("SEO-A11Y-006", "image-alt-missing", "accessibility", "medium", true, "wcag-images"),
   rule("SEO-A11Y-010", "skip-link-missing", "accessibility", "low", true, "wcag-navigation"),

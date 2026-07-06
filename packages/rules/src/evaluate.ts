@@ -1,9 +1,12 @@
 import type {
+  ActionOwner,
+  AutomationReadiness,
   Evidence,
   Finding,
   FindingCategory,
   PageSnapshot,
   RemediationOption,
+  RepoSourceFile,
   ScanResult,
   Severity
 } from "@seo-polish/schemas";
@@ -67,7 +70,11 @@ export function evaluateRules(scan: ScanResult): Finding[] {
       references: [`standard:${rule.standard}`]
     };
 
-    findings.push(enforceApprovalForFinding(finding));
+    const enforced = enforceApprovalForFinding(finding);
+    findings.push({
+      ...enforced,
+      actionability: buildActionability(enforced, scan)
+    });
   };
 
   const endpointEvidence = endpointEvidenceByPath(scan);
@@ -230,6 +237,7 @@ export function evaluateRules(scan: ScanResult): Finding[] {
   }
 
   evaluateCrossPageRules(scan, add);
+  evaluatePerformanceRules(scan, add);
 
   if (!llms?.ok) {
     add({
@@ -445,6 +453,157 @@ export function evaluateRules(scan: ScanResult): Finding[] {
       };
     };
   }
+}
+
+function buildActionability(finding: Finding, scan: ScanResult): NonNullable<Finding["actionability"]> {
+  const sourceFiles = sourceCandidatesForFinding(finding, scan);
+  const owner = ownerForFinding(finding);
+  const automationReadiness = readinessForFinding(finding, sourceFiles);
+  const sourceLocations = sourceFiles.map((file) => file.path);
+  return {
+    owner,
+    automationReadiness,
+    sourceLocations,
+    repoEvidence: sourceFiles.map((file) => `${file.path}: ${file.reason}`),
+    expectedImpact: impactForSeverity(finding.severity),
+    nextStep: nextStepForFinding(finding, sourceLocations),
+    blockers: blockersForFinding(finding, scan, sourceLocations)
+  };
+}
+
+function sourceCandidatesForFinding(finding: Finding, scan: ScanResult): RepoSourceFile[] {
+  const repo = scan.repo;
+  if (!repo || repo.status !== "ok") {
+    return [];
+  }
+  const id = finding.id.toLowerCase();
+  const category = finding.category;
+  const all = repo.sourceFiles;
+
+  if (id.includes("robots")) {
+    return repo.seoFiles.filter((file) => file.kind === "robots").slice(0, 5);
+  }
+  if (id.includes("sitemap")) {
+    return repo.seoFiles.filter((file) => file.kind === "sitemap").slice(0, 5);
+  }
+  if (id.includes("llms") || id.includes("mcp") || id.includes("api") || id.includes("auth")) {
+    return all
+      .filter((file) => /llms|mcp|api|auth|well-known|public/.test(file.path.toLowerCase()))
+      .slice(0, 5);
+  }
+  if (
+    category === "onpage_seo" ||
+    category === "indexability" ||
+    category === "structured_data" ||
+    category === "international_seo" ||
+    id.includes("schema") ||
+    id.includes("canonical")
+  ) {
+    return [
+      ...repo.seoFiles.filter((file) => file.kind === "metadata"),
+      ...repo.routeFiles,
+      ...all.filter((file) => /seo|metadata|head|layout|document/.test(file.path.toLowerCase()))
+    ].slice(0, 8);
+  }
+  if (category === "content_seo" || category === "internal_linking") {
+    return [...all.filter((file) => file.kind === "content"), ...repo.routeFiles].slice(0, 8);
+  }
+  if (category === "media_seo" || category === "accessibility") {
+    return [...repo.routeFiles, ...repo.staticFiles].slice(0, 8);
+  }
+  if (category === "performance_seo" || category === "technical_seo") {
+    return [
+      ...repo.deploymentFiles,
+      ...all.filter((file) => file.kind === "framework_config"),
+      ...repo.routeFiles
+    ].slice(0, 8);
+  }
+  if (category === "security" || category === "policy") {
+    return [...repo.seoFiles, ...repo.deploymentFiles].slice(0, 8);
+  }
+
+  return repo.routeFiles.slice(0, 5);
+}
+
+function ownerForFinding(finding: Finding): ActionOwner {
+  switch (finding.category) {
+    case "content_seo":
+    case "internal_linking":
+    case "local_seo":
+    case "ecommerce_seo":
+      return "content";
+    case "technical_seo":
+    case "crawlability":
+    case "performance_seo":
+      return "infra";
+    case "security":
+      return "security";
+    case "policy":
+      return "policy";
+    case "agent_readiness":
+    case "protocol_discovery":
+    case "api_auth_mcp":
+      return "agent-platform";
+    case "onpage_seo":
+    case "indexability":
+    case "structured_data":
+    case "javascript_seo":
+    case "media_seo":
+    case "accessibility":
+    case "international_seo":
+      return "frontend";
+    default:
+      return "unknown";
+  }
+}
+
+function readinessForFinding(finding: Finding, sourceFiles: RepoSourceFile[]): AutomationReadiness {
+  if (finding.approvalRequired) {
+    return "approval_required";
+  }
+  if (finding.safeToAutoFix && sourceFiles.length > 0) {
+    return "repo_assisted";
+  }
+  if (finding.safeToAutoFix) {
+    return "auto";
+  }
+  return sourceFiles.length > 0 ? "repo_assisted" : "manual";
+}
+
+function impactForSeverity(severity: Severity): "low" | "medium" | "high" {
+  if (severity === "critical" || severity === "high") {
+    return "high";
+  }
+  if (severity === "medium") {
+    return "medium";
+  }
+  return "low";
+}
+
+function nextStepForFinding(finding: Finding, sourceLocations: string[]): string {
+  if (finding.approvalRequired) {
+    return "Get explicit owner approval, then apply the documented remediation and rerun validation.";
+  }
+  if (sourceLocations.length > 0) {
+    return `Review the mapped source candidate${sourceLocations.length === 1 ? "" : "s"} and implement the remediation there.`;
+  }
+  return "Apply the remediation in the website source repo, then rerun the scan and report lint.";
+}
+
+function blockersForFinding(finding: Finding, scan: ScanResult, sourceLocations: string[]): string[] {
+  const blockers: string[] = [];
+  if (finding.approvalRequired) {
+    blockers.push("owner approval required");
+  }
+  if (!scan.repo || scan.repo.status !== "ok") {
+    blockers.push("website source repo not connected");
+  } else if (sourceLocations.length === 0) {
+    blockers.push("no confident source candidate found");
+  }
+  if (finding.evidence.length === 0) {
+    blockers.push("missing evidence");
+  }
+  return blockers;
 }
 
 function evaluatePage(page: PageSnapshot, scan: ScanResult, add: (input: FindingInput) => void): void {
@@ -1095,6 +1254,124 @@ function evaluateCrossPageRules(scan: ScanResult, add: (input: FindingInput) => 
       recommendation: "Create or strengthen hub/navigation pages for important topic or product clusters.",
       implementationPath: "Review information architecture and add contextual hub links.",
       validation: ["Review crawl-graph.json and internal-link-opportunities.json."],
+      safeToAutoFix: false
+    });
+  }
+}
+
+function evaluatePerformanceRules(scan: ScanResult, add: (input: FindingInput) => void): void {
+  const performance = scan.performance;
+  if (!performance) {
+    return;
+  }
+
+  const metricEvidence = (metricId: string): Evidence => {
+    const metric = performance.metrics.find((item) => item.id === metricId);
+    const evidence: Evidence = {
+      id: `performance-${metricId}`,
+      type: "performance_metric",
+      value: metric ?? null,
+      timestamp: new Date().toISOString()
+    };
+    scan.evidence.push(evidence);
+    return evidence;
+  };
+
+  const failed = new Set(
+    performance.metrics.filter((metric) => metric.status === "failed").map((metric) => metric.id)
+  );
+  const affectedUrls = scan.pages.slice(0, 5).map((page) => page.finalUrl);
+
+  if (failed.has("document-fetch-ms")) {
+    add({
+      id: "SEO-PERF-024",
+      title: "Document fetch duration exceeds the configured budget",
+      severity: "medium",
+      confidence: 78,
+      evidence: [metricEvidence("document-fetch-ms")],
+      affectedUrls,
+      affectedTemplates: ["performance profile"],
+      impact: "Slow document responses can delay discovery, rendering and agent retrieval.",
+      rootCause: "Repeated HTTP fetch measurements exceeded the configured document fetch budget.",
+      recommendation:
+        "Review hosting, edge caching, server rendering cost and redirect behavior for public pages.",
+      implementationPath:
+        "Optimize framework rendering, cache policy or hosting configuration for slow documents.",
+      validation: ["Re-run seo-polish scan and compare performance-audit.json."],
+      safeToAutoFix: false
+    });
+  }
+
+  if (failed.has("total-js-kb")) {
+    add({
+      id: "SEO-PERF-020",
+      title: "JavaScript transfer exceeds the configured budget",
+      severity: "medium",
+      confidence: 74,
+      evidence: [metricEvidence("total-js-kb")],
+      affectedUrls,
+      affectedTemplates: ["frontend bundle"],
+      impact: "Large JavaScript payloads can delay rendering, interaction and crawler processing.",
+      rootCause: "Discovered script resources with measurable Content-Length exceed the configured budget.",
+      recommendation: "Split, defer, remove or server-render non-critical JavaScript.",
+      implementationPath: "Review bundle composition and route-level imports in the website source repo.",
+      validation: ["Re-run seo-polish scan and inspect resource-timing.json."],
+      safeToAutoFix: false
+    });
+  }
+
+  if (failed.has("third-party-js-kb")) {
+    add({
+      id: "SEO-PERF-021",
+      title: "Third-party JavaScript transfer exceeds the configured budget",
+      severity: "medium",
+      confidence: 72,
+      evidence: [metricEvidence("third-party-js-kb")],
+      affectedUrls,
+      affectedTemplates: ["third-party scripts"],
+      impact: "Third-party scripts can increase blocking cost, privacy surface and performance variance.",
+      rootCause: "Measured third-party script resources exceed the configured transfer budget.",
+      recommendation: "Remove, defer or conditionally load third-party scripts that are not essential.",
+      implementationPath:
+        "Review analytics, embeds and marketing scripts with product owner approval where needed.",
+      validation: ["Re-run seo-polish scan and compare third-party-cost evidence in performance-audit.json."],
+      safeToAutoFix: false
+    });
+  }
+
+  if (failed.has("render-blocking-requests")) {
+    add({
+      id: "SEO-PERF-022",
+      title: "Render-blocking request pressure exceeds the configured budget",
+      severity: "low",
+      confidence: 70,
+      evidence: [metricEvidence("render-blocking-requests")],
+      affectedUrls,
+      affectedTemplates: ["document head"],
+      impact: "Blocking stylesheets and synchronous scripts can delay first render.",
+      rootCause: "Static HTML discovery found too many render-blocking script or stylesheet resources.",
+      recommendation:
+        "Inline critical CSS carefully, defer non-critical scripts and reduce blocking head resources.",
+      implementationPath: "Update document head, bundler settings or framework script strategy.",
+      validation: ["Re-run seo-polish scan and inspect performance-audit.json."],
+      safeToAutoFix: false
+    });
+  }
+
+  if (failed.has("total-requests")) {
+    add({
+      id: "SEO-PERF-023",
+      title: "Request count exceeds the configured budget",
+      severity: "low",
+      confidence: 68,
+      evidence: [metricEvidence("total-requests")],
+      affectedUrls,
+      affectedTemplates: ["page resources"],
+      impact: "High request pressure can amplify latency and make page load performance less reliable.",
+      rootCause: "The crawler discovered more document and resource requests than the configured budget.",
+      recommendation: "Consolidate assets, remove unused resources and lazy-load non-critical media.",
+      implementationPath: "Review resource-timing.json and optimize the highest-cost templates first.",
+      validation: ["Re-run seo-polish scan and compare request totals."],
       safeToAutoFix: false
     });
   }

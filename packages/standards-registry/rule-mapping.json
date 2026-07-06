@@ -239,6 +239,36 @@
     "ruleVersion": "0.1.0",
     "lastReviewed": "2026-07-06"
   },
+  "SEO-PERF-020": {
+    "standard": "performance-budgets",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-PERF-021": {
+    "standard": "performance-budgets",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-PERF-022": {
+    "standard": "performance-budgets",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-PERF-023": {
+    "standard": "performance-budgets",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-PERF-024": {
+    "standard": "performance-budgets",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
   "SEO-A11Y-002": {
     "standard": "wcag-headings",
     "standardStatus": "stable",

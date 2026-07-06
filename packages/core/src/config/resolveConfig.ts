@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import type { ScanConfig } from "@seo-polish/schemas";
 import { DEFAULT_CONFIG } from "./defaultConfig.js";
 
@@ -8,17 +9,31 @@ export async function resolveConfig(input: ScanConfigInput): Promise<ScanConfig>
   const fileConfig = await readConfigFile(input.repoPath ?? process.cwd());
   const envConfig = readEnvConfig();
 
-  return {
+  const merged: ScanConfig = {
     ...DEFAULT_CONFIG,
     ...fileConfig,
     ...envConfig,
     ...input,
+    performanceBudgets: {
+      ...(DEFAULT_CONFIG.performanceBudgets ?? {}),
+      ...(fileConfig.performanceBudgets ?? {}),
+      ...(envConfig.performanceBudgets ?? {}),
+      ...(input.performanceBudgets ?? {})
+    },
     policy: {
       ...DEFAULT_CONFIG.policy,
       ...(fileConfig.policy ?? {}),
       ...(envConfig.policy ?? {}),
       ...(input.policy ?? {})
     }
+  };
+
+  const suppressionsFromFile = merged.suppressionsFile
+    ? await readSuppressionsFile(merged.suppressionsFile, input.repoPath ?? process.cwd())
+    : [];
+  return {
+    ...merged,
+    suppressions: [...(merged.suppressions ?? []), ...suppressionsFromFile]
   };
 }
 
@@ -57,4 +72,28 @@ function normalizeConfigObject(json: Record<string, unknown>): Partial<ScanConfi
   }
   delete config.siteUrl;
   return config;
+}
+
+async function readSuppressionsFile(
+  path: string,
+  cwd: string
+): Promise<NonNullable<ScanConfig["suppressions"]>> {
+  const absolute = path.startsWith("/") ? path : resolve(cwd, path);
+  try {
+    const raw = await readFile(absolute, "utf8");
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed as NonNullable<ScanConfig["suppressions"]>;
+    }
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      Array.isArray((parsed as { suppressions?: unknown }).suppressions)
+    ) {
+      return (parsed as { suppressions: NonNullable<ScanConfig["suppressions"]> }).suppressions;
+    }
+  } catch {
+    // Invalid suppression files are surfaced by the generated suppression report as unmatched config.
+  }
+  return [];
 }

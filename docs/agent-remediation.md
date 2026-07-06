@@ -18,11 +18,20 @@ Treat the generated report bundle as the execution contract. Start with:
 - `seo-polish-report/agent-execution-plan.md`
 - `seo-polish-report/findings.json`
 - `seo-polish-report/remediation-plan.json`
+- `seo-polish-report/actionability.json`
+- `seo-polish-report/repo-analysis.json`
+- `seo-polish-report/tech-stack.json`
+- `seo-polish-report/route-templates.json`
+- `seo-polish-report/performance-audit.json`
+- `seo-polish-report/resource-timing.json`
 - `seo-polish-report/priority-action-plan.md`
 - `seo-polish-report/patch.diff`
 - `seo-polish-report/manual-actions.md`
+- `seo-polish-report/baseline-comparison.json`
+- `seo-polish-report/suppression-report.json`
 - `seo-polish-report/remaining-user-decisions.md`
 - `seo-polish-report/validation.json`
+- `seo-polish-report/quality-gate.json`
 - `seo-polish-report/standards-registry.json`
 - `seo-polish-report/agent-instructions/`
 
@@ -40,14 +49,25 @@ Website source repo: current workspace
 
 Run the workflow end to end:
 1. Build the SEO workflow if needed.
-2. Scan the live site into ./seo-polish-report.
-3. Read agent-execution-plan.md first, then findings.json, remediation-plan.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
-4. Apply only safe_auto_fix items directly in the website source repo.
-5. Do not make policy, auth, payment, indexing, canonical, crawler or MCP mutation changes without explicit approval.
-6. Preserve approval_required items in remaining-user-decisions.md.
-7. Re-run scan, report lint, validation, benchmark, plan build, project tests, build and security checks.
-8. Commit and push only after the verification gates pass.
-9. Summarize final score, changed files, remaining user decisions and verification results.
+2. Scan the live site into ./seo-polish-report with --repo pointing at the website source repo when available.
+3. Read agent-execution-plan.md first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
+4. Apply only safe_auto_fix items directly in the website source repo when source candidates are clear and validation commands exist.
+5. Treat manual_strategy items as normal implementation work that needs source inspection and engineering judgment.
+6. Do not make policy, auth, payment, indexing, canonical, crawler or MCP mutation changes without explicit approval.
+7. Preserve approval_required items in remaining-user-decisions.md.
+8. Re-run scan, report lint, validation, benchmark, plan build, project tests, build and security checks.
+9. Commit and push only after the verification gates pass.
+10. Summarize final score, changed files, remaining user decisions and verification results.
+```
+
+Recommended scan command:
+
+```bash
+pnpm --filter @seo-polish/cli seo-polish scan https://your-site.com \
+  --repo . \
+  --output ./seo-polish-report \
+  --performance-runs 3 \
+  --baseline ./previous-seo-polish-report
 ```
 
 ## Approval gates
@@ -80,3 +100,13 @@ pnpm security
 ```
 
 For the target website repository, run that project's own lint, typecheck, test, build and security gates in addition to a fresh SEO polish scan and strict report lint.
+
+## Performance evidence boundary
+
+HTTP timing, static resource discovery, third-party cost and budget checks are available in every scan. LCP, INP, CLS and true browser request chains require browser/CDP or field data. When browser evidence is not available, those metrics remain `not_measured` and must not be used as if they were Lighthouse or real-user data.
+
+## Suppressions and baselines
+
+Suppressions are audit ledgers, not deletion rules. A suppression should include an ID, finding ID, reason, owner and expiry, and it should match a precise URL pattern. Suppressed findings remain in `findings.json`.
+
+Baselines compare current score, finding groups and performance metrics with a previous report. Use them to identify regressions and resolved issues after implementation.

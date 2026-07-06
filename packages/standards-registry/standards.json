@@ -136,6 +136,11 @@
       "lastReviewed": "2026-07-06"
     },
     {
+      "id": "performance-budgets",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
       "id": "redirects",
       "status": "stable",
       "lastReviewed": "2026-07-06"

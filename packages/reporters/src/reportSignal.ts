@@ -22,6 +22,10 @@ export interface FindingGroup {
   recommendation: string;
   validation: string[];
   evidenceCount: number;
+  owners: Set<string>;
+  automationReadiness: Set<string>;
+  sourceLocations: Set<string>;
+  blockers: Set<string>;
 }
 
 export const SEVERITY_ORDER: Record<Severity, number> = {
@@ -68,7 +72,11 @@ export function groupFindings(findings: Finding[]): FindingGroup[] {
       rootCause: finding.rootCause,
       recommendation: finding.recommendation,
       validation: [],
-      evidenceCount: 0
+      evidenceCount: 0,
+      owners: new Set<string>(),
+      automationReadiness: new Set<string>(),
+      sourceLocations: new Set<string>(),
+      blockers: new Set<string>()
     };
 
     group.count += 1;
@@ -77,6 +85,12 @@ export function groupFindings(findings: Finding[]): FindingGroup[] {
     group.evidenceCount += finding.evidence.length;
     for (const url of finding.affectedUrls) group.affectedUrls.add(url);
     for (const template of finding.affectedTemplates) group.affectedTemplates.add(template);
+    if (finding.actionability) {
+      group.owners.add(finding.actionability.owner);
+      group.automationReadiness.add(finding.actionability.automationReadiness);
+      finding.actionability.sourceLocations.forEach((location) => group.sourceLocations.add(location));
+      finding.actionability.blockers.forEach((blocker) => group.blockers.add(blocker));
+    }
     for (const command of finding.validation) {
       if (!group.validation.includes(command)) group.validation.push(command);
     }

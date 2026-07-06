@@ -1,6 +1,6 @@
 # Report Contract
 
-Every scan must produce the required report files and the 26 mandatory sections from the SEO Polish Report contract.
+Every scan must produce the required report files and the 27 mandatory sections from the SEO Polish Report contract.
 
 Every finding must include:
 
@@ -12,6 +12,9 @@ Every finding must include:
 - affected URLs or templates
 - safe-to-auto-fix flag
 - approval-required flag
+- actionability owner
+- automation readiness
+- source candidates or explicit source blocker
 - problem
 - evidence
 - impact

@@ -12,8 +12,12 @@ import { classifySite, detectFramework } from "./classify.js";
 import { endpointEvidence, pageEvidence } from "./evidence.js";
 import { fetchUrl, probeEndpoint } from "./fetch.js";
 import { extractHtmlSnapshot } from "./html.js";
+import { buildPerformanceAudit } from "./performance.js";
+import { analyzeRepository } from "./repo.js";
 import { parseRobotsTxt } from "./robots.js";
+import { clusterRouteTemplates } from "./routeTemplates.js";
 import { parseSitemapXml } from "./sitemap.js";
+import { inferTechStack } from "./techStack.js";
 import { dedupeUrls, isSafePublicCrawlUrl, normalizeUrl, sameOrigin } from "./url.js";
 
 const DISCOVERY_PATHS = [
@@ -46,6 +50,7 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
   const scanId = `scan_${Date.now().toString(36)}`;
   const baseUrl = normalizeUrl(config.url);
   const origin = new URL(baseUrl).origin;
+  const repo = await analyzeRepository(config);
 
   const endpoints: Record<string, EndpointProbe> = {};
   for (const path of DISCOVERY_PATHS) {
@@ -102,6 +107,7 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
   };
 
   const pages: PageSnapshot[] = [];
+  const pageHtml = new Map<string, string>();
   const crawlGraph: CrawlGraph = { nodes: [], edges: [] };
   const queue = dedupeUrls([baseUrl, ...discovery.sitemapUrls])
     .filter((url) => isSafePublicCrawlUrl(url, origin))
@@ -136,7 +142,9 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
           headers: response.headers,
           html: response.body
         });
+        page.timing = response.timing;
         pages.push(page);
+        pageHtml.set(page.finalUrl, response.body);
 
         for (const link of page.internalLinks) {
           crawlGraph.edges.push({ from: page.finalUrl, to: link });
@@ -160,7 +168,18 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
   const firstPage = pages[0];
   const detectedSiteType = config.siteType === "auto" ? classifySite(baseUrl, pages) : config.siteType;
   const framework =
-    config.framework ?? (firstPage ? detectFramework(firstPage.headers, firstPage.bodyExcerpt) : "unknown");
+    config.framework ??
+    repo.frameworks[0] ??
+    (firstPage ? detectFramework(firstPage.headers, firstPage.bodyExcerpt) : "unknown");
+  const performance = await buildPerformanceAudit({ config, origin, pages, endpoints, pageHtml });
+  const routeTemplates = clusterRouteTemplates(pages, repo);
+  const techStack = inferTechStack({
+    framework,
+    pages,
+    endpoints,
+    resources: performance.resources,
+    repo
+  });
 
   return {
     scanId,
@@ -172,7 +191,11 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
     discovery,
     pages,
     evidence,
-    crawlGraph
+    crawlGraph,
+    techStack,
+    repo,
+    performance,
+    routeTemplates
   };
 }
 

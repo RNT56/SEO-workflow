@@ -19,6 +19,20 @@ export const DEFAULT_CONFIG: Omit<ScanConfig, "url"> = {
   includeAgentReadiness: true,
   includeSearchIntegrations: false,
   outputDir: "seo-polish-report",
+  performanceRuns: 2,
+  performanceBudgets: {
+    lcpMs: 2500,
+    inpMs: 200,
+    cls: 0.1,
+    ttfbMs: 800,
+    documentFetchMs: 1200,
+    totalJsKb: 250,
+    thirdPartyJsKb: 120,
+    totalCssKb: 100,
+    imageBytesKb: 1000,
+    renderBlockingRequests: 6,
+    totalRequests: 80
+  },
   policy: {
     search: "yes",
     aiInput: "ask",

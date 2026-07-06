@@ -25,7 +25,7 @@ export function renderHtmlReport(bundle: ReportBundle): string {
     <div>
       <p class="eyebrow">SEO Polish Report</p>
       <h1>${escapeHtml(new URL(bundle.scan.config.url).hostname)}</h1>
-      <p>${escapeHtml(bundle.scan.siteType)} site, ${escapeHtml(bundle.scan.framework)} framework signal</p>
+      <p>${escapeHtml(bundle.scan.siteType)} site, ${escapeHtml(bundle.scan.techStack?.framework ?? bundle.scan.framework)} framework signal</p>
     </div>
     <div class="score">${bundle.score.total}<span>/100</span></div>
   </header>
@@ -131,7 +131,7 @@ function renderHtmlSection(number: number, title: string, bundle: ReportBundle):
           `<li>${escapeHtml(finding.id)} - ${escapeHtml(finding.title)}${escapeHtml(formatInstanceSuffix(finding.count))}</li>`
       )
       .join("");
-    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>Combined score: <strong>${bundle.score.total}/100</strong> (${escapeHtml(bundle.score.level)}). Findings are evidence-bound and generated from structured scan output.</p><p>${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info. ${groups.length} unique grouped issues.</p>${groups.length > 0 ? `<h3>Top grouped findings</h3><ol>${top}</ol>` : `<p class="status">No open findings.</p>`}</section>`;
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>Combined score: <strong>${bundle.score.total}/100</strong> (${escapeHtml(bundle.score.level)}). Findings are evidence-bound and generated from structured scan output.</p><p>${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info. ${groups.length} unique grouped issues.</p>${renderSiteIntelligence(bundle)}${groups.length > 0 ? `<h3>Top grouped findings</h3><ol>${top}</ol>` : `<p class="status">No open findings.</p>`}</section>`;
   }
   if (number === 3) {
     const instanceCounts = findingInstanceCounts(bundle.findings);
@@ -188,7 +188,7 @@ function renderHtmlSection(number: number, title: string, bundle: ReportBundle):
     return renderUserDecisionSection(number, title, bundle);
   }
   if (number === 26) {
-    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages.</p></section>`;
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages, ${bundle.scan.performance?.resources.length ?? 0} resource timing entries.</p><ul class="summary-list">${["tech-stack.json", "repo-analysis.json", "route-templates.json", "performance-audit.json", "resource-timing.json", "performance-runs.jsonl", "third-party-cost.json", "largest-assets.json", "critical-request-chain.json", "actionability.json", "baseline-comparison.json", "suppression-report.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul></section>`;
   }
   if (number === 27) {
     return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>The final executable handoff is written to <code>agent-execution-plan.md</code>. Rebuild it after benchmark data with <code>seo-polish plan build --report ${escapeHtml(bundle.scan.config.outputDir)}</code>.</p></section>`;
@@ -199,6 +199,20 @@ function renderHtmlSection(number: number, title: string, bundle: ReportBundle):
     ? bundle.findings.filter((finding) => section.categories.includes(finding.category))
     : [];
   return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2>${findings.length === 0 ? `<p class="status">Status: ${notApplicable(title, bundle.scan.siteType) ? "Not applicable" : "Passed"}</p>` : groupFindings(findings).map(renderFindingHtml).join("")}</section>`;
+}
+
+function renderSiteIntelligence(bundle: ReportBundle): string {
+  const tech = bundle.scan.techStack;
+  const repo = bundle.scan.repo;
+  const perf = bundle.scan.performance;
+  const failedMetrics = perf?.metrics.filter((metric) => metric.status === "failed").length ?? 0;
+  return `<div class="intel-grid" aria-label="Site intelligence">
+    <div><span>Tech stack</span><strong>${escapeHtml(tech ? `${tech.framework} (${tech.confidence}%)` : "not collected")}</strong></div>
+    <div><span>Hosting/CDN</span><strong>${escapeHtml(tech ? [...tech.hosting, ...tech.cdn].join(", ") || "no strong signal" : "not collected")}</strong></div>
+    <div><span>Repo analysis</span><strong>${escapeHtml(repo ? repo.status : "not configured")}</strong></div>
+    <div><span>Route templates</span><strong>${bundle.scan.routeTemplates?.length ?? 0}</strong></div>
+    <div><span>Performance</span><strong>${escapeHtml(perf ? `${perf.summary.totalRequests} requests, ${failedMetrics} failed budgets` : "not collected")}</strong></div>
+  </div>`;
 }
 
 function renderImplementationPlanSection(number: number, title: string, bundle: ReportBundle): string {
@@ -293,6 +307,8 @@ function renderFindingHtml(finding: ReturnType<typeof groupFindings>[number], in
     <span>${finding.evidenceCount} evidence entries</span>
     <span>Auto-fix: ${finding.safeToAutoFix ? "yes" : "no"}</span>
     <span>Approval: ${finding.approvalRequired ? "yes" : "no"}</span>
+    <span>Owner: ${escapeHtml(formatSet(finding.owners))}</span>
+    <span>Readiness: ${escapeHtml(formatSet(finding.automationReadiness))}</span>
   </div>
   <p><strong>Impact:</strong> ${escapeHtml(finding.impact)}</p>
   <p><strong>Root cause:</strong> ${escapeHtml(finding.rootCause)}</p>
@@ -301,6 +317,8 @@ function renderFindingHtml(finding: ReturnType<typeof groupFindings>[number], in
     <summary>Affected surface</summary>
     <p><strong>URLs:</strong> ${escapeHtml(formatSet(finding.affectedUrls))}</p>
     <p><strong>Templates:</strong> ${escapeHtml(formatSet(finding.affectedTemplates))}</p>
+    <p><strong>Source candidates:</strong> ${escapeHtml(formatSet(finding.sourceLocations))}</p>
+    <p><strong>Blockers:</strong> ${escapeHtml(formatSet(finding.blockers))}</p>
   </details>
   <pre id="${commandId}"><code>${escapeHtml(finding.validation.join("\n"))}</code></pre>
   <button type="button" data-copy="${commandId}">Copy validation</button>
@@ -365,6 +383,10 @@ section { margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid va
 h2 { margin-top: 0; font-size: 24px; letter-spacing: 0; }
 h3 { letter-spacing: 0; }
 .score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.intel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 16px 0 20px; }
+.intel-grid div { background: var(--sp-surface); border: 1px solid var(--sp-border); border-radius: 8px; padding: 12px; }
+.intel-grid span { display: block; color: var(--sp-muted); font-size: 12px; }
+.intel-grid strong { display: block; margin-top: 4px; overflow-wrap: anywhere; }
 .metric, .finding { background: var(--sp-surface); border: 1px solid var(--sp-border); border-radius: var(--sp-radius); padding: 16px; }
 .metric strong { display: block; margin: 8px 0; font-size: 30px; }
 .metric small { color: var(--sp-muted); }

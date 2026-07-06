@@ -48,27 +48,48 @@ export const REPORT_SECTIONS: ReportSection[] = [
   { number: 27, title: "Final Agent Execution Plan", categories: [] }
 ];
 
+export const REPORT_CONTRACT_VERSION = "2026-07-06.production-intelligence";
+
 export const REQUIRED_REPORT_FILES = [
   "index.md",
   "index.html",
+  "scan-result.json",
   "findings.json",
   "score.json",
   "evidence.jsonl",
   "remediation-plan.json",
-  "validation.json"
-] as const;
-
-export const OPTIONAL_REPORT_FILES = [
-  "executive-summary.md",
-  "priority-action-plan.md",
-  "agent-execution-plan.md",
+  "validation.json",
   "patch.diff",
+  "patch-plan.md",
+  "changed-files.json",
+  "framework-actions.json",
+  "manual-actions.md",
   "crawl-graph.json",
   "crawl-graph.svg",
   "raw-render-diff.json",
+  "response-index.json",
+  "header-index.json",
+  "body-excerpts.json",
+  "tech-stack.json",
+  "repo-analysis.json",
+  "route-templates.json",
+  "performance-audit.json",
+  "resource-timing.json",
+  "performance-runs.jsonl",
+  "third-party-cost.json",
+  "largest-assets.json",
+  "critical-request-chain.json",
+  "actionability.json",
+  "baseline-comparison.json",
+  "suppression-report.json",
+  "quality-gate.json",
+  "production-readiness.json",
   "internal-link-opportunities.json",
   "orphan-pages.csv",
   "deep-pages.csv",
+  "executive-summary.md",
+  "priority-action-plan.md",
+  "agent-execution-plan.md",
   "github-pr-comment.md",
   "before-after-score.json",
   "remaining-user-decisions.md",
@@ -78,10 +99,10 @@ export const OPTIONAL_REPORT_FILES = [
   "agent-instructions/claude-code.md",
   "agent-instructions/gemini-cli.md",
   "agent-instructions/openclaw.md",
-  "agent-instructions/hermes.md",
-  "benchmark.json",
-  "benchmark.md"
+  "agent-instructions/hermes.md"
 ] as const;
+
+export const OPTIONAL_REPORT_FILES = ["benchmark.json", "benchmark.md"] as const;
 
 export function sectionHeading(section: ReportSection): string {
   return `## ${section.number}. ${section.title}`;

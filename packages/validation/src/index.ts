@@ -22,6 +22,20 @@ const RECOMMENDED_SCAN_FILES = [
   "response-index.json",
   "header-index.json",
   "body-excerpts.json",
+  "tech-stack.json",
+  "repo-analysis.json",
+  "route-templates.json",
+  "performance-audit.json",
+  "resource-timing.json",
+  "performance-runs.jsonl",
+  "third-party-cost.json",
+  "largest-assets.json",
+  "critical-request-chain.json",
+  "actionability.json",
+  "baseline-comparison.json",
+  "suppression-report.json",
+  "quality-gate.json",
+  "production-readiness.json",
   "internal-link-opportunities.json",
   "orphan-pages.csv",
   "deep-pages.csv",
@@ -232,6 +246,71 @@ function validateScanArtifacts(scan: ScanResult): ValidationCheck[] {
     }
   }
 
+  checks.push(
+    check(
+      "intelligence.tech-stack",
+      "Tech stack fingerprint generated",
+      Boolean(scan.techStack && scan.techStack.signals.length > 0),
+      "The scan should include framework, hosting, CDN, CMS or repo-derived stack signals.",
+      "warning"
+    )
+  );
+  checks.push(
+    check(
+      "intelligence.route-templates",
+      "Route template clusters generated",
+      Array.isArray(scan.routeTemplates) && scan.routeTemplates.length > 0,
+      "The scan should cluster crawled URLs by route/template shape.",
+      "warning"
+    )
+  );
+  checks.push(
+    check(
+      "intelligence.performance",
+      "Performance audit generated",
+      Boolean(scan.performance && scan.performance.metrics.length > 0),
+      "The scan should include performance metrics and explicit limitations.",
+      "warning"
+    )
+  );
+  if (scan.performance) {
+    const cwvMetrics = scan.performance.metrics.filter((metric) =>
+      ["lcp-ms", "inp-ms", "cls"].includes(metric.id)
+    );
+    checks.push(
+      check(
+        "performance.cwv-no-fake-measurement",
+        "Browser-only metrics are not fabricated",
+        cwvMetrics.every(
+          (metric) =>
+            metric.reliability !== "not_measured" || metric.value === null || metric.status === "not_measured"
+        ),
+        "LCP, INP and CLS must be marked not_measured unless browser or field evidence exists.",
+        "error"
+      )
+    );
+    checks.push(
+      check(
+        "performance.resources-bounded",
+        "Resource timing payload bounded",
+        scan.performance.resources.length <= 2000,
+        "Resource timing output should stay bounded for agent consumption.",
+        "warning"
+      )
+    );
+  }
+  if (scan.config.repoPath) {
+    checks.push(
+      check(
+        "repo.analysis-configured",
+        "Configured repository analyzed",
+        scan.repo?.status === "ok",
+        "When --repo is supplied, repo-analysis.json should map source candidates.",
+        "warning"
+      )
+    );
+  }
+
   return checks;
 }
 
@@ -265,6 +344,20 @@ function validateFinding(finding: Finding): ValidationCheck[] {
       findingContainsPrivateReference(finding) && finding.severity !== "critical" ? "warning" : "info",
     message:
       "Private references are allowed only as evidence for security findings and must not become public implementation suggestions."
+  });
+  checks.push({
+    id: `validation.${finding.id}.actionability`,
+    title: `${finding.id} actionability present`,
+    status: finding.actionability ? "passed" : "failed",
+    severity: finding.actionability ? "info" : "error",
+    message: "Every finding should include owner, readiness, source candidates or blockers, and next step."
+  });
+  checks.push({
+    id: `validation.${finding.id}.safe-fix-boundary`,
+    title: `${finding.id} safe fix boundary`,
+    status: finding.safeToAutoFix && finding.approvalRequired ? "failed" : "passed",
+    severity: finding.safeToAutoFix && finding.approvalRequired ? "error" : "info",
+    message: "A finding cannot be both safe to auto-fix and approval-required."
   });
   return checks;
 }

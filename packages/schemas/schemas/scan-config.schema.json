@@ -10,6 +10,44 @@
     "maxDepth": { "type": "number" },
     "renderJs": { "type": "string" },
     "respectRobotsTxt": { "type": "boolean" },
-    "outputDir": { "type": "string" }
+    "outputDir": { "type": "string" },
+    "repoPath": { "type": "string" },
+    "framework": { "type": "string" },
+    "performanceRuns": { "type": "number", "minimum": 1, "maximum": 5 },
+    "baselinePath": { "type": "string" },
+    "suppressionsFile": { "type": "string" },
+    "performanceBudgets": {
+      "type": "object",
+      "properties": {
+        "lcpMs": { "type": "number" },
+        "inpMs": { "type": "number" },
+        "cls": { "type": "number" },
+        "ttfbMs": { "type": "number" },
+        "documentFetchMs": { "type": "number" },
+        "totalJsKb": { "type": "number" },
+        "thirdPartyJsKb": { "type": "number" },
+        "totalCssKb": { "type": "number" },
+        "imageBytesKb": { "type": "number" },
+        "renderBlockingRequests": { "type": "number" },
+        "totalRequests": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "suppressions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "findingId", "reason"],
+        "properties": {
+          "id": { "type": "string" },
+          "findingId": { "type": "string" },
+          "urlPattern": { "type": "string" },
+          "reason": { "type": "string" },
+          "owner": { "type": "string" },
+          "expiresAt": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
   }
 }

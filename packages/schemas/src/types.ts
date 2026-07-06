@@ -47,13 +47,24 @@ export type EvidenceType =
   | "command_output"
   | "raw_render_diff"
   | "crawl_graph"
-  | "schema_parse_error";
+  | "schema_parse_error"
+  | "performance_metric"
+  | "resource_timing"
+  | "repo_file"
+  | "tech_stack_signal"
+  | "route_template"
+  | "baseline";
 
 export type FixClass = "safe_auto_fix" | "approval_required" | "manual_strategy" | "not_applicable";
 export type Effort = "small" | "medium" | "large";
 export type Risk = "low" | "medium" | "high";
 export type ValidationStatus = "passed" | "failed" | "warning" | "not_applicable";
 export type ScoreLevel = "excellent" | "strong" | "medium" | "weak" | "critical";
+export type ActionOwner =
+  "frontend" | "content" | "backend" | "infra" | "policy" | "security" | "seo" | "agent-platform" | "unknown";
+export type AutomationReadiness = "auto" | "repo_assisted" | "manual" | "approval_required";
+export type MeasurementReliability = "field" | "browser_lab" | "fetch_lab" | "heuristic" | "not_measured";
+export type BudgetStatus = "passed" | "warning" | "failed" | "not_measured";
 
 export interface ScanPolicy {
   search: "yes" | "no" | "neutral";
@@ -61,6 +72,29 @@ export interface ScanPolicy {
   aiTrain: "yes" | "no" | "ask";
   mcpMutations: "disabled" | "approval-required" | "enabled";
   commerceActions: "disabled" | "approval-required" | "enabled";
+}
+
+export interface PerformanceBudget {
+  lcpMs?: number;
+  inpMs?: number;
+  cls?: number;
+  ttfbMs?: number;
+  documentFetchMs?: number;
+  totalJsKb?: number;
+  thirdPartyJsKb?: number;
+  totalCssKb?: number;
+  imageBytesKb?: number;
+  renderBlockingRequests?: number;
+  totalRequests?: number;
+}
+
+export interface SuppressionRule {
+  id: string;
+  findingId: string;
+  urlPattern?: string;
+  reason: string;
+  owner?: string;
+  expiresAt?: string;
 }
 
 export interface ScanConfig {
@@ -87,6 +121,11 @@ export interface ScanConfig {
   policyFile?: string;
   repoPath?: string;
   framework?: string;
+  performanceRuns?: number;
+  performanceBudgets?: PerformanceBudget;
+  baselinePath?: string;
+  suppressions?: SuppressionRule[];
+  suppressionsFile?: string;
 }
 
 export interface Evidence {
@@ -114,6 +153,16 @@ export interface RemediationOption {
   approvalReason?: string;
 }
 
+export interface FindingActionability {
+  owner: ActionOwner;
+  automationReadiness: AutomationReadiness;
+  sourceLocations: string[];
+  repoEvidence: string[];
+  expectedImpact: "low" | "medium" | "high";
+  nextStep: string;
+  blockers: string[];
+}
+
 export interface Finding {
   id: string;
   title: string;
@@ -132,6 +181,7 @@ export interface Finding {
   approvalRequired: boolean;
   validation: string[];
   references?: string[];
+  actionability?: FindingActionability;
 }
 
 export interface ScoreCategory {
@@ -203,6 +253,7 @@ export interface EndpointProbe {
   bodyExcerpt: string;
   headers: Record<string, string>;
   error?: string;
+  timing?: FetchTimingSnapshot;
 }
 
 export interface ImageSnapshot {
@@ -248,6 +299,7 @@ export interface PageSnapshot {
   hasSkipLink: boolean;
   forms: number;
   bodyExcerpt: string;
+  timing?: FetchTimingSnapshot;
 }
 
 export interface CrawlGraphNode {
@@ -264,6 +316,184 @@ export interface CrawlGraphEdge {
 export interface CrawlGraph {
   nodes: CrawlGraphNode[];
   edges: CrawlGraphEdge[];
+}
+
+export interface FetchTimingSnapshot {
+  url: string;
+  finalUrl: string;
+  status: number | null;
+  ok: boolean;
+  startedAt: string;
+  completedAt: string;
+  totalMs: number;
+  bodyBytes: number;
+  contentType: string | null;
+  run: number;
+  profile: "default" | "mobile" | "desktop" | "cold" | "warm";
+  error?: string;
+}
+
+export interface ResourceTimingSnapshot {
+  url: string;
+  type: "script" | "stylesheet" | "image" | "font" | "preload" | "document" | "other";
+  sameOrigin: boolean;
+  thirdParty: boolean;
+  renderBlocking: boolean;
+  async: boolean;
+  defer: boolean;
+  lazy: boolean;
+  discoveredIn: "head" | "body" | "unknown";
+  bytes?: number;
+  status?: number | null;
+  totalMs?: number;
+}
+
+export interface PerformanceMetricSnapshot {
+  id: string;
+  label: string;
+  value: number | null;
+  unit: "ms" | "kb" | "count" | "score" | "ratio";
+  budget?: number;
+  status: BudgetStatus;
+  reliability: MeasurementReliability;
+  evidence: string[];
+}
+
+export interface PerformanceProfile {
+  id: string;
+  label: string;
+  runs: number;
+  reliability: MeasurementReliability;
+}
+
+export interface PerformanceAudit {
+  generatedAt: string;
+  budgets: PerformanceBudget;
+  profiles: PerformanceProfile[];
+  metrics: PerformanceMetricSnapshot[];
+  resources: ResourceTimingSnapshot[];
+  fetchTimings: FetchTimingSnapshot[];
+  summary: {
+    totalRequests: number;
+    sameOriginRequests: number;
+    thirdPartyRequests: number;
+    renderBlockingRequests: number;
+    totalJsKb: number;
+    thirdPartyJsKb: number;
+    totalCssKb: number;
+    imageBytesKb: number;
+    medianDocumentFetchMs: number | null;
+    p95DocumentFetchMs: number | null;
+  };
+  limitations: string[];
+}
+
+export interface TechStackSignal {
+  category:
+    | "framework"
+    | "hosting"
+    | "cdn"
+    | "cms"
+    | "analytics"
+    | "bundler"
+    | "rendering"
+    | "image"
+    | "sitemap"
+    | "runtime"
+    | "other";
+  name: string;
+  confidence: number;
+  source: "headers" | "html" | "asset_path" | "endpoint" | "repo" | "dns" | "inference";
+  evidence: string;
+}
+
+export interface TechStackFingerprint {
+  generatedAt: string;
+  framework: string;
+  hosting: string[];
+  cdn: string[];
+  cms: string[];
+  analytics: string[];
+  bundler: string[];
+  rendering: string[];
+  imagePipeline: string[];
+  signals: TechStackSignal[];
+  confidence: number;
+}
+
+export interface RepoSourceFile {
+  path: string;
+  kind:
+    | "package"
+    | "framework_config"
+    | "route"
+    | "layout"
+    | "metadata"
+    | "sitemap"
+    | "robots"
+    | "static_asset"
+    | "deployment"
+    | "content"
+    | "test"
+    | "other";
+  confidence: number;
+  reason: string;
+}
+
+export interface RepoAnalysis {
+  generatedAt: string;
+  status: "not_configured" | "ok" | "partial" | "error";
+  path?: string;
+  packageManager?: string;
+  frameworks: string[];
+  dependencies: string[];
+  scripts: string[];
+  sourceFiles: RepoSourceFile[];
+  routeFiles: RepoSourceFile[];
+  staticFiles: RepoSourceFile[];
+  deploymentFiles: RepoSourceFile[];
+  seoFiles: RepoSourceFile[];
+  confidence: number;
+  limitations: string[];
+}
+
+export interface RouteTemplateCluster {
+  id: string;
+  label: string;
+  urlPattern: string;
+  representativeUrl: string;
+  urls: string[];
+  pageCount: number;
+  signals: string[];
+  sourceCandidates: string[];
+}
+
+export interface SuppressionMatch {
+  suppressionId: string;
+  findingId: string;
+  matchedUrls: string[];
+  reason: string;
+}
+
+export interface SuppressionReport {
+  generatedAt: string;
+  suppressedCount: number;
+  active: SuppressionRule[];
+  expired: SuppressionRule[];
+  unmatched: SuppressionRule[];
+  matches: SuppressionMatch[];
+}
+
+export interface BaselineComparison {
+  generatedAt: string;
+  status: "not_configured" | "ok" | "missing" | "invalid";
+  baselinePath?: string;
+  scoreDelta?: number;
+  newFindingGroups: string[];
+  resolvedFindingGroups: string[];
+  recurringFindingGroups: string[];
+  performanceDeltas: Record<string, number>;
+  notes: string[];
 }
 
 export interface DiscoveryResult {
@@ -286,6 +516,10 @@ export interface ScanResult {
   pages: PageSnapshot[];
   evidence: Evidence[];
   crawlGraph: CrawlGraph;
+  techStack?: TechStackFingerprint;
+  repo?: RepoAnalysis;
+  performance?: PerformanceAudit;
+  routeTemplates?: RouteTemplateCluster[];
 }
 
 export interface ReportBundle {

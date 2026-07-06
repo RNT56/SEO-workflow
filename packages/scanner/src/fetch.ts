@@ -1,4 +1,4 @@
-import type { EndpointProbe, ScanConfig } from "@seo-polish/schemas";
+import type { EndpointProbe, FetchTimingSnapshot, ScanConfig } from "@seo-polish/schemas";
 
 export interface FetchUrlResult {
   url: string;
@@ -8,6 +8,7 @@ export interface FetchUrlResult {
   headers: Record<string, string>;
   contentType: string;
   body: string;
+  timing: FetchTimingSnapshot;
 }
 
 function headersToRecord(headers: Headers): Record<string, string> {
@@ -25,6 +26,8 @@ export async function fetchUrl(
 ): Promise<FetchUrlResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+  const startedAt = new Date();
+  const started = performance.now();
 
   try {
     const headers: Record<string, string> = {
@@ -41,6 +44,8 @@ export async function fetchUrl(
     });
     const contentType = response.headers.get("content-type") ?? "";
     const body = await response.text();
+    const completedAt = new Date();
+    const totalMs = Math.max(0, Math.round(performance.now() - started));
     return {
       url,
       finalUrl: response.url,
@@ -48,8 +53,41 @@ export async function fetchUrl(
       ok: response.ok,
       headers: headersToRecord(response.headers),
       contentType,
-      body
+      body,
+      timing: {
+        url,
+        finalUrl: response.url,
+        status: response.status,
+        ok: response.ok,
+        startedAt: startedAt.toISOString(),
+        completedAt: completedAt.toISOString(),
+        totalMs,
+        bodyBytes: Buffer.byteLength(body, "utf8"),
+        contentType: contentType || null,
+        run: 1,
+        profile: "default"
+      }
     };
+  } catch (error) {
+    const completedAt = new Date();
+    const totalMs = Math.max(0, Math.round(performance.now() - started));
+    const message = error instanceof Error ? error.message : String(error);
+    throw Object.assign(new Error(message), {
+      timing: {
+        url,
+        finalUrl: url,
+        status: null,
+        ok: false,
+        startedAt: startedAt.toISOString(),
+        completedAt: completedAt.toISOString(),
+        totalMs,
+        bodyBytes: 0,
+        contentType: null,
+        run: 1,
+        profile: "default",
+        error: message
+      } satisfies FetchTimingSnapshot
+    });
   } finally {
     clearTimeout(timeout);
   }
@@ -72,9 +110,11 @@ export async function probeEndpoint(
       ok: result.ok,
       contentType: result.contentType || null,
       headers: result.headers,
-      bodyExcerpt: result.body.slice(0, 4000)
+      bodyExcerpt: result.body.slice(0, 4000),
+      timing: result.timing
     };
   } catch (error) {
+    const timing = extractTiming(error);
     return {
       path,
       url,
@@ -83,7 +123,19 @@ export async function probeEndpoint(
       contentType: null,
       headers: {},
       bodyExcerpt: "",
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      ...(timing ? { timing } : {})
     };
   }
+}
+
+function extractTiming(error: unknown): FetchTimingSnapshot | null {
+  if (!error || typeof error !== "object" || !("timing" in error)) {
+    return null;
+  }
+  const timing = (error as { timing?: unknown }).timing;
+  if (!timing || typeof timing !== "object") {
+    return null;
+  }
+  return timing as FetchTimingSnapshot;
 }

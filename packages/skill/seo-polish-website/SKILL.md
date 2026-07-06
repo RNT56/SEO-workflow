@@ -4,7 +4,7 @@ Use this skill when scanning, reporting, validating or improving a website for S
 
 ## Required behavior
 
-1. Run the workflow through `seo-polish scan <url> --output ./seo-polish-report`.
+1. Run the workflow through `seo-polish scan <url> --output ./seo-polish-report`; add `--repo <path>` when the website source repository is available.
 2. Use the generated structured files as the source of truth.
 3. Do not create a freeform-only audit report.
 4. Do not emit a finding without evidence.
@@ -21,6 +21,15 @@ Use this skill when scanning, reporting, validating or improving a website for S
 - `seo-polish-report/evidence.jsonl`
 - `seo-polish-report/remediation-plan.json`
 - `seo-polish-report/validation.json`
+- `seo-polish-report/tech-stack.json`
+- `seo-polish-report/repo-analysis.json`
+- `seo-polish-report/route-templates.json`
+- `seo-polish-report/performance-audit.json`
+- `seo-polish-report/resource-timing.json`
+- `seo-polish-report/actionability.json`
+- `seo-polish-report/baseline-comparison.json`
+- `seo-polish-report/suppression-report.json`
+- `seo-polish-report/quality-gate.json`
 - `seo-polish-report/priority-action-plan.md`
 - `seo-polish-report/agent-execution-plan.md`
 - `seo-polish-report/standards-registry.json`

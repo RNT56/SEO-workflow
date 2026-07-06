@@ -6,7 +6,18 @@ import { createRemediationPlan } from "@seo-polish/remediation";
 import { lintReport, writeReportBundle } from "@seo-polish/reporters";
 import { evaluateRules } from "@seo-polish/rules";
 import { scanSite } from "@seo-polish/scanner";
-import type { Finding, ReportBundle, ScanSummary, Severity, ValidationResult } from "@seo-polish/schemas";
+import type {
+  BaselineComparison,
+  Finding,
+  PerformanceAudit,
+  ReportBundle,
+  ScanSummary,
+  Score,
+  Severity,
+  SuppressionReport,
+  SuppressionRule,
+  ValidationResult
+} from "@seo-polish/schemas";
 import { calculateScore } from "@seo-polish/scoring";
 import { redactSensitiveValue } from "@seo-polish/security";
 import { buildStandardsSnapshot } from "@seo-polish/standards-registry";
@@ -25,6 +36,13 @@ export async function runScan(input: ScanConfigInput): Promise<ScanSummary> {
   const score = calculateScore(findings);
   const remediationPlan = createRemediationPlan(findings);
   const patchBundle = generatePatchBundle(config, findings, remediationPlan);
+  const suppressionReport = buildSuppressionReport(config.suppressions ?? [], findings);
+  const baselineComparison = await buildBaselineComparison(
+    config.baselinePath,
+    findings,
+    score,
+    scan.performance
+  );
 
   const initialValidation: ValidationResult = {
     ok: true,
@@ -51,14 +69,17 @@ export async function runScan(input: ScanConfigInput): Promise<ScanSummary> {
 
   await writeEvidenceStore(config.outputDir, scan);
   await writePatchSupportFiles(config.outputDir, patchBundle);
+  await writeIntelligenceSupportFiles(config.outputDir, findings, baselineComparison, suppressionReport);
   await writeFile(join(config.outputDir, "scan-result.json"), `${JSON.stringify(scan, null, 2)}\n`, "utf8");
   await writeReportBundle(config.outputDir, bundle);
-  await writeFinalSupportFiles(config.outputDir, bundle);
+  await writeFinalSupportFiles(config.outputDir, bundle, baselineComparison);
+  await writeQualityGate(config.outputDir, bundle, suppressionReport, baselineComparison);
 
   const validation = await runValidation({ reportDir: config.outputDir, findings, strict: true });
   const finalBundle: ReportBundle = { ...bundle, validation };
+  await writeQualityGate(config.outputDir, finalBundle, suppressionReport, baselineComparison);
   await writeReportBundle(config.outputDir, finalBundle);
-  await writeFinalSupportFiles(config.outputDir, finalBundle);
+  await writeFinalSupportFiles(config.outputDir, finalBundle, baselineComparison);
 
   return {
     scanId: scan.scanId,
@@ -129,16 +150,98 @@ async function writePatchSupportFiles(
   );
 }
 
-async function writeFinalSupportFiles(outputDir: string, bundle: ReportBundle): Promise<void> {
+async function writeIntelligenceSupportFiles(
+  outputDir: string,
+  findings: Finding[],
+  baselineComparison: BaselineComparison,
+  suppressionReport: SuppressionReport
+): Promise<void> {
+  await writeFile(
+    join(outputDir, "actionability.json"),
+    `${JSON.stringify(actionabilitySummary(findings), null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "baseline-comparison.json"),
+    `${JSON.stringify(baselineComparison, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "suppression-report.json"),
+    `${JSON.stringify(suppressionReport, null, 2)}\n`,
+    "utf8"
+  );
+}
+
+async function writeQualityGate(
+  outputDir: string,
+  bundle: ReportBundle,
+  suppressionReport: SuppressionReport,
+  baselineComparison: BaselineComparison
+): Promise<void> {
+  const missingActionability = bundle.findings.filter((finding) => !finding.actionability).length;
+  const evidenceFreeFindings = bundle.findings.filter((finding) => finding.evidence.length === 0).length;
+  const invalidSafeFixes = bundle.findings.filter(
+    (finding) => finding.safeToAutoFix && finding.approvalRequired
+  ).length;
+  const status =
+    bundle.validation.ok && missingActionability === 0 && evidenceFreeFindings === 0 && invalidSafeFixes === 0
+      ? "passed"
+      : "failed";
+  const qualityGate = {
+    generatedAt: new Date().toISOString(),
+    status,
+    reportValid: bundle.validation.ok,
+    checks: {
+      missingActionability,
+      evidenceFreeFindings,
+      invalidSafeFixes,
+      suppressionMatches: suppressionReport.matches.length,
+      baselineStatus: baselineComparison.status
+    },
+    stopConditions:
+      status === "passed"
+        ? []
+        : [
+            ...(!bundle.validation.ok ? ["validation failed"] : []),
+            ...(missingActionability > 0 ? ["findings missing actionability"] : []),
+            ...(evidenceFreeFindings > 0 ? ["findings missing evidence"] : []),
+            ...(invalidSafeFixes > 0 ? ["safe auto-fix conflicts with approval gate"] : [])
+          ]
+  };
+  await writeFile(join(outputDir, "quality-gate.json"), `${JSON.stringify(qualityGate, null, 2)}\n`, "utf8");
+  await writeFile(
+    join(outputDir, "production-readiness.json"),
+    `${JSON.stringify(qualityGate, null, 2)}\n`,
+    "utf8"
+  );
+}
+
+async function writeFinalSupportFiles(
+  outputDir: string,
+  bundle: ReportBundle,
+  baselineComparison: BaselineComparison
+): Promise<void> {
   await writeFile(
     join(outputDir, "before-after-score.json"),
     `${JSON.stringify(
       {
-        baseline: null,
+        baseline:
+          baselineComparison.status === "ok"
+            ? {
+                scoreDelta: baselineComparison.scoreDelta,
+                newFindingGroups: baselineComparison.newFindingGroups,
+                resolvedFindingGroups: baselineComparison.resolvedFindingGroups,
+                recurringFindingGroups: baselineComparison.recurringFindingGroups
+              }
+            : null,
         current: bundle.score,
         after: null,
-        status: "baseline_not_available",
-        message: "Run a second scan after applying safe fixes to populate before/after score comparison."
+        status: baselineComparison.status === "ok" ? "baseline_compared" : "baseline_not_available",
+        message:
+          baselineComparison.status === "ok"
+            ? "Baseline comparison is available in baseline-comparison.json."
+            : "Run with --baseline <report-dir-or-file> to populate before/after score comparison."
       },
       null,
       2
@@ -163,6 +266,189 @@ async function writeFinalSupportFiles(outputDir: string, bundle: ReportBundle): 
     ])
   ];
   await writeFile(join(outputDir, "remaining-user-decisions.md"), decisionLines.join("\n"), "utf8");
+}
+
+function actionabilitySummary(findings: Finding[]): unknown {
+  const byOwner: Record<string, number> = {};
+  const byReadiness: Record<string, number> = {};
+  for (const finding of findings) {
+    const owner = finding.actionability?.owner ?? "unknown";
+    const readiness = finding.actionability?.automationReadiness ?? "manual";
+    byOwner[owner] = (byOwner[owner] ?? 0) + 1;
+    byReadiness[readiness] = (byReadiness[readiness] ?? 0) + 1;
+  }
+  return {
+    generatedAt: new Date().toISOString(),
+    byOwner,
+    byReadiness,
+    findings: findings.map((finding) => ({
+      id: finding.id,
+      title: finding.title,
+      severity: finding.severity,
+      owner: finding.actionability?.owner ?? "unknown",
+      automationReadiness: finding.actionability?.automationReadiness ?? "manual",
+      sourceLocations: finding.actionability?.sourceLocations ?? [],
+      blockers: finding.actionability?.blockers ?? [],
+      nextStep: finding.actionability?.nextStep ?? finding.recommendation
+    }))
+  };
+}
+
+function buildSuppressionReport(suppressions: SuppressionRule[], findings: Finding[]): SuppressionReport {
+  const now = Date.now();
+  const active: SuppressionRule[] = [];
+  const expired: SuppressionRule[] = [];
+  const matches: SuppressionReport["matches"] = [];
+  for (const suppression of suppressions) {
+    if (suppression.expiresAt && Date.parse(suppression.expiresAt) < now) {
+      expired.push(suppression);
+      continue;
+    }
+    active.push(suppression);
+    const urlPattern = compileSuppressionPattern(suppression);
+    const matchedUrls = findings
+      .filter((finding) => finding.id === suppression.findingId)
+      .flatMap((finding) => finding.affectedUrls)
+      .filter((url) => !urlPattern || urlPattern.test(url));
+    if (matchedUrls.length > 0) {
+      matches.push({
+        suppressionId: suppression.id,
+        findingId: suppression.findingId,
+        matchedUrls: [...new Set(matchedUrls)],
+        reason: suppression.reason
+      });
+    }
+  }
+  const matchedSuppressionIds = new Set(matches.map((match) => match.suppressionId));
+  return {
+    generatedAt: new Date().toISOString(),
+    suppressedCount: matches.length,
+    active,
+    expired,
+    unmatched: active.filter((suppression) => !matchedSuppressionIds.has(suppression.id)),
+    matches
+  };
+}
+
+function compileSuppressionPattern(suppression: SuppressionRule): RegExp | null {
+  if (!suppression.urlPattern) {
+    return null;
+  }
+  try {
+    return new RegExp(suppression.urlPattern);
+  } catch {
+    return /$a/;
+  }
+}
+
+async function buildBaselineComparison(
+  baselinePath: string | undefined,
+  findings: Finding[],
+  score: Score,
+  performance: PerformanceAudit | undefined
+): Promise<BaselineComparison> {
+  const generatedAt = new Date().toISOString();
+  if (!baselinePath) {
+    return emptyBaseline(generatedAt, "not_configured", ["No baseline path was configured."]);
+  }
+  const baseline = await readBaseline(baselinePath);
+  if (!baseline) {
+    return emptyBaseline(
+      generatedAt,
+      "missing",
+      [`Could not read baseline from ${baselinePath}.`],
+      baselinePath
+    );
+  }
+
+  const currentIds = uniqueFindingIds(findings);
+  const baselineIds = uniqueFindingIds(baseline.findings);
+  const currentSet = new Set(currentIds);
+  const baselineSet = new Set(baselineIds);
+  return {
+    generatedAt,
+    status: "ok",
+    baselinePath,
+    scoreDelta: score.total - baseline.score.total,
+    newFindingGroups: currentIds.filter((id) => !baselineSet.has(id)),
+    resolvedFindingGroups: baselineIds.filter((id) => !currentSet.has(id)),
+    recurringFindingGroups: currentIds.filter((id) => baselineSet.has(id)),
+    performanceDeltas: performanceDeltas(baseline.performance, performance),
+    notes: ["Positive scoreDelta means the current scan scored higher than the baseline."]
+  };
+}
+
+function emptyBaseline(
+  generatedAt: string,
+  status: BaselineComparison["status"],
+  notes: string[],
+  baselinePath?: string
+): BaselineComparison {
+  return {
+    generatedAt,
+    status,
+    ...(baselinePath ? { baselinePath } : {}),
+    newFindingGroups: [],
+    resolvedFindingGroups: [],
+    recurringFindingGroups: [],
+    performanceDeltas: {},
+    notes
+  };
+}
+
+async function readBaseline(
+  baselinePath: string
+): Promise<{ findings: Finding[]; score: Score; performance?: PerformanceAudit } | null> {
+  try {
+    const score = await readJson<Score>(join(baselinePath, "score.json"));
+    const findings = await readJson<Finding[]>(join(baselinePath, "findings.json"));
+    const performance = await readOptionalJson<PerformanceAudit>(
+      join(baselinePath, "performance-audit.json")
+    );
+    return { findings, score, ...(performance ? { performance } : {}) };
+  } catch {
+    try {
+      const bundle = await readJson<ReportBundle>(baselinePath);
+      return {
+        findings: bundle.findings,
+        score: bundle.score,
+        ...(bundle.scan.performance ? { performance: bundle.scan.performance } : {})
+      };
+    } catch {
+      return null;
+    }
+  }
+}
+
+function uniqueFindingIds(findings: Finding[]): string[] {
+  return [...new Set(findings.map((finding) => finding.id))].sort();
+}
+
+function performanceDeltas(
+  baseline: PerformanceAudit | undefined,
+  current: PerformanceAudit | undefined
+): Record<string, number> {
+  if (!baseline || !current) {
+    return {};
+  }
+  const baselineMetrics = new Map(
+    baseline.metrics
+      .filter((metric) => typeof metric.value === "number")
+      .map((metric) => [metric.id, metric.value as number])
+  );
+  return Object.fromEntries(
+    current.metrics
+      .filter((metric) => typeof metric.value === "number" && baselineMetrics.has(metric.id))
+      .map((metric) => [metric.id, (metric.value as number) - (baselineMetrics.get(metric.id) ?? 0)])
+  );
+}
+
+async function readOptionalJson<T>(path: string): Promise<T | null> {
+  try {
+    return await readJson<T>(path);
+  } catch {
+    return null;
+  }
 }
 
 async function readJson<T>(path: string): Promise<T> {

@@ -16,6 +16,7 @@ import {
 import { renderAgentExecutionPlan, type AgentExecutionPlanBenchmark } from "@seo-polish/reporters";
 import type {
   Finding,
+  PerformanceBudget,
   ReportBundle,
   ScanResult,
   ValidationResult,
@@ -43,6 +44,11 @@ async function main(argv: string[]): Promise<void> {
     if (!url) {
       throw new Error("Usage: seo-polish scan <url>");
     }
+    const repoPath = flagOptionalString(args, "repo");
+    const framework = flagOptionalString(args, "framework");
+    const baselinePath = flagOptionalString(args, "baseline");
+    const suppressionsFile = flagOptionalString(args, "suppressions");
+    const budgets = budgetOverrides(args);
     const summary = await runScan({
       url,
       outputDir: flagString(args, "output", DEFAULT_CONFIG.outputDir),
@@ -50,6 +56,12 @@ async function main(argv: string[]): Promise<void> {
       maxDepth: flagNumber(args, "max-depth", DEFAULT_CONFIG.maxDepth),
       renderJs: flagString(args, "render-js", DEFAULT_CONFIG.renderJs) as RenderJsMode,
       siteType: flagString(args, "site-type", DEFAULT_CONFIG.siteType) as SiteType,
+      performanceRuns: flagNumber(args, "performance-runs", DEFAULT_CONFIG.performanceRuns ?? 1),
+      ...(repoPath ? { repoPath } : {}),
+      ...(framework ? { framework } : {}),
+      ...(baselinePath ? { baselinePath } : {}),
+      ...(suppressionsFile ? { suppressionsFile } : {}),
+      ...(Object.keys(budgets).length > 0 ? { performanceBudgets: budgets } : {}),
       includeExperimentalStandards: Boolean(
         args.flags["include-experimental"] ?? DEFAULT_CONFIG.includeExperimentalStandards
       )
@@ -95,7 +107,7 @@ async function main(argv: string[]): Promise<void> {
       flagString(args, "report", "seo-polish-report"),
       Boolean(args.flags.strict ?? true)
     );
-    console.log(JSON.stringify(args.flags.full ? result : summarizeValidation(result), null, 2));
+    printValidationResult(result, args);
     process.exitCode = result.ok ? 0 : 1;
     return;
   }
@@ -103,7 +115,7 @@ async function main(argv: string[]): Promise<void> {
   if (command === "report" && subcommand === "lint") {
     const reportDir = args.positionals[0] ?? "seo-polish-report";
     const result = await runReportLint(reportDir, Boolean(args.flags.strict));
-    console.log(JSON.stringify(args.flags.full ? result : summarizeValidation(result), null, 2));
+    printValidationResult(result, args);
     process.exitCode = result.ok ? 0 : 1;
     return;
   }
@@ -272,6 +284,50 @@ function flagNumber(args: ParsedArgs, key: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function flagOptionalString(args: ParsedArgs, key: string): string | undefined {
+  const value = args.flags[key];
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function budgetOverrides(args: ParsedArgs): PerformanceBudget {
+  const budget: PerformanceBudget = {};
+  setBudgetNumber(args, budget, "budget-lcp-ms", "lcpMs");
+  setBudgetNumber(args, budget, "budget-inp-ms", "inpMs");
+  setBudgetNumber(args, budget, "budget-cls", "cls");
+  setBudgetNumber(args, budget, "budget-ttfb-ms", "ttfbMs");
+  setBudgetNumber(args, budget, "budget-document-fetch-ms", "documentFetchMs");
+  setBudgetNumber(args, budget, "budget-total-js-kb", "totalJsKb");
+  setBudgetNumber(args, budget, "budget-third-party-js-kb", "thirdPartyJsKb");
+  setBudgetNumber(args, budget, "budget-total-css-kb", "totalCssKb");
+  setBudgetNumber(args, budget, "budget-image-kb", "imageBytesKb");
+  setBudgetNumber(args, budget, "budget-render-blocking", "renderBlockingRequests");
+  setBudgetNumber(args, budget, "budget-total-requests", "totalRequests");
+  return budget;
+}
+
+function setBudgetNumber(
+  args: ParsedArgs,
+  budget: PerformanceBudget,
+  flag: string,
+  key: keyof PerformanceBudget
+): void {
+  const value = args.flags[flag];
+  if (typeof value !== "string") {
+    return;
+  }
+  const parsed = Number(value);
+  if (Number.isFinite(parsed)) {
+    budget[key] = parsed;
+  }
+}
+
+function printValidationResult(result: ValidationResult, args: ParsedArgs): void {
+  const format = flagString(args, "format", args.flags.full ? "full" : "summary");
+  console.log(
+    JSON.stringify(format === "full" || format === "json" ? result : summarizeValidation(result), null, 2)
+  );
+}
+
 function summarizeValidation(result: ValidationResult): {
   ok: boolean;
   generatedAt: string;
@@ -307,12 +363,14 @@ function printHelp(): void {
   console.log(`SEO polish workflow
 
 Usage:
-  seo-polish scan <url> [--output ./seo-polish-report] [--max-pages 50]
+  seo-polish scan <url> [--output ./seo-polish-report] [--max-pages 50] [--repo ../site]
+                   [--performance-runs 3] [--baseline ./previous-report]
+                   [--budget-total-js-kb 250] [--suppressions ./suppressions.json]
   seo-polish plan --scan ./seo-polish-report/findings.json
   seo-polish plan build --report ./seo-polish-report
   seo-polish apply --plan ./seo-polish-report/remediation-plan.json --mode diff-only
-  seo-polish validate --report ./seo-polish-report [--full]
-  seo-polish report lint ./seo-polish-report --strict [--full]
+  seo-polish validate --report ./seo-polish-report [--format summary|full|json]
+  seo-polish report lint ./seo-polish-report --strict [--format summary|full|json]
   seo-polish report render ./seo-polish-report
   seo-polish policy init
   seo-polish standards update --output ./seo-polish-report/standards-registry.json

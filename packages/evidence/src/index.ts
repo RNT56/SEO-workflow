@@ -50,6 +50,53 @@ export async function writeEvidenceStore(outputDir: string, scan: ScanResult): P
     `${JSON.stringify(renderDiffSummary(scan), null, 2)}\n`,
     "utf8"
   );
+  await writeFile(
+    join(outputDir, "tech-stack.json"),
+    `${JSON.stringify(scan.techStack ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "repo-analysis.json"),
+    `${JSON.stringify(scan.repo ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "route-templates.json"),
+    `${JSON.stringify(scan.routeTemplates ?? [], null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "performance-audit.json"),
+    `${JSON.stringify(scan.performance ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "resource-timing.json"),
+    `${JSON.stringify(scan.performance?.resources ?? [], null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "performance-runs.jsonl"),
+    `${(scan.performance?.fetchTimings ?? []).map((item) => JSON.stringify(item)).join("\n")}${
+      scan.performance?.fetchTimings?.length ? "\n" : ""
+    }`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "third-party-cost.json"),
+    `${JSON.stringify(thirdPartyCost(scan), null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "largest-assets.json"),
+    `${JSON.stringify(largestAssets(scan), null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "critical-request-chain.json"),
+    `${JSON.stringify(criticalRequestChain(scan), null, 2)}\n`,
+    "utf8"
+  );
   await writeFile(join(outputDir, "crawl-graph.svg"), renderCrawlGraphSvg(scan), "utf8");
   await writeFile(
     join(outputDir, "internal-link-opportunities.json"),
@@ -58,6 +105,52 @@ export async function writeEvidenceStore(outputDir: string, scan: ScanResult): P
   );
   await writeFile(join(outputDir, "orphan-pages.csv"), renderOrphanPagesCsv(scan), "utf8");
   await writeFile(join(outputDir, "deep-pages.csv"), renderDeepPagesCsv(scan), "utf8");
+}
+
+function thirdPartyCost(scan: ScanResult): unknown {
+  const resources = scan.performance?.resources ?? [];
+  const thirdParty = resources.filter((resource) => resource.thirdParty);
+  return {
+    status: scan.performance ? "measured" : "not_collected",
+    requests: thirdParty.length,
+    knownBytes: thirdParty.reduce((sum, resource) => sum + (resource.bytes ?? 0), 0),
+    hosts: [...new Set(thirdParty.map((resource) => new URL(resource.url).hostname))].sort(),
+    resources: thirdParty.map((resource) => ({
+      url: resource.url,
+      type: resource.type,
+      bytes: resource.bytes ?? null,
+      renderBlocking: resource.renderBlocking
+    }))
+  };
+}
+
+function largestAssets(scan: ScanResult): unknown[] {
+  return (scan.performance?.resources ?? [])
+    .filter((resource) => typeof resource.bytes === "number")
+    .sort((a, b) => (b.bytes ?? 0) - (a.bytes ?? 0))
+    .slice(0, 25)
+    .map((resource) => ({
+      url: resource.url,
+      type: resource.type,
+      bytes: resource.bytes,
+      thirdParty: resource.thirdParty,
+      renderBlocking: resource.renderBlocking
+    }));
+}
+
+function criticalRequestChain(scan: ScanResult): unknown {
+  const resources = (scan.performance?.resources ?? []).filter((resource) => resource.renderBlocking);
+  return {
+    status: scan.performance ? "heuristic" : "not_collected",
+    limitation:
+      "HTTP fallback identifies statically render-blocking scripts and stylesheets; browser initiator chains require CDP evidence.",
+    resources: resources.map((resource) => ({
+      url: resource.url,
+      type: resource.type,
+      bytes: resource.bytes ?? null,
+      totalMs: resource.totalMs ?? null
+    }))
+  };
 }
 
 function renderDiffSummary(scan: ScanResult): unknown {
