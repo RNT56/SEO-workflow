@@ -58,6 +58,8 @@ async function main(argv: string[]): Promise<void> {
       maxDepth: flagNumber(args, "max-depth", DEFAULT_CONFIG.maxDepth),
       renderJs: flagString(args, "render-js", DEFAULT_CONFIG.renderJs) as RenderJsMode,
       siteType: flagString(args, "site-type", DEFAULT_CONFIG.siteType) as SiteType,
+      includeBrowserEvidence: flagBoolean(args, "browser-evidence", DEFAULT_CONFIG.includeBrowserEvidence),
+      includeCoreWebVitals: flagBoolean(args, "core-web-vitals", DEFAULT_CONFIG.includeCoreWebVitals),
       performanceRuns: flagNumber(args, "performance-runs", DEFAULT_CONFIG.performanceRuns ?? 1),
       ...(repoPath ? { repoPath } : {}),
       ...(framework ? { framework } : {}),
@@ -309,6 +311,15 @@ function flagOptionalString(args: ParsedArgs, key: string): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+function flagBoolean(args: ParsedArgs, key: string, fallback: boolean): boolean {
+  const value = args.flags[key];
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return fallback;
+  if (["1", "true", "yes", "on"].includes(value.toLowerCase())) return true;
+  if (["0", "false", "no", "off"].includes(value.toLowerCase())) return false;
+  return fallback;
+}
+
 function budgetOverrides(args: ParsedArgs): PerformanceBudget {
   const budget: PerformanceBudget = {};
   setBudgetNumber(args, budget, "budget-lcp-ms", "lcpMs");
@@ -384,7 +395,7 @@ function printHelp(): void {
 
 Usage:
   seo-polish scan <url> [--output ./seo-polish-report] [--max-pages 50] [--repo ../site]
-                   [--performance-runs 3] [--baseline ./previous-report]
+                   [--browser-evidence] [--core-web-vitals] [--performance-runs 3] [--baseline ./previous-report]
                    [--budget-total-js-kb 250] [--suppressions ./suppressions.json]
   seo-polish plan --scan ./seo-polish-report/findings.json
   seo-polish plan build --report ./seo-polish-report

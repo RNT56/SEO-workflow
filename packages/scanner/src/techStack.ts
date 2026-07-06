@@ -1,4 +1,5 @@
 import type {
+  BrowserEvidenceReport,
   EndpointProbe,
   PageSnapshot,
   RepoAnalysis,
@@ -13,6 +14,7 @@ export interface InferTechStackInput {
   endpoints: Record<string, EndpointProbe>;
   resources: ResourceTimingSnapshot[];
   repo?: RepoAnalysis;
+  browserEvidence?: BrowserEvidenceReport;
 }
 
 export function inferTechStack(input: InferTechStackInput): TechStackFingerprint {
@@ -84,6 +86,27 @@ export function inferTechStack(input: InferTechStackInput): TechStackFingerprint
       if (file.path === "vercel.json") {
         add({ category: "hosting", name: "vercel", confidence: 95, source: "repo", evidence: file.path });
       }
+    }
+  }
+
+  if (input.browserEvidence?.status === "ok") {
+    for (const framework of input.browserEvidence.summary.detectedFrameworks) {
+      add({
+        category: "framework",
+        name: framework,
+        confidence: 96,
+        source: "browser",
+        evidence: "Browser runtime markers or rendered asset graph detected this framework."
+      });
+    }
+    for (const bundler of input.browserEvidence.summary.detectedBundlers) {
+      add({
+        category: "bundler",
+        name: bundler,
+        confidence: 88,
+        source: "browser",
+        evidence: "Browser runtime markers or rendered resource graph detected this bundler."
+      });
     }
   }
 
@@ -228,6 +251,7 @@ function aggregatedSignalScore(signals: TechStackSignal[]): number {
 function sourceWeight(signal: TechStackSignal): number {
   const sourceWeights: Record<TechStackSignal["source"], number> = {
     repo: 40,
+    browser: 28,
     asset_path: 18,
     headers: 12,
     endpoint: 8,

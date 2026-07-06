@@ -102,7 +102,7 @@ Rules:
 
 Execution order:
 
-1. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/actionability.json\`, \`${reportDir}/repo-analysis.json\`, \`${reportDir}/tech-stack.json\`, \`${reportDir}/performance-audit.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
+1. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/actionability.json\`, \`${reportDir}/repo-analysis.json\`, \`${reportDir}/tech-stack.json\`, \`${reportDir}/browser-evidence.json\`, \`${reportDir}/performance-audit.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
 2. Implement safe fixes that are applicable to the current source repo.
 3. Do not implement policy/auth/payment/indexing/canonical/MCP mutation changes without explicit approval.
 4. Re-run \`seo-polish scan ${target} --output ${reportDir}\`.
@@ -183,6 +183,7 @@ function renderSiteIntelligence(bundle: ReportBundle): string {
   const tech = bundle.scan.techStack;
   const repo = bundle.scan.repo;
   const perf = bundle.scan.performance;
+  const browser = bundle.scan.browserEvidence;
   const templates = bundle.scan.routeTemplates ?? [];
   const failedMetrics = perf?.metrics.filter((metric) => metric.status === "failed") ?? [];
   return [
@@ -191,6 +192,11 @@ function renderSiteIntelligence(bundle: ReportBundle): string {
     `- Hosting/CDN: ${tech ? [...tech.hosting, ...tech.cdn].join(", ") || "no strong signal" : "not collected"}`,
     `- Repo analysis: ${repo ? `${repo.status}${repo.path ? ` (${repo.path})` : ""}` : "not configured"}`,
     `- Route templates: ${templates.length}`,
+    `- Browser evidence: ${
+      browser
+        ? `${browser.status}${browser.status === "ok" ? `, ${browser.summary.pagesVisited} sampled page(s), runtime ${[...browser.summary.detectedFrameworks, ...browser.summary.detectedBundlers].join(", ") || "no markers"}` : ""}`
+        : "not collected"
+    }`,
     `- Performance evidence: ${perf ? `${perf.summary.totalRequests} requests, ${failedMetrics.length} failed budget metrics` : "not collected"}`
   ].join("\n");
 }

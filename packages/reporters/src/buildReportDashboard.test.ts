@@ -145,6 +145,7 @@ function makeBundle(): ReportBundle {
         concurrency: 1,
         includeScreenshots: false,
         includeCoreWebVitals: false,
+        includeBrowserEvidence: false,
         includeAccessibility: false,
         includeCommerce: false,
         includeInternationalSeo: false,

@@ -10,6 +10,8 @@
     "maxDepth": { "type": "number" },
     "renderJs": { "type": "string" },
     "respectRobotsTxt": { "type": "boolean" },
+    "includeBrowserEvidence": { "type": "boolean" },
+    "includeCoreWebVitals": { "type": "boolean" },
     "outputDir": { "type": "string" },
     "repoPath": { "type": "string" },
     "framework": { "type": "string" },

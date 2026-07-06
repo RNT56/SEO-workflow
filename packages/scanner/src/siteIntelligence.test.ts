@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import type { PageSnapshot, ScanConfig } from "@seo-polish/schemas";
+import type { BrowserEvidenceReport, PageSnapshot, ScanConfig } from "@seo-polish/schemas";
 import { buildPerformanceAudit } from "./performance.js";
 import { analyzeRepository } from "./repo.js";
 import { discoverResources } from "./resourceDiscovery.js";
@@ -173,6 +173,39 @@ describe("site intelligence", () => {
     );
   });
 
+  it("uses browser evidence for runtime fingerprinting and lab metrics", async () => {
+    const config = scanConfig();
+    const browserEvidence = browserEvidenceReport();
+    const fingerprint = inferTechStack({
+      framework: "unknown",
+      pages: [page("https://example.com/")],
+      endpoints: {},
+      resources: [],
+      browserEvidence
+    });
+    const performance = await buildPerformanceAudit({
+      config,
+      origin: "https://example.com",
+      pages: [page("https://example.com/")],
+      endpoints: {},
+      pageHtml: new Map([["https://example.com/", "<html><head></head><body>Hello</body></html>"]]),
+      browserEvidence
+    });
+
+    expect(fingerprint.framework).toBe("sveltekit");
+    expect(fingerprint.bundler).toContain("vite");
+    expect(performance.profiles.map((profile) => profile.id)).toContain("browser-lab");
+    expect(performance.metrics.find((metric) => metric.id === "lcp-ms")).toEqual(
+      expect.objectContaining({ value: 1200, reliability: "browser_lab", status: "passed" })
+    );
+    expect(performance.metrics.find((metric) => metric.id === "cls")).toEqual(
+      expect.objectContaining({ value: 0.02, reliability: "browser_lab", status: "passed" })
+    );
+    expect(performance.metrics.find((metric) => metric.id === "inp-ms")).toEqual(
+      expect.objectContaining({ value: null, reliability: "not_measured", status: "not_measured" })
+    );
+  });
+
   it("builds HTTP fallback performance metrics without browser-only claims", async () => {
     const config = scanConfig();
     const performance = await buildPerformanceAudit({
@@ -235,6 +268,71 @@ function page(url: string): PageSnapshot {
   };
 }
 
+function browserEvidenceReport(): BrowserEvidenceReport {
+  return {
+    generatedAt: "2026-07-06T00:00:00.000Z",
+    status: "ok",
+    requested: true,
+    pages: [
+      {
+        url: "https://example.com/",
+        finalUrl: "https://example.com/",
+        status: 200,
+        title: "Example Page",
+        rendered: {
+          title: "Example Page",
+          metaDescription: "Example description",
+          canonical: "https://example.com/",
+          h1: "Example Page",
+          wordCount: 2,
+          internalLinks: 1,
+          jsonLdTypes: []
+        },
+        rawComparison: {
+          changedFields: [],
+          rawWordCount: 2,
+          renderedWordCount: 2,
+          risk: "low"
+        },
+        console: { errors: [], warnings: [] },
+        pageErrors: [],
+        failedRequests: [],
+        resources: [],
+        runtime: {
+          frameworks: ["sveltekit"],
+          bundlers: ["vite"],
+          globals: [],
+          markers: { svelteKitAssets: true, viteModuleGraph: true }
+        },
+        metrics: {
+          domContentLoadedMs: 300,
+          loadMs: 450,
+          ttfbMs: 80,
+          firstContentfulPaintMs: 700,
+          largestContentfulPaintMs: 1200,
+          cumulativeLayoutShift: 0.02,
+          interactionToNextPaintMs: null,
+          longTasks: 0,
+          longTaskTotalMs: 0
+        },
+        limitations: ["INP is not measured without scripted interaction or field data."]
+      }
+    ],
+    summary: {
+      pagesVisited: 1,
+      consoleErrors: 0,
+      consoleWarnings: 0,
+      pageErrors: 0,
+      failedRequests: 0,
+      browserMetricCoverage: { ttfb: 1, fcp: 1, lcp: 1, cls: 1, inp: 0 },
+      detectedFrameworks: ["sveltekit"],
+      detectedBundlers: ["vite"],
+      hydrationRiskUrls: []
+    },
+    limitations: ["Browser evidence is a bounded lab sample, not field data."]
+  };
+}
+
 function scanConfig(): ScanConfig {
   return {
     url: "https://example.com/",
@@ -248,6 +346,7 @@ function scanConfig(): ScanConfig {
     concurrency: 1,
     includeScreenshots: false,
     includeCoreWebVitals: false,
+    includeBrowserEvidence: false,
     includeAccessibility: true,
     includeCommerce: true,
     includeInternationalSeo: true,

@@ -50,6 +50,9 @@ export type EvidenceType =
   | "schema_parse_error"
   | "performance_metric"
   | "resource_timing"
+  | "browser_console"
+  | "browser_metric"
+  | "browser_runtime"
   | "repo_file"
   | "tech_stack_signal"
   | "route_template"
@@ -109,6 +112,7 @@ export interface ScanConfig {
   concurrency: number;
   includeScreenshots: boolean;
   includeCoreWebVitals: boolean;
+  includeBrowserEvidence: boolean;
   includeAccessibility: boolean;
   includeCommerce: boolean;
   includeInternationalSeo: boolean;
@@ -277,6 +281,18 @@ export interface ReportDashboardPerformanceSummary {
     medianDocumentFetchMs: number | null;
     p95DocumentFetchMs: number | null;
     maxDocumentFetchMs: number | null;
+  };
+  browserEvidence: {
+    status: BrowserEvidenceReport["status"];
+    pagesVisited: number;
+    consoleErrors: number;
+    consoleWarnings: number;
+    pageErrors: number;
+    failedRequests: number;
+    detectedFrameworks: string[];
+    detectedBundlers: string[];
+    hydrationRiskUrls: string[];
+    browserMetricCoverage: BrowserEvidenceReport["summary"]["browserMetricCoverage"];
   };
   limitations: string[];
 }
@@ -513,6 +529,110 @@ export interface PerformanceAudit {
   limitations: string[];
 }
 
+export interface BrowserConsoleEntry {
+  type: "debug" | "info" | "log" | "warning" | "error";
+  text: string;
+  url?: string;
+  lineNumber?: number;
+  columnNumber?: number;
+}
+
+export interface BrowserRequestFailure {
+  url: string;
+  method: string;
+  resourceType: string;
+  failureText: string;
+}
+
+export interface BrowserResourceTiming {
+  name: string;
+  initiatorType: string;
+  startTime: number;
+  duration: number;
+  transferSize: number;
+  encodedBodySize: number;
+  decodedBodySize: number;
+  renderBlockingStatus?: string;
+}
+
+export interface BrowserRenderedSnapshot {
+  title: string | null;
+  metaDescription: string | null;
+  canonical: string | null;
+  h1: string | null;
+  wordCount: number;
+  internalLinks: number;
+  jsonLdTypes: string[];
+}
+
+export interface BrowserRuntimeEvidence {
+  frameworks: string[];
+  bundlers: string[];
+  globals: string[];
+  markers: Record<string, boolean>;
+}
+
+export interface BrowserMetricEvidence {
+  domContentLoadedMs: number | null;
+  loadMs: number | null;
+  ttfbMs: number | null;
+  firstContentfulPaintMs: number | null;
+  largestContentfulPaintMs: number | null;
+  cumulativeLayoutShift: number | null;
+  interactionToNextPaintMs: number | null;
+  longTasks: number;
+  longTaskTotalMs: number;
+}
+
+export interface BrowserPageEvidence {
+  url: string;
+  finalUrl: string;
+  status: number | null;
+  title: string | null;
+  rendered: BrowserRenderedSnapshot;
+  rawComparison: {
+    changedFields: string[];
+    rawWordCount: number | null;
+    renderedWordCount: number;
+    risk: "low" | "review_recommended";
+  };
+  console: {
+    errors: BrowserConsoleEntry[];
+    warnings: BrowserConsoleEntry[];
+  };
+  pageErrors: string[];
+  failedRequests: BrowserRequestFailure[];
+  resources: BrowserResourceTiming[];
+  runtime: BrowserRuntimeEvidence;
+  metrics: BrowserMetricEvidence;
+  limitations: string[];
+}
+
+export interface BrowserEvidenceReport {
+  generatedAt: string;
+  status: "disabled" | "ok" | "unavailable" | "failed";
+  requested: boolean;
+  pages: BrowserPageEvidence[];
+  summary: {
+    pagesVisited: number;
+    consoleErrors: number;
+    consoleWarnings: number;
+    pageErrors: number;
+    failedRequests: number;
+    browserMetricCoverage: {
+      ttfb: number;
+      fcp: number;
+      lcp: number;
+      cls: number;
+      inp: number;
+    };
+    detectedFrameworks: string[];
+    detectedBundlers: string[];
+    hydrationRiskUrls: string[];
+  };
+  limitations: string[];
+}
+
 export interface TechStackSignal {
   category:
     | "framework"
@@ -528,7 +648,7 @@ export interface TechStackSignal {
     | "other";
   name: string;
   confidence: number;
-  source: "headers" | "html" | "asset_path" | "endpoint" | "repo" | "dns" | "inference";
+  source: "headers" | "html" | "asset_path" | "endpoint" | "repo" | "dns" | "inference" | "browser";
   evidence: string;
 }
 
@@ -645,6 +765,7 @@ export interface ScanResult {
   repo?: RepoAnalysis;
   performance?: PerformanceAudit;
   routeTemplates?: RouteTemplateCluster[];
+  browserEvidence?: BrowserEvidenceReport;
 }
 
 export interface ReportBundle {

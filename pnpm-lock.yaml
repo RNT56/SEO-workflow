@@ -177,6 +177,10 @@ importers:
       "@seo-polish/security":
         specifier: workspace:*
         version: link:../security
+    optionalDependencies:
+      playwright:
+        specifier: ^1.61.1
+        version: 1.61.1
 
   packages/schemas: {}
 

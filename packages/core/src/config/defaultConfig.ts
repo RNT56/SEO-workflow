@@ -11,6 +11,7 @@ export const DEFAULT_CONFIG: Omit<ScanConfig, "url"> = {
   concurrency: 4,
   includeScreenshots: false,
   includeCoreWebVitals: false,
+  includeBrowserEvidence: false,
   includeAccessibility: true,
   includeCommerce: true,
   includeInternationalSeo: true,

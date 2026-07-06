@@ -6,7 +6,7 @@ Rendered bundles include the Markdown/HTML report, structured JSON files, execut
 priority action plan, final agent execution plan, PR comment and target-aware agent instruction files.
 
 The report contract includes production intelligence artifacts such as `report-dashboard.json`,
-`tech-stack.json`, `repo-analysis.json`, `route-templates.json`, `performance-audit.json`,
+`tech-stack.json`, `browser-evidence.json`, `repo-analysis.json`, `route-templates.json`, `performance-audit.json`,
 `resource-timing.json`, `actionability.json`, `baseline-comparison.json`, `suppression-report.json`
 and `quality-gate.json`.
 

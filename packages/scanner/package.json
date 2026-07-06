@@ -20,6 +20,9 @@
     "@seo-polish/schemas": "workspace:*",
     "@seo-polish/security": "workspace:*"
   },
+  "optionalDependencies": {
+    "playwright": "^1.61.1"
+  },
   "publishConfig": {
     "access": "public"
   }

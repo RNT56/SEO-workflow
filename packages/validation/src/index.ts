@@ -19,6 +19,7 @@ const RECOMMENDED_SCAN_FILES = [
   "crawl-graph.json",
   "crawl-graph.svg",
   "raw-render-diff.json",
+  "browser-evidence.json",
   "response-index.json",
   "header-index.json",
   "body-excerpts.json",
@@ -274,6 +275,42 @@ function validateScanArtifacts(scan: ScanResult): ValidationCheck[] {
       "warning"
     )
   );
+  checks.push(
+    check(
+      "intelligence.browser-evidence",
+      "Browser evidence status declared",
+      Boolean(scan.browserEvidence && scan.browserEvidence.status),
+      "The scan should include browser-evidence.json with disabled, ok, unavailable or failed status.",
+      "warning"
+    )
+  );
+  if (
+    scan.config.includeBrowserEvidence ||
+    scan.config.includeCoreWebVitals ||
+    scan.config.renderJs === "always"
+  ) {
+    checks.push(
+      check(
+        "browser-evidence.requested",
+        "Requested browser evidence attempted",
+        Boolean(scan.browserEvidence?.requested),
+        "When browser evidence or Core Web Vitals are requested, browser-evidence.json must record the attempt.",
+        "warning"
+      )
+    );
+  }
+  if (scan.browserEvidence?.status === "ok") {
+    checks.push(
+      check(
+        "browser-evidence.pages-bounded",
+        "Browser evidence payload bounded",
+        scan.browserEvidence.pages.length <= 3 &&
+          scan.browserEvidence.pages.every((page) => page.resources.length <= 160),
+        "Browser evidence should sample a bounded number of pages and resources.",
+        "warning"
+      )
+    );
+  }
   if (scan.performance) {
     const cwvMetrics = scan.performance.metrics.filter((metric) =>
       ["lcp-ms", "inp-ms", "cls"].includes(metric.id)

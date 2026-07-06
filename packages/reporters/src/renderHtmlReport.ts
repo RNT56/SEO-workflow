@@ -263,6 +263,7 @@ function renderPerformanceView(dashboard: ReportDashboard): string {
         ${statCard("Max", formatMetricValue(perf.timing.maxDocumentFetchMs, "ms"), "document fetch")}
       </div>
     </div>
+    ${renderBrowserEvidencePanel(perf)}
     <div class="panel">
       <p class="panel-label">Third-Party Cost</p>
       <h2>${perf.thirdParty.requests} requests</h2>
@@ -280,6 +281,27 @@ function renderPerformanceView(dashboard: ReportDashboard): string {
       <p class="panel-label">Limitations</p>
       <ul class="compact-list">${perf.limitations.map((limitation) => `<li>${escapeHtml(limitation)}</li>`).join("")}</ul>
     </div>
+  </div>`;
+}
+
+function renderBrowserEvidencePanel(perf: ReportDashboard["performanceSummary"]): string {
+  const browser = perf.browserEvidence;
+  const coverage = browser.browserMetricCoverage;
+  return `<div class="panel">
+    <p class="panel-label">Browser Evidence</p>
+    <h2>${escapeHtml(browser.status)}</h2>
+    <div class="timing-grid">
+      ${statCard("Pages", String(browser.pagesVisited), "rendered sample")}
+      ${statCard("Console", String(browser.consoleErrors), "errors")}
+      ${statCard("Failed", String(browser.failedRequests), "requests")}
+      ${statCard("LCP", `${coverage.lcp}/${browser.pagesVisited}`, "covered pages")}
+    </div>
+    <p>Runtime: ${[...browser.detectedFrameworks, ...browser.detectedBundlers].map(escapeHtml).join(", ") || "no browser runtime markers collected"}.</p>
+    ${
+      browser.hydrationRiskUrls.length === 0
+        ? `<p class="muted">No raw-vs-rendered changes were flagged in the sampled pages.</p>`
+        : `<details><summary>${browser.hydrationRiskUrls.length} raw-vs-rendered review target(s)</summary><ul class="compact-list">${browser.hydrationRiskUrls.map((url) => `<li>${escapeHtml(shortUrl(url))}</li>`).join("")}</ul></details>`
+    }
   </div>`;
 }
 
@@ -338,7 +360,7 @@ function renderEvidenceView(bundle: ReportBundle, dashboard: ReportDashboard): s
     </div>
     <div class="panel">
       <p class="panel-label">Evidence Files</p>
-      <ul class="summary-list">${["findings.json", "evidence.jsonl", "report-dashboard.json", "performance-audit.json", "resource-timing.json", "route-templates.json", "validation.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul>
+      <ul class="summary-list">${["findings.json", "evidence.jsonl", "report-dashboard.json", "browser-evidence.json", "performance-audit.json", "resource-timing.json", "route-templates.json", "validation.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul>
     </div>
   </div>
   <div class="panel">
@@ -493,7 +515,7 @@ function renderHtmlSection(number: number, title: string, bundle: ReportBundle):
     return renderUserDecisionSection(number, title, bundle);
   }
   if (number === 26) {
-    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages, ${bundle.scan.performance?.resources.length ?? 0} resource timing entries.</p><ul class="summary-list">${["report-dashboard.json", "tech-stack.json", "repo-analysis.json", "route-templates.json", "performance-audit.json", "resource-timing.json", "performance-runs.jsonl", "third-party-cost.json", "largest-assets.json", "critical-request-chain.json", "actionability.json", "baseline-comparison.json", "suppression-report.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul></section>`;
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages, ${bundle.scan.performance?.resources.length ?? 0} resource timing entries.</p><ul class="summary-list">${["report-dashboard.json", "tech-stack.json", "browser-evidence.json", "repo-analysis.json", "route-templates.json", "performance-audit.json", "resource-timing.json", "performance-runs.jsonl", "third-party-cost.json", "largest-assets.json", "critical-request-chain.json", "actionability.json", "baseline-comparison.json", "suppression-report.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul></section>`;
   }
   if (number === 27) {
     return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>The final executable handoff is written to <code>agent-execution-plan.md</code>. Rebuild it after benchmark data with <code>seo-polish plan build --report ${escapeHtml(bundle.scan.config.outputDir)}</code>.</p></section>`;

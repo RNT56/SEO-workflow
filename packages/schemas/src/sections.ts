@@ -68,6 +68,7 @@ export const REQUIRED_REPORT_FILES = [
   "crawl-graph.json",
   "crawl-graph.svg",
   "raw-render-diff.json",
+  "browser-evidence.json",
   "response-index.json",
   "header-index.json",
   "body-excerpts.json",

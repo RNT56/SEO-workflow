@@ -9,10 +9,11 @@ import type {
 } from "@seo-polish/schemas";
 import { isPrivateUrl } from "@seo-polish/security";
 import { classifySite, detectFramework } from "./classify.js";
-import { endpointEvidence, pageEvidence } from "./evidence.js";
+import { browserEvidenceEntries, endpointEvidence, pageEvidence } from "./evidence.js";
 import { fetchUrl, probeEndpoint } from "./fetch.js";
 import { extractHtmlSnapshot } from "./html.js";
 import { buildPerformanceAudit } from "./performance.js";
+import { collectBrowserEvidence } from "./browserEvidence.js";
 import { analyzeRepository } from "./repo.js";
 import { parseRobotsTxt } from "./robots.js";
 import { clusterRouteTemplates } from "./routeTemplates.js";
@@ -159,26 +160,35 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
     }
   }
 
-  const endpointValues = Object.values(endpoints);
-  const evidence: Evidence[] = [
-    ...endpointValues.map((probe, index) => endpointEvidence(probe, index)),
-    ...pages.flatMap((page, index) => pageEvidence(page, index))
-  ];
-
   const firstPage = pages[0];
   const detectedSiteType = config.siteType === "auto" ? classifySite(baseUrl, pages) : config.siteType;
   const framework =
     config.framework ??
     repo.frameworks[0] ??
     (firstPage ? detectFramework(firstPage.headers, firstPage.bodyExcerpt) : "unknown");
-  const performance = await buildPerformanceAudit({ config, origin, pages, endpoints, pageHtml });
+  const browserEvidence = await collectBrowserEvidence({ config, pages });
+  const endpointValues = Object.values(endpoints);
+  const evidence: Evidence[] = [
+    ...endpointValues.map((probe, index) => endpointEvidence(probe, index)),
+    ...pages.flatMap((page, index) => pageEvidence(page, index)),
+    ...browserEvidenceEntries(browserEvidence)
+  ];
+  const performance = await buildPerformanceAudit({
+    config,
+    origin,
+    pages,
+    endpoints,
+    pageHtml,
+    browserEvidence
+  });
   const routeTemplates = clusterRouteTemplates(pages, repo);
   const techStack = inferTechStack({
     framework,
     pages,
     endpoints,
     resources: performance.resources,
-    repo
+    repo,
+    browserEvidence
   });
 
   return {
@@ -195,7 +205,8 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
     techStack,
     repo,
     performance,
-    routeTemplates
+    routeTemplates,
+    browserEvidence
   };
 }
 

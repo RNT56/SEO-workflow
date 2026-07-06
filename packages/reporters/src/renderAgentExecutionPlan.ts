@@ -44,6 +44,7 @@ export function renderAgentExecutionPlan(
     "- `tech-stack.json`: framework, hosting, CDN, CMS, analytics, bundler and rendering signals.",
     "- `repo-analysis.json`: source repo path, dependency, route, metadata, deployment and SEO file candidates.",
     "- `route-templates.json`: URL template clusters and source candidates.",
+    "- `browser-evidence.json`: browser-rendered DOM, console, runtime markers, resource timings and lab metric evidence.",
     "- `performance-audit.json`, `resource-timing.json`, `performance-runs.jsonl`: measured fetch/resource performance evidence.",
     "- `third-party-cost.json`, `largest-assets.json`, `critical-request-chain.json`: resource pressure drill-downs.",
     "- `actionability.json`: owner, readiness, source candidate and blocker summary for every finding.",
@@ -167,6 +168,7 @@ function renderDashboardSummary(dashboard: ReportDashboard): string {
     `- Approval-required items: ${dashboard.approvalQueue.length}`,
     `- Route template heatmap entries: ${dashboard.templateHeatmap.length}`,
     `- Performance budget failures: ${dashboard.performanceSummary.statusCounts.failed}`,
+    `- Browser evidence: ${dashboard.performanceSummary.browserEvidence.status}, ${dashboard.performanceSummary.browserEvidence.pagesVisited} sampled page(s)`,
     `- Baseline status: ${dashboard.baselineSummary.status}`
   ].join("\n");
 }
@@ -175,6 +177,7 @@ function renderSiteIntelligence(bundle: ReportBundle): string {
   const tech = bundle.scan.techStack;
   const repo = bundle.scan.repo;
   const perf = bundle.scan.performance;
+  const browser = bundle.scan.browserEvidence;
   const templates = bundle.scan.routeTemplates ?? [];
   return [
     "Site intelligence:",
@@ -183,15 +186,23 @@ function renderSiteIntelligence(bundle: ReportBundle): string {
     `- Hosting/CDN: ${tech ? [...tech.hosting, ...tech.cdn].join(", ") || "no strong signal" : "not collected"}`,
     `- Repo analysis: ${repo ? repo.status : "not configured"}${repo?.path ? ` (${repo.path})` : ""}`,
     `- Route template clusters: ${templates.length}`,
+    `- Browser evidence: ${
+      browser
+        ? `${browser.status}${browser.status === "ok" ? `, ${browser.summary.pagesVisited} sampled page(s), runtime ${[...browser.summary.detectedFrameworks, ...browser.summary.detectedBundlers].join(", ") || "no markers"}` : ""}`
+        : "not collected"
+    }`,
     `- Performance evidence: ${
       perf
         ? `${perf.summary.totalRequests} requests, ${perf.metrics.filter((metric) => metric.status === "failed").length} failed budget metrics`
         : "not collected"
     }`,
     `- Browser-only metrics: ${
-      perf?.metrics.some((metric) => metric.reliability === "not_measured")
-        ? "not measured in this run; use browser/CDP or field data before making CWV claims"
-        : "available"
+      perf?.metrics.some(
+        (metric) =>
+          ["lcp-ms", "cls", "ttfb-ms", "fcp-ms"].includes(metric.id) && metric.reliability === "browser_lab"
+      )
+        ? "browser lab evidence available for sampled pages; INP still requires interactions or field data"
+        : "not measured in this run; use browser/CDP or field data before making CWV claims"
     }`
   ].join("\n");
 }
@@ -334,7 +345,7 @@ Website source repo: current workspace
 
 Run the remediation plan end to end:
 1. Read agent-execution-plan.md first.
-2. Read findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, route-templates.json, performance-audit.json, resource-timing.json, baseline-comparison.json, suppression-report.json, quality-gate.json, validation.json and benchmark.json if present.
+2. Read findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, route-templates.json, performance-audit.json, resource-timing.json, baseline-comparison.json, suppression-report.json, quality-gate.json, validation.json and benchmark.json if present.
 3. Apply safe_auto_fix items first only when source candidates are clear and validation commands exist.
 4. Implement manual_strategy items where the source path is clear and normal project tests cover the change.
 5. Do not implement approval_required items until the owner explicitly approves them.

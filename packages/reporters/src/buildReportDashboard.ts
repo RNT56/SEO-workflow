@@ -309,6 +309,7 @@ function buildTemplateHeatmap(bundle: ReportBundle): ReportDashboardTemplateHeat
 
 function buildPerformanceSummary(bundle: ReportBundle): ReportDashboardPerformanceSummary {
   const performance = bundle.scan.performance;
+  const browserEvidence = bundle.scan.browserEvidence;
   const metrics = performance?.metrics ?? [notMeasuredPerformanceMetric()];
   const resources = performance?.resources ?? [];
   const documentDurations = (performance?.fetchTimings ?? [])
@@ -357,6 +358,24 @@ function buildPerformanceSummary(bundle: ReportBundle): ReportDashboardPerforman
       medianDocumentFetchMs: performance?.summary.medianDocumentFetchMs ?? null,
       p95DocumentFetchMs: performance?.summary.p95DocumentFetchMs ?? null,
       maxDocumentFetchMs: documentDurations[documentDurations.length - 1] ?? null
+    },
+    browserEvidence: {
+      status: browserEvidence?.status ?? "disabled",
+      pagesVisited: browserEvidence?.summary.pagesVisited ?? 0,
+      consoleErrors: browserEvidence?.summary.consoleErrors ?? 0,
+      consoleWarnings: browserEvidence?.summary.consoleWarnings ?? 0,
+      pageErrors: browserEvidence?.summary.pageErrors ?? 0,
+      failedRequests: browserEvidence?.summary.failedRequests ?? 0,
+      detectedFrameworks: browserEvidence?.summary.detectedFrameworks ?? [],
+      detectedBundlers: browserEvidence?.summary.detectedBundlers ?? [],
+      hydrationRiskUrls: browserEvidence?.summary.hydrationRiskUrls ?? [],
+      browserMetricCoverage: browserEvidence?.summary.browserMetricCoverage ?? {
+        ttfb: 0,
+        fcp: 0,
+        lcp: 0,
+        cls: 0,
+        inp: 0
+      }
     },
     limitations: performance?.limitations ?? ["Performance audit was not collected for this report."]
   };

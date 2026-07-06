@@ -51,6 +51,11 @@ async function readText(path: string): Promise<string> {
 
 async function writeRenderSupportFiles(reportDir: string, bundle: ReportBundle): Promise<void> {
   await writeFile(
+    join(reportDir, "browser-evidence.json"),
+    `${JSON.stringify(bundle.scan.browserEvidence ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
     join(reportDir, "standards-registry.json"),
     `${JSON.stringify(buildStandardsSnapshot(), null, 2)}\n`,
     "utf8"

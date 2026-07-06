@@ -99,11 +99,16 @@ Run a repo-aware production scan when you have the website source repository:
 pnpm --filter @seo-polish/cli seo-polish scan https://example.com \
   --repo ../website \
   --output ./seo-polish-report \
+  --browser-evidence \
   --performance-runs 3 \
   --baseline ./previous-seo-polish-report \
   --budget-total-js-kb 250 \
   --budget-third-party-js-kb 120
 ```
+
+Add `--browser-evidence` when you want the workflow to launch a bounded browser lab pass. Add
+`--core-web-vitals` when you specifically want browser-only metrics such as LCP and CLS attempted.
+INP remains `not_measured` unless scripted interactions or field data are available.
 
 ## Report bundle
 
@@ -121,6 +126,7 @@ Each scan writes `seo-polish-report/`. The required and high-signal files are:
 | `patch.diff`                | Diff-only patch proposal where safe automation is possible                                                                        |
 | `crawl-graph.json`          | Crawl relationship data                                                                                                           |
 | `raw-render-diff.json`      | Raw comparison data for fetch and rendered output                                                                                 |
+| `browser-evidence.json`     | Browser-rendered DOM, console errors, failed requests, runtime stack markers, resource timing and lab metric evidence             |
 | `tech-stack.json`           | Framework, hosting, CDN, CMS, analytics, bundler and rendering signals                                                            |
 | `repo-analysis.json`        | Source repo framework, route, metadata, deployment and SEO file candidates                                                        |
 | `route-templates.json`      | Crawled URL clusters by route/template shape                                                                                      |
@@ -146,6 +152,7 @@ Recommended support files include:
 seo-polish-report/
   executive-summary.md
   report-dashboard.json
+  browser-evidence.json
   crawl-graph.svg
   response-index.json
   header-index.json

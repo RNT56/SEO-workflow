@@ -1,4 +1,5 @@
 import type {
+  BrowserEvidenceReport,
   EndpointProbe,
   FetchTimingSnapshot,
   PageSnapshot,
@@ -20,6 +21,7 @@ export interface BuildPerformanceAuditInput {
   pages: PageSnapshot[];
   endpoints: Record<string, EndpointProbe>;
   pageHtml: Map<string, string>;
+  browserEvidence?: BrowserEvidenceReport;
 }
 
 export async function buildPerformanceAudit(input: BuildPerformanceAuditInput): Promise<PerformanceAudit> {
@@ -30,7 +32,8 @@ export async function buildPerformanceAudit(input: BuildPerformanceAuditInput): 
   const measuredResources = await measureResources(resources, input.config);
   const fetchTimings = await collectFetchTimings(input);
   const summary = summarizePerformance(fetchTimings, measuredResources);
-  const metrics = buildMetrics(summary, budgets);
+  const browserMetrics = summarizeBrowserMetrics(input.browserEvidence);
+  const metrics = buildMetrics(summary, budgets, browserMetrics);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -41,15 +44,32 @@ export async function buildPerformanceAudit(input: BuildPerformanceAuditInput): 
         label: "HTTP fetch lab profile",
         runs: Math.max(1, input.config.performanceRuns ?? 1),
         reliability: "fetch_lab"
-      }
+      },
+      ...(input.browserEvidence?.status === "ok"
+        ? [
+            {
+              id: "browser-lab",
+              label: "Browser rendering lab profile",
+              runs: input.browserEvidence.pages.length,
+              reliability: "browser_lab" as const
+            }
+          ]
+        : [])
     ],
     metrics,
     resources: measuredResources,
     fetchTimings,
     summary,
     limitations: [
-      "HTTP fetch timings and static resource discovery are measured, but browser rendering metrics are not collected in this run.",
-      "LCP, INP, CLS and true TTFB require browser/CDP or field data and are marked not_measured when unavailable.",
+      ...(input.browserEvidence?.status === "ok"
+        ? [
+            "Browser lab evidence was collected for a bounded sample of crawled pages.",
+            "INP requires scripted interactions or field data and is marked not_measured when unavailable."
+          ]
+        : [
+            "HTTP fetch timings and static resource discovery are measured, but browser rendering metrics are not collected in this run.",
+            "LCP, INP, CLS and true TTFB require browser/CDP or field data and are marked not_measured when unavailable."
+          ]),
       "Resource byte totals use Content-Length headers when available and are lower bounds when servers omit them."
     ]
   };
@@ -160,9 +180,17 @@ function summarizePerformance(
   };
 }
 
+interface BrowserMetricSummary {
+  ttfbMs: number | null;
+  fcpMs: number | null;
+  lcpMs: number | null;
+  cls: number | null;
+}
+
 function buildMetrics(
   summary: PerformanceAudit["summary"],
-  budgets: PerformanceBudget
+  budgets: PerformanceBudget,
+  browserMetrics: BrowserMetricSummary
 ): PerformanceMetricSnapshot[] {
   return [
     budgetMetric(
@@ -174,15 +202,53 @@ function buildMetrics(
       "fetch_lab",
       ["Median measured from repeated HTTP document fetches."]
     ),
-    budgetMetric("lcp-ms", "Largest Contentful Paint", null, "ms", budgets.lcpMs, "not_measured", [
-      "Browser rendering evidence was not collected."
-    ]),
+    budgetMetric(
+      "ttfb-ms",
+      "Browser time to first byte",
+      browserMetrics.ttfbMs,
+      "ms",
+      budgets.ttfbMs,
+      browserMetrics.ttfbMs === null ? "not_measured" : "browser_lab",
+      browserMetrics.ttfbMs === null
+        ? ["Browser navigation timing evidence was not collected."]
+        : ["Median browser navigation responseStart minus requestStart from sampled pages."]
+    ),
+    budgetMetric(
+      "fcp-ms",
+      "First Contentful Paint",
+      browserMetrics.fcpMs,
+      "ms",
+      undefined,
+      browserMetrics.fcpMs === null ? "not_measured" : "browser_lab",
+      browserMetrics.fcpMs === null
+        ? ["Browser paint timing evidence was not collected."]
+        : ["Median browser paint timing from sampled pages."]
+    ),
+    budgetMetric(
+      "lcp-ms",
+      "Largest Contentful Paint",
+      browserMetrics.lcpMs,
+      "ms",
+      budgets.lcpMs,
+      browserMetrics.lcpMs === null ? "not_measured" : "browser_lab",
+      browserMetrics.lcpMs === null
+        ? ["Browser rendering evidence was not collected."]
+        : ["Median browser Largest Contentful Paint from sampled pages."]
+    ),
     budgetMetric("inp-ms", "Interaction to Next Paint", null, "ms", budgets.inpMs, "not_measured", [
       "Browser interaction evidence was not collected."
     ]),
-    budgetMetric("cls", "Cumulative Layout Shift", null, "score", budgets.cls, "not_measured", [
-      "Browser layout shift evidence was not collected."
-    ]),
+    budgetMetric(
+      "cls",
+      "Cumulative Layout Shift",
+      browserMetrics.cls,
+      "score",
+      budgets.cls,
+      browserMetrics.cls === null ? "not_measured" : "browser_lab",
+      browserMetrics.cls === null
+        ? ["Browser layout shift evidence was not collected."]
+        : ["Maximum browser Cumulative Layout Shift from sampled pages."]
+    ),
     budgetMetric(
       "total-requests",
       "Total request pressure",
@@ -234,6 +300,19 @@ function buildMetrics(
   ];
 }
 
+function summarizeBrowserMetrics(browserEvidence: BrowserEvidenceReport | undefined): BrowserMetricSummary {
+  if (!browserEvidence || browserEvidence.status !== "ok") {
+    return { ttfbMs: null, fcpMs: null, lcpMs: null, cls: null };
+  }
+  const pages = browserEvidence.pages;
+  return {
+    ttfbMs: median(pages.map((page) => page.metrics.ttfbMs).filter(isNumber)),
+    fcpMs: median(pages.map((page) => page.metrics.firstContentfulPaintMs).filter(isNumber)),
+    lcpMs: median(pages.map((page) => page.metrics.largestContentfulPaintMs).filter(isNumber)),
+    cls: maxOrNull(pages.map((page) => page.metrics.cumulativeLayoutShift).filter(isNumber))
+  };
+}
+
 function budgetMetric(
   id: string,
   label: string,
@@ -256,8 +335,11 @@ function budgetMetric(
 }
 
 function metricStatus(value: number | null, budget: number | undefined): PerformanceMetricSnapshot["status"] {
-  if (value === null || budget === undefined) {
+  if (value === null) {
     return "not_measured";
+  }
+  if (budget === undefined) {
+    return "passed";
   }
   if (value <= budget) {
     return "passed";
@@ -301,6 +383,24 @@ function percentile(values: number[], percentileValue: number): number | null {
   }
   const index = Math.min(values.length - 1, Math.max(0, Math.ceil(values.length * percentileValue) - 1));
   return values[index] ?? null;
+}
+
+function median(values: number[]): number | null {
+  return percentile(
+    [...values].sort((a, b) => a - b),
+    0.5
+  );
+}
+
+function maxOrNull(values: number[]): number | null {
+  if (values.length === 0) {
+    return null;
+  }
+  return Math.max(...values);
+}
+
+function isNumber(value: number | null): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 function timingFromError(error: unknown): FetchTimingSnapshot | null {

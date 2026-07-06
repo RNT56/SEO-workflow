@@ -51,6 +51,11 @@ export async function writeEvidenceStore(outputDir: string, scan: ScanResult): P
     "utf8"
   );
   await writeFile(
+    join(outputDir, "browser-evidence.json"),
+    `${JSON.stringify(scan.browserEvidence ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
     join(outputDir, "tech-stack.json"),
     `${JSON.stringify(scan.techStack ?? null, null, 2)}\n`,
     "utf8"
@@ -154,6 +159,24 @@ function criticalRequestChain(scan: ScanResult): unknown {
 }
 
 function renderDiffSummary(scan: ScanResult): unknown {
+  if (scan.browserEvidence?.status === "ok") {
+    return {
+      status: "collected",
+      mode: scan.config.renderJs,
+      pages: scan.browserEvidence.pages.map((page) => {
+        const raw = scan.pages.find(
+          (rawPage) => rawPage.finalUrl === page.url || rawPage.finalUrl === page.finalUrl
+        );
+        return {
+          url: page.finalUrl,
+          raw: raw ? { title: raw.title, wordCount: raw.wordCount } : null,
+          rendered: page.rendered,
+          changedFields: page.rawComparison.changedFields,
+          risk: page.rawComparison.risk
+        };
+      })
+    };
+  }
   return {
     status: scan.config.renderJs === "never" ? "disabled" : "not_collected",
     mode: scan.config.renderJs,
