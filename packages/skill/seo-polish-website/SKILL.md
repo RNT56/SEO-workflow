@@ -20,6 +20,9 @@ Use this skill when scanning, reporting, validating or improving a website for S
 - `seo-polish-report/evidence.jsonl`
 - `seo-polish-report/remediation-plan.json`
 - `seo-polish-report/validation.json`
+- `seo-polish-report/priority-action-plan.md`
+- `seo-polish-report/standards-registry.json`
+- `seo-polish-report/agent-instructions/codex.md`
 
 ## References
 

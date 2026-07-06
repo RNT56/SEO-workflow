@@ -16,6 +16,7 @@ Every scan produces a validated SEO Polish Report.
 - `@seo-polish/reporters`: Markdown and HTML report rendering plus report linting.
 - `@seo-polish/validation`: validation runner for reports and safety checks.
 - `@seo-polish/benchmark`: deterministic agent-experience benchmark metrics.
+- `@seo-polish/standards-registry`: versioned standards and rule mapping metadata.
 - `@seo-polish/mcp-server`: MCP-facing tool contracts and dispatcher.
 - `@seo-polish/github-action`: GitHub Action wrapper.
 - `packages/skill/seo-polish-website`: an agent skill that enforces the report contract.
@@ -29,7 +30,9 @@ pnpm test
 pnpm test:fixtures
 pnpm --filter @seo-polish/cli seo-polish scan https://example.com --output ./seo-polish-report
 pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
+pnpm --filter @seo-polish/cli seo-polish standards update --output ./seo-polish-report/standards-registry.json
 pnpm --filter @seo-polish/cli seo-polish benchmark --report ./seo-polish-report
+pnpm --filter @seo-polish/cli seo-polish doctor
 ```
 
 The scan writes:
@@ -44,6 +47,7 @@ seo-polish-report/
   remediation-plan.json
   validation.json
   patch.diff
+  priority-action-plan.md
   crawl-graph.json
   crawl-graph.svg
   raw-render-diff.json
@@ -55,9 +59,11 @@ seo-polish-report/
   deep-pages.csv
   before-after-score.json
   remaining-user-decisions.md
+  standards-registry.json
   benchmark.json
   benchmark.md
   agent-instructions/
+    README.md
     codex.md
     claude-code.md
     gemini-cli.md

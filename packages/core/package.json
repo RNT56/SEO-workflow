@@ -26,6 +26,7 @@
     "@seo-polish/schemas": "workspace:*",
     "@seo-polish/scoring": "workspace:*",
     "@seo-polish/security": "workspace:*",
+    "@seo-polish/standards-registry": "workspace:*",
     "@seo-polish/validation": "workspace:*"
   }
 }

@@ -49,6 +49,9 @@ importers:
       "@seo-polish/schemas":
         specifier: workspace:*
         version: link:../schemas
+      "@seo-polish/standards-registry":
+        specifier: workspace:*
+        version: link:../standards-registry
 
   packages/core:
     dependencies:
@@ -79,6 +82,9 @@ importers:
       "@seo-polish/security":
         specifier: workspace:*
         version: link:../security
+      "@seo-polish/standards-registry":
+        specifier: workspace:*
+        version: link:../standards-registry
       "@seo-polish/validation":
         specifier: workspace:*
         version: link:../validation
@@ -191,7 +197,11 @@ importers:
 
   packages/skill: {}
 
-  packages/standards-registry: {}
+  packages/standards-registry:
+    dependencies:
+      "@seo-polish/rules":
+        specifier: workspace:*
+        version: link:../rules
 
   packages/validation:
     dependencies:

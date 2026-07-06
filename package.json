@@ -18,7 +18,9 @@
     "security": "pnpm audit && pnpm security:secrets",
     "seo-polish": "pnpm --filter @seo-polish/cli seo-polish",
     "test:fixtures": "node scripts/fixtures/run-fixture-scans.mjs",
-    "report:lint": "pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict"
+    "report:lint": "pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict",
+    "standards:update": "pnpm --filter @seo-polish/cli seo-polish standards update --output ./seo-polish-report/standards-registry.json",
+    "doctor": "pnpm --filter @seo-polish/cli seo-polish doctor"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

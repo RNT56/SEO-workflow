@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ReportBundle } from "@seo-polish/schemas";
 import {
+  renderAgentInstructionIndex,
   renderAgentInstruction,
   renderExecutiveSummary,
   renderGitHubPrComment,
@@ -29,13 +30,35 @@ export async function writeReportBundle(outputDir: string, bundle: ReportBundle)
   );
   await writeFile(join(outputDir, "patch.diff"), bundle.patchDiff, "utf8");
   await writeFile(join(outputDir, "executive-summary.md"), renderExecutiveSummary(bundle), "utf8");
+  await writeFile(join(outputDir, "priority-action-plan.md"), renderPriorityActionPlan(bundle), "utf8");
   await writeFile(join(outputDir, "github-pr-comment.md"), renderGitHubPrComment(bundle), "utf8");
+  await writeFile(join(outputDir, "agent-instructions", "README.md"), renderAgentInstructionIndex(), "utf8");
 
   for (const agent of ["codex", "claude-code", "gemini-cli", "openclaw", "hermes"]) {
     await writeFile(
       join(outputDir, "agent-instructions", `${agent}.md`),
-      renderAgentInstruction(agent),
+      renderAgentInstruction(agent, bundle),
       "utf8"
     );
   }
+}
+
+function renderPriorityActionPlan(bundle: ReportBundle): string {
+  const lines = ["# Priority Action Plan", "", `Target: ${bundle.scan.config.url}`, ""];
+  for (const phase of bundle.remediationPlan.phases) {
+    lines.push(`## ${phase.title}`, phase.summary, "");
+    if (phase.items.length === 0) {
+      lines.push("No items.", "");
+      continue;
+    }
+    for (const item of phase.items) {
+      lines.push(`- ${item.findingId}: ${item.title}`);
+      lines.push(`  - Class: ${item.fixClass}`);
+      lines.push(`  - Risk: ${item.risk}`);
+      lines.push(`  - Effort: ${item.effort}`);
+      lines.push(`  - Validation: ${item.validation.join("; ")}`);
+    }
+    lines.push("");
+  }
+  return `${lines.join("\n")}\n`;
 }

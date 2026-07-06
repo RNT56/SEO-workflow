@@ -1,11 +1,305 @@
 {
+  "SEO-TECH-001": {
+    "standard": "http-status",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-TECH-002": {
+    "standard": "redirects",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-TECH-011": {
+    "standard": "http-headers",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-TECH-012": {
+    "standard": "http-headers",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-CRAWL-001": {
+    "standard": "robots-txt",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-CRAWL-003": {
+    "standard": "robots-txt",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-CRAWL-004": {
+    "standard": "robots-txt",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-SITEMAP-001": {
+    "standard": "sitemap",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-SITEMAP-002": {
+    "standard": "sitemap",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-SITEMAP-008": {
+    "standard": "sitemap",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-SITEMAP-011": {
+    "standard": "sitemap",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-INDEX-001": {
+    "standard": "robots-meta",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
   "SEO-INDEX-003": {
     "standard": "canonicalization",
     "standardStatus": "stable",
     "ruleVersion": "0.1.0",
     "lastReviewed": "2026-07-06"
   },
-  "SEO-CRAWL-001": {
+  "SEO-INDEX-004": {
+    "standard": "canonicalization",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-001": {
+    "standard": "html-title",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-002": {
+    "standard": "html-title",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-003": {
+    "standard": "html-title",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-004": {
+    "standard": "html-title",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-005": {
+    "standard": "meta-description",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-006": {
+    "standard": "meta-description",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-007": {
+    "standard": "headings",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-008": {
+    "standard": "headings",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-009": {
+    "standard": "headings",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-010": {
+    "standard": "html-lang",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-011": {
+    "standard": "viewport",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-014": {
+    "standard": "open-graph",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ONPAGE-015": {
+    "standard": "twitter-card",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-CONTENT-001": {
+    "standard": "content-quality",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-CONTENT-002": {
+    "standard": "content-quality",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-LINK-003": {
+    "standard": "internal-links",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-LINK-009": {
+    "standard": "internal-links",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-SCHEMA-001": {
+    "standard": "json-ld",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-SCHEMA-003": {
+    "standard": "schema-org",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-SCHEMA-004": {
+    "standard": "schema-org",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-SCHEMA-006": {
+    "standard": "schema-org",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-JS-001": {
+    "standard": "javascript-seo",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-MEDIA-001": {
+    "standard": "image-alt",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-MEDIA-005": {
+    "standard": "image-dimensions",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-PERF-010": {
+    "standard": "http-headers",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-PERF-011": {
+    "standard": "http-headers",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-A11Y-002": {
+    "standard": "wcag-headings",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-A11Y-006": {
+    "standard": "wcag-images",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-A11Y-010": {
+    "standard": "wcag-navigation",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-INTL-005": {
+    "standard": "hreflang",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-LOCAL-001": {
+    "standard": "local-seo",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-LOCAL-003": {
+    "standard": "local-seo",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ECOM-001": {
+    "standard": "ecommerce-seo",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ECOM-002": {
+    "standard": "ecommerce-seo",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-ROBOTS-003": {
+    "standard": "robots-txt",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-ROBOTS-004": {
+    "standard": "content-signals",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-ROBOTS-006": {
     "standard": "robots-txt",
     "standardStatus": "stable",
     "ruleVersion": "0.1.0",
@@ -17,9 +311,123 @@
     "ruleVersion": "0.1.0",
     "lastReviewed": "2026-07-06"
   },
+  "AR-LLMS-003": {
+    "standard": "llms-txt",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-LLMS-008": {
+    "standard": "llms-txt",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-MD-001": {
+    "standard": "markdown-negotiation",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-SKILL-001": {
+    "standard": "agent-skills",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-SKILL-002": {
+    "standard": "agent-skills",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
   "AR-MCP-001": {
     "standard": "mcp",
     "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-MCP-002": {
+    "standard": "mcp",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-MCP-005": {
+    "standard": "mcp",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-API-001": {
+    "standard": "api-catalog",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-API-002": {
+    "standard": "api-catalog",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-API-003": {
+    "standard": "openapi",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-AUTH-001": {
+    "standard": "auth-discovery",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-AUTH-002": {
+    "standard": "oauth",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "AR-AUTH-003": {
+    "standard": "oauth",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-SEARCH-001": {
+    "standard": "search-integrations",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-SEARCH-002": {
+    "standard": "search-integrations",
+    "standardStatus": "emerging",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-PERF-001": {
+    "standard": "core-web-vitals",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-INTL-001": {
+    "standard": "hreflang",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-LOCAL-004": {
+    "standard": "local-seo",
+    "standardStatus": "stable",
+    "ruleVersion": "0.1.0",
+    "lastReviewed": "2026-07-06"
+  },
+  "SEO-ECOM-013": {
+    "standard": "ecommerce-seo",
+    "standardStatus": "stable",
     "ruleVersion": "0.1.0",
     "lastReviewed": "2026-07-06"
   }

@@ -8,3 +8,5 @@
 - Added safer bounded HTML/sitemap/prompt-control parsing.
 - Added broader deterministic rules for headers, duplicate metadata/content, internal linking, local, commerce, protocol and auth discovery.
 - Added fixture scan runner, expanded report artifacts, crawl graph output and agent-experience benchmark output.
+- Added full standards registry coverage, registry validation, standards snapshot export and richer CLI doctor diagnostics.
+- Added priority action plan sidecar output and target-aware agent instruction files.

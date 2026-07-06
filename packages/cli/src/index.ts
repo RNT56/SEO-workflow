@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { benchmarkAgentExperience, renderBenchmarkMarkdown } from "@seo-polish/benchmark";
 import {
   DEFAULT_CONFIG,
@@ -14,6 +14,7 @@ import {
   type SiteType
 } from "@seo-polish/core";
 import type { Finding, ScanResult } from "@seo-polish/schemas";
+import { buildStandardsSnapshot, validateStandardsRegistry } from "@seo-polish/standards-registry";
 
 interface ParsedArgs {
   command: string[];
@@ -118,9 +119,31 @@ async function main(argv: string[]): Promise<void> {
   }
 
   if (command === "standards" && subcommand === "update") {
+    const outputPath = flagString(args, "output", "seo-polish-report/standards-registry.json");
+    const validation = validateStandardsRegistry();
+    const snapshot = {
+      ...buildStandardsSnapshot(),
+      validation
+    };
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+    const failedChecks = validation.checks.filter((check) => check.status === "failed");
     console.log(
-      "Standards registry is bundled in @seo-polish/standards-registry. No remote update source is configured."
+      JSON.stringify(
+        {
+          outputPath,
+          standards: {
+            ok: validation.ok,
+            checks: validation.checks.length,
+            failed: failedChecks.length,
+            failedChecks: failedChecks.map((check) => check.id)
+          }
+        },
+        null,
+        2
+      )
     );
+    process.exitCode = validation.ok ? 0 : 1;
     return;
   }
 
@@ -137,18 +160,39 @@ async function main(argv: string[]): Promise<void> {
   }
 
   if (command === "doctor") {
+    const standards = validateStandardsRegistry();
     console.log(
       JSON.stringify(
         {
           node: process.version,
           cwd: process.cwd(),
+          packageManager: "pnpm@11.10.0",
           defaultOutput: DEFAULT_CONFIG.outputDir,
-          status: "ok"
+          commands: [
+            "scan",
+            "plan",
+            "apply",
+            "validate",
+            "report lint",
+            "report render",
+            "policy init",
+            "standards update",
+            "benchmark",
+            "doctor"
+          ],
+          safetyDefaults: DEFAULT_CONFIG.policy,
+          standards: {
+            ok: standards.ok,
+            checks: standards.checks.length,
+            failed: standards.checks.filter((check) => check.status === "failed").length
+          },
+          status: standards.ok ? "ok" : "failed"
         },
         null,
         2
       )
     );
+    process.exitCode = standards.ok ? 0 : 1;
     return;
   }
 
@@ -213,7 +257,7 @@ Usage:
   seo-polish report lint ./seo-polish-report --strict
   seo-polish report render ./seo-polish-report
   seo-polish policy init
-  seo-polish standards update
+  seo-polish standards update --output ./seo-polish-report/standards-registry.json
   seo-polish benchmark --report ./seo-polish-report
   seo-polish doctor
 `);

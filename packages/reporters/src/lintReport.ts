@@ -38,6 +38,14 @@ export async function lintReport(
           `Report must include ${heading}.`
         )
       );
+      checks.push(
+        check(
+          `section.${section.number}.content`,
+          `${heading} content`,
+          sectionHasContent(indexMd, heading),
+          `Report section ${heading} must include findings, Passed status or Not applicable status.`
+        )
+      );
     }
   }
 
@@ -190,4 +198,15 @@ function isSecretLikeReference(reference: string): boolean {
     reference.startsWith("ghr_") ||
     reference.startsWith("xox")
   );
+}
+
+function sectionHasContent(markdown: string, heading: string): boolean {
+  const start = markdown.indexOf(heading);
+  if (start < 0) {
+    return false;
+  }
+  const contentStart = start + heading.length;
+  const nextHeading = markdown.indexOf("\n## ", contentStart);
+  const content = markdown.slice(contentStart, nextHeading < 0 ? markdown.length : nextHeading).trim();
+  return content.length > 0;
 }

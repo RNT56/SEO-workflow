@@ -1,12 +1,97 @@
 {
   "standards": [
     {
+      "id": "agent-skills",
+      "status": "emerging",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "api-catalog",
+      "status": "emerging",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "auth-discovery",
+      "status": "emerging",
+      "lastReviewed": "2026-07-06"
+    },
+    {
       "id": "canonicalization",
       "status": "stable",
       "lastReviewed": "2026-07-06"
     },
     {
-      "id": "robots-txt",
+      "id": "content-quality",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "content-signals",
+      "status": "emerging",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "core-web-vitals",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "ecommerce-seo",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "headings",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "hreflang",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "html-lang",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "html-title",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "http-headers",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "http-status",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "image-alt",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "image-dimensions",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "internal-links",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "javascript-seo",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "json-ld",
       "status": "stable",
       "lastReviewed": "2026-07-06"
     },
@@ -16,8 +101,93 @@
       "lastReviewed": "2026-07-06"
     },
     {
+      "id": "local-seo",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "markdown-negotiation",
+      "status": "emerging",
+      "lastReviewed": "2026-07-06"
+    },
+    {
       "id": "mcp",
       "status": "emerging",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "meta-description",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "oauth",
+      "status": "emerging",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "open-graph",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "openapi",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "redirects",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "robots-meta",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "robots-txt",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "schema-org",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "search-integrations",
+      "status": "emerging",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "sitemap",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "twitter-card",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "viewport",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "wcag-headings",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "wcag-images",
+      "status": "stable",
+      "lastReviewed": "2026-07-06"
+    },
+    {
+      "id": "wcag-navigation",
+      "status": "stable",
       "lastReviewed": "2026-07-06"
     }
   ]

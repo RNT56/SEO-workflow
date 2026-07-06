@@ -59,6 +59,7 @@ export const REQUIRED_REPORT_FILES = [
 
 export const OPTIONAL_REPORT_FILES = [
   "executive-summary.md",
+  "priority-action-plan.md",
   "patch.diff",
   "crawl-graph.json",
   "crawl-graph.svg",
@@ -69,6 +70,13 @@ export const OPTIONAL_REPORT_FILES = [
   "github-pr-comment.md",
   "before-after-score.json",
   "remaining-user-decisions.md",
+  "standards-registry.json",
+  "agent-instructions/README.md",
+  "agent-instructions/codex.md",
+  "agent-instructions/claude-code.md",
+  "agent-instructions/gemini-cli.md",
+  "agent-instructions/openclaw.md",
+  "agent-instructions/hermes.md",
   "benchmark.json",
   "benchmark.md"
 ] as const;

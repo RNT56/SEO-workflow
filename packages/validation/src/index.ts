@@ -32,8 +32,16 @@ const RECOMMENDED_SCAN_FILES = [
   "manual-actions.md",
   "before-after-score.json",
   "remaining-user-decisions.md",
+  "priority-action-plan.md",
   "github-pr-comment.md",
-  "executive-summary.md"
+  "executive-summary.md",
+  "standards-registry.json",
+  "agent-instructions/README.md",
+  "agent-instructions/codex.md",
+  "agent-instructions/claude-code.md",
+  "agent-instructions/gemini-cli.md",
+  "agent-instructions/openclaw.md",
+  "agent-instructions/hermes.md"
 ];
 
 export async function runValidation(input: ValidationRunnerInput): Promise<ValidationResult> {
@@ -41,12 +49,20 @@ export async function runValidation(input: ValidationRunnerInput): Promise<Valid
   const checks: ValidationCheck[] = [...lint.checks];
 
   const scan = await readOptionalJson<ScanResult>(join(input.reportDir, "scan-result.json"));
+  const standardsSnapshot = await readOptionalJson<{
+    standards?: unknown[];
+    ruleMapping?: Record<string, unknown>;
+    implementedRuleCount?: number;
+  }>(join(input.reportDir, "standards-registry.json"));
   for (const file of RECOMMENDED_SCAN_FILES) {
     checks.push(await fileExists(input.reportDir, file, false));
   }
 
   if (scan) {
     checks.push(...validateScanArtifacts(scan));
+  }
+  if (standardsSnapshot) {
+    checks.push(...validateStandardsSnapshot(standardsSnapshot));
   }
 
   if (input.findings) {
@@ -60,6 +76,36 @@ export async function runValidation(input: ValidationRunnerInput): Promise<Valid
     generatedAt: new Date().toISOString(),
     checks
   };
+}
+
+function validateStandardsSnapshot(snapshot: {
+  standards?: unknown[];
+  ruleMapping?: Record<string, unknown>;
+  implementedRuleCount?: number;
+}): ValidationCheck[] {
+  return [
+    check(
+      "standards.snapshot-standards",
+      "Standards snapshot includes standards",
+      Array.isArray(snapshot.standards) && snapshot.standards.length > 0,
+      "standards-registry.json should include the standards used for this scan.",
+      "warning"
+    ),
+    check(
+      "standards.snapshot-rule-mapping",
+      "Standards snapshot includes rule mapping",
+      Boolean(snapshot.ruleMapping && Object.keys(snapshot.ruleMapping).length > 0),
+      "standards-registry.json should include rule-to-standard mappings.",
+      "warning"
+    ),
+    check(
+      "standards.snapshot-rule-count",
+      "Standards snapshot includes implemented rule count",
+      typeof snapshot.implementedRuleCount === "number" && snapshot.implementedRuleCount > 0,
+      "standards-registry.json should include implemented rule coverage metadata.",
+      "warning"
+    )
+  ];
 }
 
 function validateScanArtifacts(scan: ScanResult): ValidationCheck[] {

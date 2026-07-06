@@ -9,6 +9,7 @@ import { scanSite } from "@seo-polish/scanner";
 import type { Finding, ReportBundle, ScanSummary, Severity, ValidationResult } from "@seo-polish/schemas";
 import { calculateScore } from "@seo-polish/scoring";
 import { redactSensitiveValue } from "@seo-polish/security";
+import { buildStandardsSnapshot } from "@seo-polish/standards-registry";
 import { runValidation } from "@seo-polish/validation";
 import type { ScanConfigInput } from "../config/resolveConfig.js";
 import { resolveConfig } from "../config/resolveConfig.js";
@@ -142,6 +143,11 @@ async function writeFinalSupportFiles(outputDir: string, bundle: ReportBundle): 
       null,
       2
     )}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "standards-registry.json"),
+    `${JSON.stringify(buildStandardsSnapshot(), null, 2)}\n`,
     "utf8"
   );
 

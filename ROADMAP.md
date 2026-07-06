@@ -11,11 +11,13 @@
 - Ship CLI, SDK, MCP tool dispatcher, GitHub Action wrapper and agent skill.
 - Add security automation, Dependabot, dependency review, CodeQL and local secret scanning.
 - Add real fixture scan/report-lint gate and deterministic agent-experience benchmark output.
+- Add full rule-to-standard registry validation, standards snapshot export and CLI doctor diagnostics.
+- Generate priority action plan and agent-specific instruction sidecars with every report render.
 
 ## v0.2 SEO basics hardening
 
 - Broaden redirect, broken-link, parameter duplicate and canonical conflict coverage.
-- Add exact golden report snapshots for fixtures.
+- Add exact golden report snapshots for fixtures beyond structural fixture scan coverage.
 - Add richer rendered HTML comparison where Playwright/Lighthouse are available.
 
 ## v0.3 Agent readiness hardening
