@@ -5,7 +5,7 @@
   "description": "SEO polish workflow audits, scores, reports and improves websites for modern SEO and AI-agent readiness.",
   "license": "Apache-2.0",
   "type": "module",
-  "packageManager": "pnpm@11.7.0",
+  "packageManager": "pnpm@11.10.0",
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
@@ -13,18 +13,21 @@
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
+    "audit": "pnpm audit --audit-level low",
+    "security:secrets": "node scripts/security/scan-secrets.mjs",
+    "security": "pnpm audit && pnpm security:secrets",
     "seo-polish": "pnpm --filter @seo-polish/cli seo-polish",
     "test:fixtures": "pnpm --filter @seo-polish/core test",
     "report:lint": "pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict"
   },
   "devDependencies": {
-    "@eslint/js": "^9.31.0",
-    "@types/node": "^24.0.10",
-    "eslint": "^9.31.0",
-    "prettier": "^3.6.2",
-    "turbo": "^2.5.4",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.36.0",
-    "vitest": "^3.2.4"
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.1.0",
+    "eslint": "^10.6.0",
+    "prettier": "^3.9.4",
+    "turbo": "^2.10.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.1",
+    "vitest": "^4.1.9"
   }
 }
