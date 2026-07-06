@@ -11,6 +11,7 @@ import {
   renderMarkdownReport
 } from "./renderMarkdownReport.js";
 import { renderHtmlReport } from "./renderHtmlReport.js";
+import { findingInstanceCounts, formatInstanceSuffix, uniqueRemediationOptions } from "./reportSignal.js";
 
 export async function writeReportBundle(
   outputDir: string,
@@ -56,14 +57,18 @@ export async function writeReportBundle(
 
 function renderPriorityActionPlan(bundle: ReportBundle): string {
   const lines = ["# Priority Action Plan", "", `Target: ${bundle.scan.config.url}`, ""];
+  const instanceCounts = findingInstanceCounts(bundle.findings);
   for (const phase of bundle.remediationPlan.phases) {
     lines.push(`## ${phase.title}`, phase.summary, "");
-    if (phase.items.length === 0) {
+    const items = uniqueRemediationOptions(phase.items);
+    if (items.length === 0) {
       lines.push("No items.", "");
       continue;
     }
-    for (const item of phase.items) {
-      lines.push(`- ${item.findingId}: ${item.title}`);
+    for (const item of items) {
+      lines.push(
+        `- ${item.findingId}: ${item.title}${formatInstanceSuffix(instanceCounts.get(item.findingId))}`
+      );
       lines.push(`  - Class: ${item.fixClass}`);
       lines.push(`  - Risk: ${item.risk}`);
       lines.push(`  - Effort: ${item.effort}`);

@@ -1,5 +1,15 @@
 import type { Finding, ReportBundle } from "@seo-polish/schemas";
 import { REPORT_SECTIONS } from "@seo-polish/schemas";
+import {
+  attentionValidationChecks,
+  countBySeverity,
+  findingInstanceCounts,
+  formatInstanceSuffix,
+  formatSet,
+  groupFindings,
+  uniqueRemediationOptions,
+  validationStatusCounts
+} from "./reportSignal.js";
 
 export function renderHtmlReport(bundle: ReportBundle): string {
   return `<!doctype html>
@@ -25,29 +35,70 @@ export function renderHtmlReport(bundle: ReportBundle): string {
     </nav>
     <article>
       <section class="toolbar" aria-label="Finding filters">
-        <button type="button" data-filter="all">All</button>
-        <button type="button" data-filter="critical">Critical</button>
-        <button type="button" data-filter="high">High</button>
-        <button type="button" data-filter="medium">Medium</button>
-        <button type="button" data-filter="low">Low</button>
+        <button type="button" data-filter="all" aria-pressed="true" class="is-active">All</button>
+        <button type="button" data-filter="critical" aria-pressed="false">Critical</button>
+        <button type="button" data-filter="high" aria-pressed="false">High</button>
+        <button type="button" data-filter="medium" aria-pressed="false">Medium</button>
+        <button type="button" data-filter="low" aria-pressed="false">Low</button>
+        <button type="button" data-filter="info" aria-pressed="false">Info</button>
       </section>
       ${renderScoreGrid(bundle)}
       ${REPORT_SECTIONS.map((section) => renderHtmlSection(section.number, section.title, bundle)).join("")}
     </article>
   </main>
   <script>
-    document.querySelectorAll('[data-filter]').forEach((button) => {
+    const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
+    const findingCards = Array.from(document.querySelectorAll('[data-severity]'));
+    function applyFilter(value) {
+      findingCards.forEach((card) => {
+        card.hidden = value !== 'all' && card.getAttribute('data-severity') !== value;
+      });
+      filterButtons.forEach((button) => {
+        const active = button.getAttribute('data-filter') === value;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+    }
+    async function copyText(value) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      if (!copied) throw new Error('Copy command failed');
+    }
+    filterButtons.forEach((button) => {
       button.addEventListener('click', () => {
         const value = button.getAttribute('data-filter');
-        document.querySelectorAll('[data-severity]').forEach((card) => {
-          card.style.display = value === 'all' || card.getAttribute('data-severity') === value ? '' : 'none';
-        });
+        applyFilter(value || 'all');
       });
     });
     document.querySelectorAll('[data-copy]').forEach((button) => {
       button.addEventListener('click', async () => {
         const target = document.getElementById(button.getAttribute('data-copy'));
-        if (target) await navigator.clipboard.writeText(target.textContent || '');
+        const status = button.parentElement ? button.parentElement.querySelector('[data-copy-status]') : null;
+        if (!target) return;
+        const previousText = button.textContent || 'Copy validation';
+        try {
+          await copyText(target.textContent || '');
+          button.textContent = 'Copied';
+          if (status) status.textContent = 'Copied';
+        } catch {
+          if (status) status.textContent = 'Copy failed';
+        } finally {
+          window.setTimeout(() => {
+            button.textContent = previousText;
+            if (status) status.textContent = '';
+          }, 1600);
+        }
       });
     });
   </script>
@@ -71,18 +122,70 @@ ${bundle.score.categories
 
 function renderHtmlSection(number: number, title: string, bundle: ReportBundle): string {
   if (number === 1) {
-    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>Combined score: <strong>${bundle.score.total}/100</strong> (${escapeHtml(bundle.score.level)}). Findings are evidence-bound and generated from structured scan output.</p></section>`;
+    const counts = countBySeverity(bundle.findings);
+    const groups = groupFindings(bundle.findings);
+    const top = groups
+      .slice(0, 5)
+      .map(
+        (finding) =>
+          `<li>${escapeHtml(finding.id)} - ${escapeHtml(finding.title)}${escapeHtml(formatInstanceSuffix(finding.count))}</li>`
+      )
+      .join("");
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>Combined score: <strong>${bundle.score.total}/100</strong> (${escapeHtml(bundle.score.level)}). Findings are evidence-bound and generated from structured scan output.</p><p>${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info. ${groups.length} unique grouped issues.</p>${groups.length > 0 ? `<h3>Top grouped findings</h3><ol>${top}</ol>` : `<p class="status">No open findings.</p>`}</section>`;
   }
   if (number === 3) {
+    const instanceCounts = findingInstanceCounts(bundle.findings);
     return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2>${bundle.remediationPlan.phases
-      .map(
-        (phase) =>
-          `<h3>${escapeHtml(phase.title)}</h3><p>${escapeHtml(phase.summary)}</p><ul>${phase.items.map((item) => `<li>${escapeHtml(item.findingId)} - ${escapeHtml(item.title)}</li>`).join("") || "<li>No items.</li>"}</ul>`
-      )
+      .map((phase) => {
+        const items = uniqueRemediationOptions(phase.items);
+        return `<h3>${escapeHtml(phase.title)}</h3><p>${escapeHtml(phase.summary)}</p><ul>${items.map((item) => `<li>${escapeHtml(item.findingId)} - ${escapeHtml(item.title)}${escapeHtml(formatInstanceSuffix(instanceCounts.get(item.findingId)))}</li>`).join("") || "<li>No items.</li>"}</ul>`;
+      })
       .join("")}</section>`;
   }
+  if (number === 4) {
+    return renderFindingRollupSection(
+      number,
+      title,
+      bundle.findings.filter(
+        (finding) =>
+          !["agent_readiness", "protocol_discovery", "api_auth_mcp", "policy", "security"].includes(
+            finding.category
+          ) && ["critical", "high"].includes(finding.severity)
+      ),
+      bundle.scan.siteType
+    );
+  }
+  if (number === 5) {
+    return renderFindingRollupSection(
+      number,
+      title,
+      bundle.findings.filter(
+        (finding) =>
+          ["agent_readiness", "protocol_discovery", "api_auth_mcp"].includes(finding.category) &&
+          ["critical", "high"].includes(finding.severity)
+      ),
+      bundle.scan.siteType
+    );
+  }
+  if (number === 18) {
+    return renderFindingRollupSection(
+      number,
+      title,
+      bundle.findings.filter((finding) => ["crawlability", "agent_readiness"].includes(finding.category)),
+      bundle.scan.siteType
+    );
+  }
+  if (number === 22) {
+    return renderImplementationPlanSection(number, title, bundle);
+  }
+  if (number === 23) {
+    return renderAgentInstructionsSection(number, title);
+  }
   if (number === 24) {
-    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><ul>${bundle.validation.checks.map((check) => `<li><strong>${escapeHtml(check.status)}</strong> ${escapeHtml(check.title)} - ${escapeHtml(check.message)}</li>`).join("")}</ul></section>`;
+    return renderValidationSection(number, title, bundle);
+  }
+  if (number === 25) {
+    return renderUserDecisionSection(number, title, bundle);
   }
   if (number === 26) {
     return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages.</p></section>`;
@@ -95,17 +198,99 @@ function renderHtmlSection(number: number, title: string, bundle: ReportBundle):
   const findings = section
     ? bundle.findings.filter((finding) => section.categories.includes(finding.category))
     : [];
-  return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2>${findings.length === 0 ? `<p class="status">Status: ${notApplicable(title, bundle.scan.siteType) ? "Not applicable" : "Passed"}</p>` : findings.map(renderFindingHtml).join("")}</section>`;
+  return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2>${findings.length === 0 ? `<p class="status">Status: ${notApplicable(title, bundle.scan.siteType) ? "Not applicable" : "Passed"}</p>` : groupFindings(findings).map(renderFindingHtml).join("")}</section>`;
 }
 
-function renderFindingHtml(finding: Finding): string {
-  const commandId = `validation-${finding.id}`;
+function renderImplementationPlanSection(number: number, title: string, bundle: ReportBundle): string {
+  const safeFixes = uniqueRemediationOptions(bundle.remediationPlan.safeFixes);
+  const manualItems = uniqueRemediationOptions(bundle.remediationPlan.manualRecommendations);
+  const approvalItems = uniqueRemediationOptions(bundle.remediationPlan.approvalRequired);
+  return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2>
+    <p>${safeFixes.length} safe auto-fix items, ${manualItems.length} manual strategy items, ${approvalItems.length} approval-required items.</p>
+    ${renderRemediationList("Safe auto-fix", safeFixes, bundle.findings)}
+    ${renderRemediationList("Manual strategy", manualItems, bundle.findings)}
+    ${renderRemediationList("Approval required", approvalItems, bundle.findings)}
+    <p>Patch preview is available in <code>patch.diff</code>. Full machine-readable details remain in <code>remediation-plan.json</code>.</p>
+  </section>`;
+}
+
+function renderFindingRollupSection(
+  number: number,
+  title: string,
+  findings: Finding[],
+  siteType: string
+): string {
+  if (findings.length === 0) {
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p class="status">Status: ${notApplicable(title, siteType) ? "Not applicable" : "Passed"}</p></section>`;
+  }
+  const groups = groupFindings(findings);
+  return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2>
+    <p>Grouped rollup. Full cards appear once in the category-specific sections and <code>findings.json</code> keeps every evidence instance.</p>
+    <ul>${groups.map((finding) => `<li>${escapeHtml(finding.id)} - ${escapeHtml(finding.title)}${escapeHtml(formatInstanceSuffix(finding.count))} (${escapeHtml(finding.severity)}, ${escapeHtml(finding.category)})</li>`).join("")}</ul>
+  </section>`;
+}
+
+function renderAgentInstructionsSection(number: number, title: string): string {
+  return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2>
+    <ul class="summary-list">
+      <li>Use <code>agent-execution-plan.md</code> as the final execution contract.</li>
+      <li>Apply <code>safe_auto_fix</code> items only when the source repo path is clear.</li>
+      <li>Keep policy, auth, payment, crawler, canonical and MCP mutation changes approval-required.</li>
+      <li>Re-run scan, lint, validation, benchmark and project gates after implementation.</li>
+    </ul>
+  </section>`;
+}
+
+function renderValidationSection(number: number, title: string, bundle: ReportBundle): string {
+  const counts = validationStatusCounts(bundle.validation.checks);
+  const attention = attentionValidationChecks(bundle.validation.checks);
+  const omitted = counts.passed + counts.not_applicable;
+  return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2>
+    <p>Status: <strong>${bundle.validation.ok ? "Passed" : "Failed"}</strong>. ${counts.failed} failed, ${counts.warning} warning, ${counts.passed} passed, ${counts.not_applicable} not applicable.</p>
+    ${
+      attention.length === 0
+        ? `<p class="status">No failed or warning checks. Passed/not-applicable checks omitted: ${omitted}.</p>`
+        : `<ul>${attention.map((check) => `<li><strong>${escapeHtml(check.status)}</strong> ${escapeHtml(check.title)} - ${escapeHtml(check.message)}</li>`).join("")}</ul><p>Passed/not-applicable checks omitted: ${omitted}. See <code>validation.json</code> for the full machine log.</p>`
+    }
+  </section>`;
+}
+
+function renderUserDecisionSection(number: number, title: string, bundle: ReportBundle): string {
+  const decisions = bundle.remediationPlan.userDecisions;
+  return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2>${
+    decisions.length === 0
+      ? `<p class="status">No owner decisions currently required.</p>`
+      : `<ol>${decisions.map((decision) => `<li><strong>${escapeHtml(decision.title)}</strong><br>${escapeHtml(decision.reason)}<br>Default: ${escapeHtml(decision.default)}</li>`).join("")}</ol>`
+  }</section>`;
+}
+
+function renderRemediationList(
+  title: string,
+  items: ReportBundle["remediationPlan"]["safeFixes"],
+  findings: Finding[]
+): string {
+  const instanceCounts = findingInstanceCounts(findings);
+  return `<h3>${escapeHtml(title)}</h3><ul>${
+    items.length === 0
+      ? "<li>No items.</li>"
+      : items
+          .map(
+            (item) =>
+              `<li><strong>${escapeHtml(item.findingId)}${escapeHtml(formatInstanceSuffix(instanceCounts.get(item.findingId)))}</strong>: ${escapeHtml(item.implementationPath)}</li>`
+          )
+          .join("")
+  }</ul>`;
+}
+
+function renderFindingHtml(finding: ReturnType<typeof groupFindings>[number], index: number): string {
+  const commandId = `validation-${index}-${slugify(finding.id)}`;
   return `<article class="finding" data-severity="${escapeHtml(finding.severity)}">
   <h3>${escapeHtml(finding.id)} - ${escapeHtml(finding.title)}</h3>
   <div class="meta">
     <span class="badge ${escapeHtml(finding.severity)}">${escapeHtml(finding.severity)}</span>
     <span>${escapeHtml(finding.category)}</span>
-    <span>${finding.confidence}% confidence</span>
+    <span>${finding.count} instance${finding.count === 1 ? "" : "s"}</span>
+    <span>${finding.evidenceCount} evidence entries</span>
     <span>Auto-fix: ${finding.safeToAutoFix ? "yes" : "no"}</span>
     <span>Approval: ${finding.approvalRequired ? "yes" : "no"}</span>
   </div>
@@ -113,11 +298,13 @@ function renderFindingHtml(finding: Finding): string {
   <p><strong>Root cause:</strong> ${escapeHtml(finding.rootCause)}</p>
   <p><strong>Recommended fix:</strong> ${escapeHtml(finding.recommendation)}</p>
   <details>
-    <summary>Evidence</summary>
-    <ul>${finding.evidence.map((item) => `<li><code>${escapeHtml(item.url ?? item.path ?? item.id)}</code> ${escapeHtml(String(item.excerpt ?? item.value ?? item.status ?? ""))}</li>`).join("")}</ul>
+    <summary>Affected surface</summary>
+    <p><strong>URLs:</strong> ${escapeHtml(formatSet(finding.affectedUrls))}</p>
+    <p><strong>Templates:</strong> ${escapeHtml(formatSet(finding.affectedTemplates))}</p>
   </details>
   <pre id="${commandId}"><code>${escapeHtml(finding.validation.join("\n"))}</code></pre>
   <button type="button" data-copy="${commandId}">Copy validation</button>
+  <span class="copy-status" data-copy-status aria-live="polite"></span>
 </article>`;
 }
 
@@ -131,6 +318,15 @@ function notApplicable(title: string, siteType: string): boolean {
 
 function escapeHtml(input: string): string {
   return input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function slugify(input: string): string {
+  return (
+    input
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "finding"
+  );
 }
 
 const REPORT_CSS = `
@@ -164,6 +360,7 @@ body { margin: 0; background: var(--sp-bg); color: var(--sp-text); font-family: 
 .toc a { color: var(--sp-muted); text-decoration: none; border-left: 2px solid var(--sp-border); padding: 4px 10px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
 button { background: var(--sp-surface-soft); border: 1px solid var(--sp-border); color: var(--sp-text); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+button.is-active { border-color: var(--sp-low); box-shadow: 0 0 0 2px rgba(56,189,248,.22); }
 section { margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid var(--sp-border); }
 h2 { margin-top: 0; font-size: 24px; letter-spacing: 0; }
 h3 { letter-spacing: 0; }
@@ -172,6 +369,7 @@ h3 { letter-spacing: 0; }
 .metric strong { display: block; margin: 8px 0; font-size: 30px; }
 .metric small { color: var(--sp-muted); }
 .finding { margin: 14px 0; }
+.finding[hidden] { display: none; }
 .meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--sp-muted); }
 .badge { border-radius: 999px; padding: 2px 8px; color: #0b0f14; font-weight: 700; }
 .critical { background: var(--sp-critical); }
@@ -182,6 +380,8 @@ h3 { letter-spacing: 0; }
 pre { overflow: auto; background: #05070a; border: 1px solid var(--sp-border); border-radius: 8px; padding: 12px; }
 code { font-family: var(--sp-mono); }
 .status { color: var(--sp-pass); }
+.summary-list { display: grid; gap: 8px; padding-left: 20px; }
+.copy-status { margin-left: 10px; color: var(--sp-muted); font-size: 13px; }
 @media (max-width: 860px) {
   .hero { display: block; }
   .score { margin-top: 20px; }

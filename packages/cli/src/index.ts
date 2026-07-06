@@ -14,7 +14,13 @@ import {
   type SiteType
 } from "@seo-polish/core";
 import { renderAgentExecutionPlan, type AgentExecutionPlanBenchmark } from "@seo-polish/reporters";
-import type { Finding, ReportBundle, ScanResult } from "@seo-polish/schemas";
+import type {
+  Finding,
+  ReportBundle,
+  ScanResult,
+  ValidationResult,
+  ValidationStatus
+} from "@seo-polish/schemas";
 import { buildStandardsSnapshot, validateStandardsRegistry } from "@seo-polish/standards-registry";
 
 interface ParsedArgs {
@@ -89,7 +95,7 @@ async function main(argv: string[]): Promise<void> {
       flagString(args, "report", "seo-polish-report"),
       Boolean(args.flags.strict ?? true)
     );
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(args.flags.full ? result : summarizeValidation(result), null, 2));
     process.exitCode = result.ok ? 0 : 1;
     return;
   }
@@ -97,7 +103,7 @@ async function main(argv: string[]): Promise<void> {
   if (command === "report" && subcommand === "lint") {
     const reportDir = args.positionals[0] ?? "seo-polish-report";
     const result = await runReportLint(reportDir, Boolean(args.flags.strict));
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(args.flags.full ? result : summarizeValidation(result), null, 2));
     process.exitCode = result.ok ? 0 : 1;
     return;
   }
@@ -266,6 +272,37 @@ function flagNumber(args: ParsedArgs, key: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function summarizeValidation(result: ValidationResult): {
+  ok: boolean;
+  generatedAt: string;
+  checks: Record<ValidationStatus, number> & { total: number };
+  attention: Array<{ id: string; title: string; status: ValidationStatus; message: string }>;
+  fullOutput: string;
+} {
+  const counts = result.checks.reduce<Record<ValidationStatus, number>>(
+    (acc, check) => {
+      acc[check.status] += 1;
+      return acc;
+    },
+    { passed: 0, failed: 0, warning: 0, not_applicable: 0 }
+  );
+  return {
+    ok: result.ok,
+    generatedAt: result.generatedAt,
+    checks: { total: result.checks.length, ...counts },
+    attention: result.checks
+      .filter((check) => check.status === "failed" || check.status === "warning")
+      .slice(0, 20)
+      .map((check) => ({
+        id: check.id,
+        title: check.title,
+        status: check.status,
+        message: check.message
+      })),
+    fullOutput: "Use --full to print every validation check."
+  };
+}
+
 function printHelp(): void {
   console.log(`SEO polish workflow
 
@@ -274,8 +311,8 @@ Usage:
   seo-polish plan --scan ./seo-polish-report/findings.json
   seo-polish plan build --report ./seo-polish-report
   seo-polish apply --plan ./seo-polish-report/remediation-plan.json --mode diff-only
-  seo-polish validate --report ./seo-polish-report
-  seo-polish report lint ./seo-polish-report --strict
+  seo-polish validate --report ./seo-polish-report [--full]
+  seo-polish report lint ./seo-polish-report --strict [--full]
   seo-polish report render ./seo-polish-report
   seo-polish policy init
   seo-polish standards update --output ./seo-polish-report/standards-registry.json

@@ -141,9 +141,7 @@ new file mode 100644
 `);
   }
 
-  const manualActions = findings
-    .filter((finding) => !safeFindingIds.has(finding.id))
-    .map((finding) => `${finding.id}: ${finding.recommendation}`);
+  const manualActions = buildManualActions(findings, safeFindingIds);
 
   return {
     patchDiff:
@@ -195,4 +193,19 @@ function renderPatchPlan(plan: RemediationPlan): string {
     lines.push("");
   }
   return `${lines.join("\n")}\n`;
+}
+
+function buildManualActions(findings: Finding[], safeFindingIds: Set<string>): string[] {
+  const actions = new Map<string, { id: string; recommendation: string; count: number }>();
+  for (const finding of findings) {
+    if (safeFindingIds.has(finding.id)) continue;
+    const key = `${finding.id}|${finding.recommendation}`;
+    const action = actions.get(key) ?? { id: finding.id, recommendation: finding.recommendation, count: 0 };
+    action.count += 1;
+    actions.set(key, action);
+  }
+  return [...actions.values()].map(
+    (action) =>
+      `${action.id}: ${action.recommendation}${action.count > 1 ? ` (${action.count} instances)` : ""}`
+  );
 }

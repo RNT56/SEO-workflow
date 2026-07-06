@@ -5,6 +5,13 @@ import type {
   ScoreCategory,
   ValidationCheck
 } from "@seo-polish/schemas";
+import {
+  FIX_CLASS_LABEL,
+  countBySeverity,
+  formatSet,
+  groupFindings,
+  uniqueRemediationOptions
+} from "./reportSignal.js";
 
 export interface AgentExecutionPlanBenchmark {
   score: number;
@@ -19,36 +26,6 @@ export interface AgentExecutionPlanBenchmark {
 export interface AgentExecutionPlanOptions {
   benchmark?: AgentExecutionPlanBenchmark | null;
 }
-
-interface FindingGroup {
-  key: string;
-  id: string;
-  title: string;
-  severity: Finding["severity"];
-  category: Finding["category"];
-  count: number;
-  safeToAutoFix: boolean;
-  approvalRequired: boolean;
-  affectedUrls: Set<string>;
-  affectedTemplates: Set<string>;
-  recommendation: string;
-  validation: string[];
-}
-
-const SEVERITY_ORDER: Record<Finding["severity"], number> = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-  info: 4
-};
-
-const FIX_CLASS_LABEL: Record<RemediationOption["fixClass"], string> = {
-  safe_auto_fix: "Safe auto-fix",
-  approval_required: "Approval required",
-  manual_strategy: "Manual strategy",
-  not_applicable: "Not applicable"
-};
 
 export function renderAgentExecutionPlan(
   bundle: ReportBundle,
@@ -145,13 +122,7 @@ function renderScoreTable(categories: ScoreCategory[]): string {
 }
 
 function renderFindingSummary(findings: Finding[]): string {
-  const counts = findings.reduce<Record<Finding["severity"], number>>(
-    (acc, finding) => {
-      acc[finding.severity] += 1;
-      return acc;
-    },
-    { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
-  );
+  const counts = countBySeverity(findings);
   return [
     "Finding inventory:",
     "",
@@ -325,56 +296,4 @@ Run the remediation plan end to end:
 7. Commit and push only after all required gates pass.
 8. Summarize before/after score, changed files, remaining approvals and verification results.
 \`\`\``;
-}
-
-function groupFindings(findings: Finding[]): FindingGroup[] {
-  const groups = new Map<string, FindingGroup>();
-  for (const finding of findings) {
-    const key = `${finding.id}|${finding.title}|${finding.severity}|${finding.category}`;
-    const group = groups.get(key) ?? {
-      key,
-      id: finding.id,
-      title: finding.title,
-      severity: finding.severity,
-      category: finding.category,
-      count: 0,
-      safeToAutoFix: false,
-      approvalRequired: false,
-      affectedUrls: new Set<string>(),
-      affectedTemplates: new Set<string>(),
-      recommendation: finding.recommendation,
-      validation: finding.validation
-    };
-    group.count += 1;
-    group.safeToAutoFix ||= finding.safeToAutoFix;
-    group.approvalRequired ||= finding.approvalRequired;
-    for (const url of finding.affectedUrls) group.affectedUrls.add(url);
-    for (const template of finding.affectedTemplates) group.affectedTemplates.add(template);
-    groups.set(key, group);
-  }
-  return [...groups.values()].sort(
-    (left, right) =>
-      SEVERITY_ORDER[left.severity] - SEVERITY_ORDER[right.severity] ||
-      right.count - left.count ||
-      left.id.localeCompare(right.id)
-  );
-}
-
-function uniqueRemediationOptions(items: RemediationOption[]): RemediationOption[] {
-  const seen = new Set<string>();
-  const result: RemediationOption[] = [];
-  for (const item of items) {
-    const key = `${item.findingId}|${item.title}|${item.fixClass}|${item.implementationPath}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(item);
-  }
-  return result;
-}
-
-function formatSet(values: Set<string>): string {
-  if (values.size === 0) return "N/A";
-  const visible = [...values].slice(0, 8);
-  const hidden = values.size - visible.length;
-  return hidden > 0 ? `${visible.join(", ")} plus ${hidden} more` : visible.join(", ");
 }

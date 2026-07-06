@@ -1,6 +1,16 @@
 import { REPORT_SECTIONS, sectionHeading } from "@seo-polish/schemas";
-import type { Finding, ReportBundle, ReportSection, Severity } from "@seo-polish/schemas";
+import type { Finding, ReportBundle, ReportSection } from "@seo-polish/schemas";
 import { renderAgentExecutionPlan } from "./renderAgentExecutionPlan.js";
+import {
+  attentionValidationChecks,
+  countBySeverity,
+  findingInstanceCounts,
+  formatInstanceSuffix,
+  formatSet,
+  groupFindings,
+  uniqueRemediationOptions,
+  validationStatusCounts
+} from "./reportSignal.js";
 
 export function renderMarkdownReport(bundle: ReportBundle): string {
   const { scan, validation } = bundle;
@@ -108,23 +118,29 @@ function renderSection(section: ReportSection, bundle: ReportBundle): string {
     case 2:
       return renderScorecard(score.categories);
     case 3:
-      return renderPriorityPlan(remediationPlan);
+      return renderPriorityPlan(remediationPlan, findings);
     case 4:
-      return renderFindings(
+      return renderFindingRollup(
         findings.filter(
           (finding) => isSeoFinding(finding) && ["critical", "high"].includes(finding.severity)
         ),
         scan.siteType
       );
     case 5:
-      return renderFindings(
+      return renderFindingRollup(
         findings.filter(
           (finding) => isAgentFinding(finding) && ["critical", "high"].includes(finding.severity)
         ),
         scan.siteType
       );
+    case 18:
+      return renderFindingRollup(
+        findings.filter((finding) => ["crawlability", "agent_readiness"].includes(finding.category)),
+        scan.siteType,
+        section
+      );
     case 22:
-      return renderImplementationPlan(remediationPlan, patchDiff);
+      return renderImplementationPlan(remediationPlan, patchDiff, findings);
     case 23:
       return renderAgentSpecificInstructions();
     case 24:
@@ -146,14 +162,18 @@ function renderSection(section: ReportSection, bundle: ReportBundle): string {
 
 function renderSummary(bundle: ReportBundle): string {
   const counts = countBySeverity(bundle.findings);
-  const top = bundle.findings
+  const top = groupFindings(bundle.findings)
     .slice(0, 5)
-    .map((finding, index) => `${index + 1}. ${finding.id} - ${finding.title}`);
+    .map(
+      (finding, index) =>
+        `${index + 1}. ${finding.id} - ${finding.title}${formatInstanceSuffix(finding.count)}`
+    );
   return `Combined score: **${bundle.score.total}/100** (${bundle.score.level})
 
 Findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info.
+Unique grouped issues: ${groupFindings(bundle.findings).length}.
 
-${top.length > 0 ? `Top findings:\n${top.join("\n")}` : "No open findings."}
+${top.length > 0 ? `Top grouped findings:\n${top.join("\n")}` : "No open findings."}
 `;
 }
 
@@ -169,16 +189,20 @@ function renderScorecard(
   return lines.join("\n");
 }
 
-function renderPriorityPlan(plan: ReportBundle["remediationPlan"]): string {
+function renderPriorityPlan(plan: ReportBundle["remediationPlan"], findings: Finding[]): string {
   const lines: string[] = [];
+  const instanceCounts = findingInstanceCounts(findings);
   for (const phase of plan.phases) {
     lines.push(`### ${phase.title}`, phase.summary, "");
-    if (phase.items.length === 0) {
+    const items = uniqueRemediationOptions(phase.items);
+    if (items.length === 0) {
       lines.push("Status: Passed", "No relevant issues found in this category.", "");
       continue;
     }
-    phase.items.forEach((item, index) => {
-      lines.push(`${index + 1}. ${item.findingId} - ${item.title}`);
+    items.forEach((item, index) => {
+      lines.push(
+        `${index + 1}. ${item.findingId} - ${item.title}${formatInstanceSuffix(instanceCounts.get(item.findingId))}`
+      );
     });
     lines.push("");
   }
@@ -195,7 +219,29 @@ Reason: No ${section.title.toLowerCase()} patterns detected.`;
 No relevant issues found in this category.`;
   }
 
-  return findings.map(renderFindingCard).join("\n\n");
+  return groupFindings(findings).map(renderFindingGroupCard).join("\n\n");
+}
+
+function renderFindingRollup(findings: Finding[], siteType: string, section?: ReportSection): string {
+  if (findings.length === 0) {
+    if (section && isNotApplicable(section, siteType)) {
+      return `Status: Not applicable
+Reason: No ${section.title.toLowerCase()} patterns detected.`;
+    }
+    return `Status: Passed
+No relevant issues found in this rollup.`;
+  }
+
+  const lines = [
+    "Grouped rollup. Full cards appear once in the category-specific sections and `findings.json` keeps every evidence instance.",
+    ""
+  ];
+  for (const finding of groupFindings(findings)) {
+    lines.push(
+      `- ${finding.id} - ${finding.title}${formatInstanceSuffix(finding.count)} (${finding.severity}, ${finding.category})`
+    );
+  }
+  return lines.join("\n");
 }
 
 export function renderFindingCard(finding: Finding): string {
@@ -240,18 +286,59 @@ ${finding.validation.join("\n")}
 \`\`\``;
 }
 
-function renderImplementationPlan(plan: ReportBundle["remediationPlan"], patchDiff: string): string {
+function renderFindingGroupCard(finding: ReturnType<typeof groupFindings>[number]): string {
+  return `### ${finding.id} - ${finding.title}
+**Severity:** ${capitalize(finding.severity)}
+**Category:** ${finding.category}
+**Instances:** ${finding.count}
+**Evidence entries:** ${finding.evidenceCount}
+**Affected URLs:** ${formatSet(finding.affectedUrls)}
+**Affected templates:** ${formatSet(finding.affectedTemplates)}
+**Safe to auto-fix:** ${finding.safeToAutoFix ? "Yes" : "No"}
+**Approval required:** ${finding.approvalRequired ? "Yes" : "No"}
+
+**Impact**
+${finding.impact}
+
+**Root cause**
+${finding.rootCause}
+
+**Recommended fix**
+${finding.recommendation}
+
+**Validation**
+\`\`\`bash
+${finding.validation.join("\n")}
+\`\`\``;
+}
+
+function renderImplementationPlan(
+  plan: ReportBundle["remediationPlan"],
+  patchDiff: string,
+  findings: Finding[]
+): string {
   const lines = ["Safe fixes:", ""];
-  if (plan.safeFixes.length === 0) {
+  const instanceCounts = findingInstanceCounts(findings);
+  const safeFixes = uniqueRemediationOptions(plan.safeFixes);
+  const approvalRequired = uniqueRemediationOptions(plan.approvalRequired);
+  if (safeFixes.length === 0) {
     lines.push("- No safe automatic fixes were classified.");
   } else {
-    plan.safeFixes.forEach((item) => lines.push(`- ${item.findingId}: ${item.implementationPath}`));
+    safeFixes.forEach((item) =>
+      lines.push(
+        `- ${item.findingId}${formatInstanceSuffix(instanceCounts.get(item.findingId))}: ${item.implementationPath}`
+      )
+    );
   }
   lines.push("", "Approval required:", "");
-  if (plan.approvalRequired.length === 0) {
+  if (approvalRequired.length === 0) {
     lines.push("- No approval-required fixes were classified.");
   } else {
-    plan.approvalRequired.forEach((item) => lines.push(`- ${item.findingId}: ${item.implementationPath}`));
+    approvalRequired.forEach((item) =>
+      lines.push(
+        `- ${item.findingId}${formatInstanceSuffix(instanceCounts.get(item.findingId))}: ${item.implementationPath}`
+      )
+    );
   }
   lines.push("", "Patch preview:", "", "```diff", patchDiff.trim(), "```");
   return lines.join("\n");
@@ -284,14 +371,30 @@ function agentExecutionNote(name: string): string {
 }
 
 function renderValidation(validation: ReportBundle["validation"]): string {
-  const lines = [`Status: ${validation.ok ? "Passed" : "Failed"}`, ""];
-  for (const check of validation.checks) {
+  const counts = validationStatusCounts(validation.checks);
+  const attention = attentionValidationChecks(validation.checks);
+  const omittedPassed = counts.passed + counts.not_applicable;
+  const lines = [
+    `Status: ${validation.ok ? "Passed" : "Failed"}`,
+    `Checks: ${counts.failed} failed, ${counts.warning} warning, ${counts.passed} passed, ${counts.not_applicable} not applicable.`,
+    ""
+  ];
+  if (attention.length === 0) {
+    lines.push(`No failed or warning checks. Passed/not-applicable checks omitted: ${omittedPassed}.`);
+    return lines.join("\n");
+  }
+  for (const check of attention) {
     lines.push(`- ${check.status}: ${check.title} - ${check.message}`);
   }
+  lines.push(
+    "",
+    `Passed/not-applicable checks omitted: ${omittedPassed}. See \`validation.json\` for the full machine log.`
+  );
   return lines.join("\n");
 }
 
 function renderUserDecisions(plan: ReportBundle["remediationPlan"]): string {
+  if (plan.userDecisions.length === 0) return "No owner decisions currently required.";
   return plan.userDecisions
     .map(
       (decision, index) =>
@@ -327,16 +430,6 @@ seo-polish plan build --report ${bundle.scan.config.outputDir}
 Preview:
 
 ${preview}`;
-}
-
-function countBySeverity(findings: Finding[]): Record<Severity, number> {
-  return findings.reduce<Record<Severity, number>>(
-    (acc, finding) => {
-      acc[finding.severity] += 1;
-      return acc;
-    },
-    { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
-  );
 }
 
 function isSeoFinding(finding: Finding): boolean {

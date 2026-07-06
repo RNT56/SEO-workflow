@@ -31,64 +31,71 @@ export function createRemediationPlan(findings: Finding[]): RemediationPlan {
     );
   });
 
-  const safeFixes = sorted.filter((option) => option.fixClass === "safe_auto_fix");
-  const approvalRequired = sorted.filter((option) => option.fixClass === "approval_required");
-  const manualRecommendations = sorted.filter((option) => option.fixClass === "manual_strategy");
+  const uniqueSorted = uniqueRemediationOptions(sorted);
+  const safeFixes = uniqueSorted.filter((option) => option.fixClass === "safe_auto_fix");
+  const approvalRequired = uniqueSorted.filter((option) => option.fixClass === "approval_required");
+  const manualRecommendations = uniqueSorted.filter((option) => option.fixClass === "manual_strategy");
 
   const phases: RemediationPhase[] = [
     phase(
       "do_now_seo",
       "Do now - SEO blockers",
       "Fix critical and high-severity SEO blockers first.",
-      sorted.filter(
+      uniqueSorted.filter(
         (option) =>
           isFindingIn(findings, option.findingId, ["critical", "high"]) &&
-          !isAgentFinding(findings, option.findingId)
+          !isAgentFinding(findings, option.findingId) &&
+          option.fixClass !== "approval_required"
       )
     ),
     phase(
       "do_now_agent",
       "Do now - Agent blockers",
       "Fix critical and high-severity agent-readiness blockers.",
-      sorted.filter(
+      uniqueSorted.filter(
         (option) =>
           isFindingIn(findings, option.findingId, ["critical", "high"]) &&
-          isAgentFinding(findings, option.findingId)
+          isAgentFinding(findings, option.findingId) &&
+          option.fixClass !== "approval_required"
       )
     ),
     phase(
       "do_next_seo",
       "Do next - SEO growth",
       "Improve medium-priority SEO and content quality signals.",
-      sorted.filter(
+      uniqueSorted.filter(
         (option) =>
-          isFindingIn(findings, option.findingId, ["medium"]) && !isAgentFinding(findings, option.findingId)
+          isFindingIn(findings, option.findingId, ["medium"]) &&
+          !isAgentFinding(findings, option.findingId) &&
+          option.fixClass !== "approval_required"
       )
     ),
     phase(
       "do_next_agent",
       "Do next - Agent growth",
       "Improve agent-readable discovery and protocol coverage.",
-      sorted.filter(
+      uniqueSorted.filter(
         (option) =>
           isFindingIn(findings, option.findingId, ["medium", "low"]) &&
-          isAgentFinding(findings, option.findingId)
+          isAgentFinding(findings, option.findingId) &&
+          option.fixClass !== "approval_required"
       )
     ),
     phase(
       "user_decision_required",
       "User decision required",
       "Approval-required policy, auth, MCP, canonical and commerce decisions.",
-      sorted.filter((option) => option.fixClass === "approval_required")
+      uniqueSorted.filter((option) => option.fixClass === "approval_required")
     ),
     phase(
       "later",
       "Later",
       "Info-level or strategic items that should not block the first remediation pass.",
-      sorted.filter(
+      uniqueSorted.filter(
         (option) =>
           isFindingIn(findings, option.findingId, ["low", "info"]) &&
-          !isAgentFinding(findings, option.findingId)
+          !isAgentFinding(findings, option.findingId) &&
+          option.fixClass !== "approval_required"
       )
     )
   ];
@@ -124,7 +131,10 @@ export function createRemediationPlan(findings: Finding[]): RemediationPlan {
   return {
     phases,
     safeFixes,
-    approvalRequired: [...approvalRequired, ...classifyPolicyDecision(defaultPolicyFromFindings())],
+    approvalRequired: uniqueRemediationOptions([
+      ...approvalRequired,
+      ...classifyPolicyDecision(defaultPolicyFromFindings())
+    ]),
     manualRecommendations,
     userDecisions
   };
@@ -167,6 +177,18 @@ function fixClassWeight(fixClass: RemediationOption["fixClass"]): number {
   if (fixClass === "approval_required") return 1;
   if (fixClass === "manual_strategy") return 2;
   return 3;
+}
+
+function uniqueRemediationOptions(items: RemediationOption[]): RemediationOption[] {
+  const seen = new Set<string>();
+  const result: RemediationOption[] = [];
+  for (const item of items) {
+    const key = `${item.findingId}|${item.title}|${item.fixClass}|${item.implementationPath}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
 }
 
 function affectedWeight(finding: Finding | undefined): number {
