@@ -37,6 +37,7 @@ for (const fixtureName of fixtureNames) {
       "--max-depth",
       "3"
     ]);
+    await execFileAsync(process.execPath, [cliPath, "agent-review", "fixture", "--report", outputDir]);
     await execFileAsync(process.execPath, [cliPath, "report", "lint", outputDir, "--strict"]);
     const findings = JSON.parse(await readFile(join(outputDir, "findings.json"), "utf8"));
     const actualIds = new Set(findings.map((finding) => finding.id));

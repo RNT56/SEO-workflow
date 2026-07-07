@@ -88,6 +88,17 @@ async function smokeReport(browserInstance, reportPath, required) {
     console.log(`Report UI smoke skipped legacy report without cockpit tabs: ${reportPath}`);
     return false;
   }
+  const hasReview = (await page.locator('[data-view-tab="review"]').count()) > 0;
+  if (!hasReview) {
+    await page.close();
+    if (required) {
+      throw new Error(`Required report is missing review tab: ${reportPath}`);
+    }
+    console.log(`Report UI smoke skipped legacy report without review tab: ${reportPath}`);
+    return false;
+  }
+  await page.locator('[data-view-tab="review"]').click();
+  await assertVisiblePanel(page, "review");
   await page.locator('[data-view-tab="implementation"]').click();
   await assertVisiblePanel(page, "implementation");
   await page.locator('[data-queue-filter="owner"]').selectOption("all");

@@ -16,6 +16,13 @@ If only the live URL is available, SEO polish workflow can still produce a full 
 Treat the generated report bundle as the execution contract. Start with:
 
 - `seo-polish-report/agent-execution-plan.md`
+- `seo-polish-report/agent-review-input.json`
+- `seo-polish-report/agent-review.json`
+- `seo-polish-report/search-intent-review.json`
+- `seo-polish-report/agent-skills-review.json`
+- `seo-polish-report/copy-recommendations.json`
+- `seo-polish-report/final-audit.md`
+- `seo-polish-report/executive-summary.md`
 - `seo-polish-report/report-dashboard.json`
 - `seo-polish-report/findings.json`
 - `seo-polish-report/remediation-plan.json`
@@ -44,6 +51,28 @@ Treat the generated report bundle as the execution contract. Start with:
 
 No evidence means no finding, and no approval means no sensitive policy change.
 
+## Mandatory agent review
+
+The deterministic scanner is the source of truth. The agent review phase comes after evidence collection
+and before implementation. A repo-capable agent must complete:
+
+- `agent-review.json`
+- `search-intent-review.json`
+- `agent-skills-review.json`
+- `copy-recommendations.json`
+- `copy-recommendations.md`
+- `executive-summary.md`
+- `final-audit.md`
+
+Every strategic or copy recommendation must cite evidence IDs, finding IDs, affected URLs or source
+artifacts from `agent-review-input.json`. The agent may improve clarity, prioritization, search-intent
+analysis, agent-skills analysis and copy proposals, but it may not invent field data, customer proof,
+commercial claims, repo facts or private context. Canonical/indexing, policy, auth, payment, crawler
+policy, MCP mutation, business claims and brand-positioning changes remain approval-gated.
+
+`quality-gate.json`, `production-readiness.json` and `report lint --strict` stay failed until the review
+is complete and evidence-linked.
+
 ## Execution sequence
 
 Use this sequence inside the website source repository:
@@ -57,14 +86,16 @@ Website source repo: current workspace
 Run the workflow end to end:
 1. Build the SEO workflow if needed.
 2. Scan the live site into ./seo-polish-report with --repo pointing at the website source repo when available.
-3. Read agent-execution-plan.md and report-dashboard.json first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
-4. Apply only safe_auto_fix items directly in the website source repo when source candidates are clear and validation commands exist.
-5. Treat manual_strategy items as normal implementation work that needs source inspection and engineering judgment.
-6. Do not make policy, auth, payment, indexing, canonical, crawler or MCP mutation changes without explicit approval.
-7. Preserve approval_required items in remaining-user-decisions.md.
-8. Re-run scan, report lint, validation, benchmark, plan build, project tests, build and security checks.
-9. Commit and push only after the verification gates pass.
-10. Summarize final score, changed files, remaining user decisions and verification results.
+3. Read agent-execution-plan.md, agent-review-input.json and report-dashboard.json first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
+4. Complete the mandatory agent review artifacts, executive summary, copy recommendations and final audit narrative from cited evidence.
+5. Run report render and strict report lint; do not implement fixes until the review gate passes.
+6. Apply only safe_auto_fix items directly in the website source repo when source candidates are clear and validation commands exist.
+7. Treat manual_strategy items as normal implementation work that needs source inspection and engineering judgment.
+8. Do not make policy, auth, payment, indexing, canonical, crawler or MCP mutation changes without explicit approval.
+9. Preserve approval_required items in remaining-user-decisions.md.
+10. Re-run scan, report lint, validation, benchmark, plan build, project tests, build and security checks.
+11. Commit and push only after the verification gates pass.
+12. Summarize final score, changed files, remaining user decisions and verification results.
 ```
 
 Recommended scan command:

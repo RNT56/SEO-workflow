@@ -1,5 +1,6 @@
 import type {
   ActionOwner,
+  AgentReview,
   AutomationReadiness,
   BaselineComparison,
   BudgetStatus,
@@ -30,6 +31,7 @@ export interface ReportDashboardQualityGate {
 export interface ReportDashboardOptions {
   baselineComparison?: BaselineComparison | null;
   qualityGate?: ReportDashboardQualityGate | null;
+  agentReview?: AgentReview | null;
 }
 
 const IMPACT_WEIGHT: Record<ReportDashboardQueueItem["expectedImpact"], number> = {
@@ -82,6 +84,7 @@ export function buildReportDashboard(
       validationState: bundle.validation.ok ? "passed" : "failed",
       qualityGateStatus
     },
+    agentReview: buildAgentReviewSummary(options.agentReview ?? null),
     filters: {
       owners: sortedUnique(implementationQueue.map((item) => item.owner)),
       fixClasses: sortedUnique(implementationQueue.map((item) => item.fixClass)),
@@ -96,6 +99,38 @@ export function buildReportDashboard(
     performanceSummary,
     baselineSummary,
     evidenceStats
+  };
+}
+
+function buildAgentReviewSummary(review: AgentReview | null): ReportDashboard["agentReview"] {
+  if (!review) {
+    return {
+      status: "pending",
+      reviewer: "pending",
+      executiveSummaryAvailable: false,
+      finalAuditAvailable: false,
+      searchIntentStatus: "pending",
+      agentSkillsStatus: "pending",
+      strategicFindings: 0,
+      copyRecommendations: 0,
+      approvalRequiredCopy: 0,
+      limitations: ["Agent review status was not available when the dashboard was built."]
+    };
+  }
+  return {
+    status: review.status,
+    reviewer: review.reviewer,
+    executiveSummaryAvailable: review.executiveSummary.trim().length > 0 && review.status === "complete",
+    finalAuditAvailable:
+      review.finalAudit.status === "complete" && review.finalAudit.finalAuditMarkdown.trim().length > 0,
+    searchIntentStatus: review.searchIntent.status,
+    agentSkillsStatus: review.agentSkills.status,
+    strategicFindings: review.strategicFindings.length,
+    copyRecommendations: review.copyRecommendations.length,
+    approvalRequiredCopy: review.copyRecommendations.filter(
+      (item) => item.approvalState === "approval_required"
+    ).length,
+    limitations: review.limitations.slice(0, 8)
   };
 }
 

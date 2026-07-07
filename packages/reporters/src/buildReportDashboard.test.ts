@@ -20,6 +20,7 @@ describe("buildReportDashboard", () => {
     });
     expect(first.approvalQueue.map((item) => item.findingId)).toContain("SEO-INDEX-004");
     expect(first.nextBestFixes.some((item) => item.approvalRequired)).toBe(false);
+    expect(first.agentReview.status).toBe("pending");
   });
 
   it("classifies impact and effort, templates, performance and baseline summaries", () => {

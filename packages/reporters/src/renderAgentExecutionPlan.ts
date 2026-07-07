@@ -1,4 +1,5 @@
 import type {
+  AgentReview,
   Finding,
   ReportDashboard,
   ReportDashboardQueueItem,
@@ -22,6 +23,7 @@ export interface AgentExecutionPlanBenchmark {
 export interface AgentExecutionPlanOptions {
   benchmark?: AgentExecutionPlanBenchmark | null;
   dashboard?: ReportDashboard;
+  agentReview?: AgentReview | null;
 }
 
 export function renderAgentExecutionPlan(
@@ -54,6 +56,12 @@ export function renderAgentExecutionPlan(
     "- `findings.json`: evidence-backed issue inventory.",
     "- `score.json`: current score and category breakdown.",
     "- `report-dashboard.json`: execution cockpit queues, template heatmap, performance summary and comparison data.",
+    "- `agent-review-input.json`: bounded packet that the agent must use for strategic review and narrative writing.",
+    "- `agent-review.json`: mandatory structured agent-authored strategic review.",
+    "- `search-intent-review.json`: query, intent, topical coverage and content gap review.",
+    "- `agent-skills-review.json`: review of whether agents can understand, navigate and safely act on the site.",
+    "- `copy-recommendations.json` and `copy-recommendations.md`: evidence-linked copy proposals and approval gates.",
+    "- `final-audit.md` and `executive-summary.md`: agent-authored final audit narrative once review is complete.",
     "- `remediation-plan.json`: fix classes, phases, risks and validation commands.",
     "- `priority-action-plan.md`: ordered remediation summary.",
     "- `patch.diff` and `patch-plan.md`: diff-only proposals where available.",
@@ -77,6 +85,8 @@ export function renderAgentExecutionPlan(
     "",
     renderDashboardSummary(dashboard),
     "",
+    renderAgentReviewSummary(options.agentReview ?? null, dashboard),
+    "",
     renderBenchmarkSummary(options.benchmark),
     "",
     "## Execution Policy",
@@ -95,20 +105,22 @@ export function renderAgentExecutionPlan(
     "4. Run the website repo's existing lint, typecheck, test, build and security checks.",
     "5. Keep the generated `seo-polish-report/` folder available in the website repo or reference this report directory directly.",
     "",
+    renderAgentReviewPhase(options.agentReview ?? null),
+    "",
     renderDashboardQueue(
-      "## Phase 1 - Next Best Fixes",
+      "## Phase 2 - Next Best Fixes",
       "Start here. These are the highest-signal non-approval items ranked by severity, expected impact, fix class and effort.",
       dashboard.nextBestFixes
     ),
     "",
     renderDashboardQueue(
-      "## Phase 2 - Implementation Queue",
+      "## Phase 3 - Implementation Queue",
       "Implement these after the next-best queue, keeping each change tied to its validation command.",
       dashboard.implementationQueue.filter((item) => !item.approvalRequired)
     ),
     "",
     renderDashboardQueue(
-      "## Phase 3 - Approval-Required Queue",
+      "## Phase 4 - Approval-Required Queue",
       "Do not apply these until the site owner makes the required policy, canonical, indexing, auth, payment, crawler or MCP decision.",
       dashboard.approvalQueue
     ),
@@ -127,6 +139,7 @@ export function renderAgentExecutionPlan(
     "- Remaining unapproved changes are preserved in `remaining-user-decisions.md`.",
     "- The live-site scan has been rerun after implementation.",
     "- `seo-polish report lint <report-dir> --strict` passes.",
+    "- `agent-review.json` is complete, evidence-linked and reflected in `executive-summary.md` and `final-audit.md`.",
     "- `seo-polish validate --report <report-dir>` passes.",
     "- `seo-polish benchmark --report <report-dir>` has been rerun when agent-readiness work changed.",
     "- The website repo's lint, typecheck, test, build and security checks pass.",
@@ -172,6 +185,48 @@ function renderDashboardSummary(dashboard: ReportDashboard): string {
     `- Browser evidence: ${dashboard.performanceSummary.browserEvidence.status}, ${dashboard.performanceSummary.browserEvidence.pagesVisited} sampled page(s)`,
     `- Field data: ${dashboard.performanceSummary.fieldData.status}, providers ${dashboard.performanceSummary.fieldData.providersAvailable.join(", ") || "none available"}`,
     `- Baseline status: ${dashboard.baselineSummary.status}`
+  ].join("\n");
+}
+
+function renderAgentReviewSummary(review: AgentReview | null, dashboard: ReportDashboard): string {
+  const summary = review ?? {
+    status: dashboard.agentReview.status,
+    reviewer: dashboard.agentReview.reviewer,
+    copyRecommendations: [],
+    strategicFindings: [],
+    limitations: dashboard.agentReview.limitations
+  };
+  return [
+    "Mandatory agent review:",
+    "",
+    `- Status: ${summary.status}`,
+    `- Reviewer: ${summary.reviewer}`,
+    `- Strategic findings: ${summary.strategicFindings.length}`,
+    `- Copy recommendations: ${summary.copyRecommendations.length}`,
+    `- Dashboard status: ${dashboard.agentReview.status}`,
+    `- Production readiness: ${dashboard.agentReview.status === "complete" ? "unblocked by agent review" : "blocked until agent review is complete"}`,
+    ...(summary.limitations.length > 0 ? summary.limitations.map((item) => `- Limitation: ${item}`) : [])
+  ].join("\n");
+}
+
+function renderAgentReviewPhase(review: AgentReview | null): string {
+  return [
+    "## Phase 1 - Complete Agent Review",
+    "",
+    "This phase is mandatory before implementation. The deterministic scanner is the evidence source; the agent writes the strategic review, understandable executive summary, copy proposals and final audit narrative from that bounded evidence.",
+    "",
+    `Current status: ${review?.status ?? "pending"}`,
+    "",
+    "Required actions:",
+    "",
+    "1. Read `agent-review-input.json` with `findings.json`, `report-dashboard.json`, `tech-stack.json`, `repo-analysis.json`, `browser-evidence.json`, `field-data.json`, `performance-audit.json`, `validation.json` and `quality-gate.json`.",
+    "2. Complete `agent-review.json`, `search-intent-review.json`, `agent-skills-review.json`, `copy-recommendations.json`, `copy-recommendations.md`, `final-audit.md` and `executive-summary.md`.",
+    "3. Cite evidence IDs, finding IDs, affected URLs or source artifacts for every strategic and copy recommendation.",
+    "4. Keep canonical/indexing, policy, auth, payment, crawler policy, MCP mutation, business claims and brand positioning approval-gated.",
+    "5. Do not invent field data, customer proof, commercial claims, repo facts or private context.",
+    "6. Run `seo-polish report render <report-dir>` and `seo-polish report lint <report-dir> --strict`.",
+    "",
+    "Only continue to Phase 2 after strict lint accepts the completed review artifacts."
   ].join("\n");
 }
 
@@ -353,14 +408,15 @@ Website source repo: current workspace
 
 Run the remediation plan end to end:
 1. Read agent-execution-plan.md first.
-2. Read findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, resource-timing.json, baseline-comparison.json, suppression-report.json, quality-gate.json, validation.json and benchmark.json if present.
-3. Apply safe_auto_fix items first only when source candidates are clear and validation commands exist.
-4. Implement manual_strategy items where the source path is clear and normal project tests cover the change.
-5. Do not implement approval_required items until the owner explicitly approves them.
-6. Re-run the SEO Polish scan, report lint, validation, benchmark and this plan build.
-7. Run the website repo's lint, typecheck, test, build and security checks.
-8. Commit and push only after all required gates pass.
-9. Summarize before/after score, changed files, remaining approvals and verification results.
+2. Read agent-review-input.json, findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, resource-timing.json, baseline-comparison.json, suppression-report.json, quality-gate.json, validation.json and benchmark.json if present.
+3. Complete the mandatory agent review artifacts, executive summary and final audit narrative from cited evidence, then rerender and strict-lint the report.
+4. Apply safe_auto_fix items first only when source candidates are clear and validation commands exist.
+5. Implement manual_strategy items where the source path is clear and normal project tests cover the change.
+6. Do not implement approval_required items until the owner explicitly approves them.
+7. Re-run the SEO Polish scan, report lint, validation, benchmark and this plan build.
+8. Run the website repo's lint, typecheck, test, build and security checks.
+9. Commit and push only after all required gates pass.
+10. Summarize before/after score, changed files, remaining approvals and verification results.
 \`\`\``;
 }
 

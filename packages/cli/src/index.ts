@@ -13,7 +13,13 @@ import {
   type RenderJsMode,
   type SiteType
 } from "@seo-polish/core";
-import { renderAgentExecutionPlan, type AgentExecutionPlanBenchmark } from "@seo-polish/reporters";
+import {
+  buildFixtureAgentReview,
+  buildReportDashboard,
+  renderAgentExecutionPlan,
+  writeReportBundle,
+  type AgentExecutionPlanBenchmark
+} from "@seo-polish/reporters";
 import type {
   Finding,
   FieldDataProvider,
@@ -151,6 +157,22 @@ async function main(argv: string[]): Promise<void> {
     return;
   }
 
+  if (command === "agent-review" && subcommand === "fixture") {
+    const reportDir = flagString(args, "report", args.positionals[0] ?? "seo-polish-report");
+    const bundle = await readReportBundle(reportDir);
+    const dashboard =
+      (await readOptionalJson<ReportDashboard>(join(reportDir, "report-dashboard.json"))) ??
+      buildReportDashboard(bundle);
+    const agentReview = buildFixtureAgentReview(bundle, dashboard);
+    const benchmark = await readOptionalJson<AgentExecutionPlanBenchmark>(join(reportDir, "benchmark.json"));
+    await writeReportBundle(reportDir, bundle, { dashboard, benchmark, agentReview });
+    await runReportRender(reportDir);
+    console.log(
+      JSON.stringify({ reportDir, status: agentReview.status, reviewer: agentReview.reviewer }, null, 2)
+    );
+    return;
+  }
+
   if (command === "policy" && subcommand === "init") {
     await writeFile(
       flagString(args, "output", "seo-polish.config.json"),
@@ -238,6 +260,7 @@ async function main(argv: string[]): Promise<void> {
             "plan build",
             "report lint",
             "report render",
+            "agent-review fixture",
             "policy init",
             "standards update",
             "benchmark",
@@ -297,6 +320,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       command.length === 0 ||
       (command[0] === "report" && command.length === 1) ||
       (command[0] === "plan" && command.length === 1) ||
+      (command[0] === "agent-review" && command.length === 1) ||
       (command[0] === "policy" && command.length === 1) ||
       (command[0] === "standards" && command.length === 1)
     ) {
@@ -433,6 +457,7 @@ Usage:
   seo-polish validate --report ./seo-polish-report [--format summary|full|json]
   seo-polish report lint ./seo-polish-report --strict [--format summary|full|json]
   seo-polish report render ./seo-polish-report
+  seo-polish agent-review fixture --report ./seo-polish-report
   seo-polish policy init
   seo-polish standards update --output ./seo-polish-report/standards-registry.json
   seo-polish benchmark --report ./seo-polish-report

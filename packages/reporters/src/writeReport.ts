@@ -1,6 +1,12 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { ReportBundle } from "@seo-polish/schemas";
+import type { AgentReview, ReportBundle } from "@seo-polish/schemas";
+import {
+  buildAgentReviewInput,
+  buildPendingAgentReview,
+  writeAgentReviewArtifacts,
+  type AgentReviewArtifactOptions
+} from "./agentReview.js";
 import type { AgentExecutionPlanOptions } from "./renderAgentExecutionPlan.js";
 import { renderAgentExecutionPlan } from "./renderAgentExecutionPlan.js";
 import type { ReportDashboardOptions } from "./buildReportDashboard.js";
@@ -15,7 +21,8 @@ import {
 import { renderHtmlReport } from "./renderHtmlReport.js";
 import { findingInstanceCounts, formatInstanceSuffix, uniqueRemediationOptions } from "./reportSignal.js";
 
-export interface ReportBundleWriteOptions extends AgentExecutionPlanOptions, ReportDashboardOptions {}
+export interface ReportBundleWriteOptions
+  extends AgentExecutionPlanOptions, ReportDashboardOptions, AgentReviewArtifactOptions {}
 
 export async function writeReportBundle(
   outputDir: string,
@@ -25,9 +32,18 @@ export async function writeReportBundle(
   await mkdir(outputDir, { recursive: true });
   await mkdir(join(outputDir, "agent-instructions"), { recursive: true });
 
-  const dashboard = buildReportDashboard(bundle, options);
-  await writeFile(join(outputDir, "index.md"), renderMarkdownReport(bundle), "utf8");
-  await writeFile(join(outputDir, "index.html"), renderHtmlReport(bundle, { dashboard }), "utf8");
+  const agentReview =
+    options.agentReview ?? (await readExistingAgentReview(outputDir)) ?? buildPendingAgentReview(bundle);
+  const dashboard = buildReportDashboard(bundle, { ...options, agentReview });
+  const agentReviewInput = buildAgentReviewInput(bundle, dashboard);
+  await writeAgentReviewArtifacts(outputDir, agentReviewInput, agentReview);
+
+  await writeFile(join(outputDir, "index.md"), renderMarkdownReport(bundle, { agentReview }), "utf8");
+  await writeFile(
+    join(outputDir, "index.html"),
+    renderHtmlReport(bundle, { dashboard, agentReview }),
+    "utf8"
+  );
   await writeFile(join(outputDir, "findings.json"), `${JSON.stringify(bundle.findings, null, 2)}\n`, "utf8");
   await writeFile(join(outputDir, "score.json"), `${JSON.stringify(bundle.score, null, 2)}\n`, "utf8");
   await writeFile(
@@ -46,11 +62,15 @@ export async function writeReportBundle(
     "utf8"
   );
   await writeFile(join(outputDir, "patch.diff"), bundle.patchDiff, "utf8");
-  await writeFile(join(outputDir, "executive-summary.md"), renderExecutiveSummary(bundle), "utf8");
+  await writeFile(
+    join(outputDir, "executive-summary.md"),
+    renderExecutiveSummary(bundle, { agentReview }),
+    "utf8"
+  );
   await writeFile(join(outputDir, "priority-action-plan.md"), renderPriorityActionPlan(bundle), "utf8");
   await writeFile(
     join(outputDir, "agent-execution-plan.md"),
-    renderAgentExecutionPlan(bundle, { ...options, dashboard }),
+    renderAgentExecutionPlan(bundle, { ...options, dashboard, agentReview }),
     "utf8"
   );
   await writeFile(join(outputDir, "github-pr-comment.md"), renderGitHubPrComment(bundle), "utf8");
@@ -62,6 +82,15 @@ export async function writeReportBundle(
       renderAgentInstruction(agent, bundle),
       "utf8"
     );
+  }
+}
+
+async function readExistingAgentReview(outputDir: string): Promise<AgentReview | null> {
+  try {
+    const review = JSON.parse(await readFile(join(outputDir, "agent-review.json"), "utf8")) as AgentReview;
+    return review.status === "complete" || review.status === "invalid" ? review : null;
+  } catch {
+    return null;
   }
 }
 

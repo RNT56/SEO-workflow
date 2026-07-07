@@ -14,10 +14,12 @@ describe("renderAgentExecutionPlan", () => {
 
     expect(plan).toContain("# Agent Execution Plan");
     expect(plan).toContain("`report-dashboard.json`");
+    expect(plan).toContain("`agent-review-input.json`");
     expect(plan).toContain("Execution cockpit:");
-    expect(plan).toContain("## Phase 1 - Next Best Fixes");
+    expect(plan).toContain("## Phase 1 - Complete Agent Review");
+    expect(plan).toContain("## Phase 2 - Next Best Fixes");
     expect(plan).toContain("Publish llms.txt");
-    expect(plan).toContain("## Phase 3 - Approval-Required Queue");
+    expect(plan).toContain("## Phase 4 - Approval-Required Queue");
     expect(plan).toContain("Confirm canonical strategy");
     expect(plan).toContain("## Agent Experience Benchmark");
     expect(plan).toContain("Score: 73/100");

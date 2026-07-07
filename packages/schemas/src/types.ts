@@ -72,6 +72,11 @@ export type MeasurementReliability = "field" | "browser_lab" | "fetch_lab" | "he
 export type BudgetStatus = "passed" | "warning" | "failed" | "not_measured";
 export type FieldDataProvider = "crux" | "gsc" | "rum";
 export type FieldDataStatus = "disabled" | "ok" | "partial" | "unavailable" | "failed";
+export type AgentReviewStatus = "pending" | "complete" | "invalid";
+export type AgentReviewReviewer = "pending" | "agent" | "fixture";
+export type AgentReviewApprovalState = "not_required" | "approval_required";
+export type AgentReviewCategory =
+  FindingCategory | "strategic" | "copywriting" | "search_intent" | "agent_skills";
 
 export interface ScanPolicy {
   search: "yes" | "no" | "neutral";
@@ -342,6 +347,143 @@ export interface ReportDashboardEvidenceStats {
   safeAutoFixes: number;
 }
 
+export interface AgentReviewEvidenceLink {
+  evidenceId?: string;
+  findingId?: string;
+  url?: string;
+  sourceArtifact?: string;
+  note: string;
+}
+
+export interface AgentReviewFinding {
+  id: string;
+  title: string;
+  summary: string;
+  severity: Severity;
+  category: AgentReviewCategory;
+  evidence: AgentReviewEvidenceLink[];
+  recommendation: string;
+  approvalState: AgentReviewApprovalState;
+  validation: string[];
+}
+
+export interface AgentCopyRecommendation {
+  id: string;
+  target:
+    | "title"
+    | "meta_description"
+    | "heading"
+    | "cta"
+    | "alt_text"
+    | "section_copy"
+    | "content_brief"
+    | "other";
+  current?: string | null;
+  proposed: string;
+  rationale: string;
+  affectedUrls: string[];
+  evidence: AgentReviewEvidenceLink[];
+  approvalState: AgentReviewApprovalState;
+  safeToApply: boolean;
+}
+
+export interface SearchIntentReview {
+  status: AgentReviewStatus;
+  summary: string;
+  primaryIntent: string;
+  secondaryIntents: string[];
+  contentGaps: string[];
+  evidence: AgentReviewEvidenceLink[];
+}
+
+export interface AgentSkillsReview {
+  status: AgentReviewStatus;
+  summary: string;
+  taskSimulations: Array<{
+    task: string;
+    outcome: "pass" | "partial" | "fail";
+    evidence: AgentReviewEvidenceLink[];
+    recommendation: string;
+  }>;
+  blockers: string[];
+  evidence: AgentReviewEvidenceLink[];
+}
+
+export interface FinalAuditNarrative {
+  status: AgentReviewStatus;
+  executiveSummary: string;
+  finalAuditMarkdown: string;
+  topPriorities: string[];
+  evidence: AgentReviewEvidenceLink[];
+}
+
+export interface AgentReview {
+  generatedAt: string;
+  status: AgentReviewStatus;
+  reviewer: AgentReviewReviewer;
+  targetUrl: string;
+  sourceArtifacts: string[];
+  executiveSummary: string;
+  finalAudit: FinalAuditNarrative;
+  searchIntent: SearchIntentReview;
+  agentSkills: AgentSkillsReview;
+  strategicFindings: AgentReviewFinding[];
+  copyRecommendations: AgentCopyRecommendation[];
+  limitations: string[];
+}
+
+export interface AgentReviewInput {
+  generatedAt: string;
+  status: "ready";
+  targetUrl: string;
+  reportContractVersion: string;
+  sourceArtifacts: string[];
+  score: Score;
+  findingCount: number;
+  groupedFindingCount: number;
+  topFindings: Array<{
+    id: string;
+    title: string;
+    severity: Severity;
+    category: FindingCategory;
+    affectedUrls: string[];
+    affectedTemplates: string[];
+    evidenceIds: string[];
+    recommendation: string;
+    approvalRequired: boolean;
+    safeToAutoFix: boolean;
+  }>;
+  nextBestFixes: ReportDashboardQueueItem[];
+  implementationQueue: ReportDashboardQueueItem[];
+  approvalQueue: ReportDashboardQueueItem[];
+  templateHeatmap: ReportDashboardTemplateHeatmapItem[];
+  performanceSummary: ReportDashboardPerformanceSummary;
+  baselineSummary: ReportDashboardBaselineSummary;
+  evidenceStats: ReportDashboardEvidenceStats;
+  siteIntelligence: {
+    techStack?: TechStackFingerprint;
+    repo?: RepoAnalysis;
+    routeTemplates: RouteTemplateCluster[];
+    browserEvidence?: BrowserEvidenceReport;
+    fieldData?: FieldDataReport;
+    performance?: PerformanceAudit;
+  };
+  instructions: string[];
+}
+
+export interface ReportDashboardAgentReviewSummary {
+  status: AgentReviewStatus;
+  reviewer: AgentReviewReviewer;
+  executiveSummaryAvailable: boolean;
+  finalAuditAvailable: boolean;
+  searchIntentStatus: AgentReviewStatus;
+  agentSkillsStatus: AgentReviewStatus;
+  strategicFindings: number;
+  copyRecommendations: number;
+  approvalRequiredCopy: number;
+  limitations: string[];
+}
+
 export interface ReportDashboard {
   generatedAt: string;
   targetUrl: string;
@@ -355,6 +497,7 @@ export interface ReportDashboard {
     validationState: "passed" | "failed";
     qualityGateStatus: "passed" | "failed" | "unknown";
   };
+  agentReview: ReportDashboardAgentReviewSummary;
   filters: {
     owners: ActionOwner[];
     fixClasses: FixClass[];

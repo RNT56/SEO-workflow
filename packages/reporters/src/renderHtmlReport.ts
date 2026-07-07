@@ -1,4 +1,6 @@
 import type {
+  AgentReview,
+  AgentCopyRecommendation,
   Finding,
   ReportBundle,
   ReportDashboard,
@@ -21,6 +23,7 @@ import {
 
 export interface RenderHtmlReportOptions {
   dashboard?: ReportDashboard;
+  agentReview?: AgentReview | null;
 }
 
 export function renderHtmlReport(bundle: ReportBundle, options: RenderHtmlReportOptions = {}): string {
@@ -34,14 +37,14 @@ export function renderHtmlReport(bundle: ReportBundle, options: RenderHtmlReport
   <style>${REPORT_CSS}</style>
 </head>
 <body>
-  ${renderHero(bundle)}
+      ${renderHero(bundle)}
   <main class="layout">
     <nav class="toc" aria-label="Report sections">
       <a href="#execution-cockpit">Execution cockpit</a>
       ${REPORT_SECTIONS.map((section) => `<a href="#section-${section.number}">${section.number}. ${escapeHtml(section.title)}</a>`).join("")}
     </nav>
     <article>
-      ${renderCockpit(bundle, dashboard)}
+      ${renderCockpit(bundle, dashboard, options.agentReview ?? null)}
       <section class="toolbar" aria-label="Finding filters">
         <span>Detailed findings</span>
         <button type="button" data-filter="all" aria-pressed="true" class="is-active">All</button>
@@ -51,7 +54,9 @@ export function renderHtmlReport(bundle: ReportBundle, options: RenderHtmlReport
         <button type="button" data-filter="low" aria-pressed="false">Low</button>
         <button type="button" data-filter="info" aria-pressed="false">Info</button>
       </section>
-      ${REPORT_SECTIONS.map((section) => renderHtmlSection(section.number, section.title, bundle)).join("")}
+      ${REPORT_SECTIONS.map((section) =>
+        renderHtmlSection(section.number, section.title, bundle, dashboard, options.agentReview ?? null)
+      ).join("")}
     </article>
   </main>
   <script>
@@ -154,9 +159,14 @@ export function renderHtmlReport(bundle: ReportBundle, options: RenderHtmlReport
 </html>`;
 }
 
-function renderCockpit(bundle: ReportBundle, dashboard: ReportDashboard): string {
+function renderCockpit(
+  bundle: ReportBundle,
+  dashboard: ReportDashboard,
+  agentReview: AgentReview | null
+): string {
   const views = [
     ["overview", "Overview"],
+    ["review", "Review"],
     ["implementation", "Implementation"],
     ["performance", "Performance"],
     ["templates", "Templates"],
@@ -174,6 +184,9 @@ function renderCockpit(bundle: ReportBundle, dashboard: ReportDashboard): string
     </div>
     <div id="view-overview" data-view-panel="overview" role="tabpanel">
       ${renderOverviewView(bundle, dashboard)}
+    </div>
+    <div id="view-review" data-view-panel="review" role="tabpanel" hidden>
+      ${renderReviewView(dashboard, agentReview)}
     </div>
     <div id="view-implementation" data-view-panel="implementation" role="tabpanel" hidden>
       ${renderImplementationView(bundle, dashboard)}
@@ -198,7 +211,7 @@ function renderOverviewView(bundle: ReportBundle, dashboard: ReportDashboard): s
     <div class="panel executive-panel">
       <p class="panel-label">Executive Summary</p>
       <h2>${dashboard.score.total}/100 ${escapeHtml(dashboard.score.level)}</h2>
-      <p>Validation ${escapeHtml(dashboard.executiveSummary.validationState)}. Quality gate ${escapeHtml(dashboard.qualityGateStatus)}. ${dashboard.executiveSummary.remainingApprovals} approval-gated items remain.</p>
+      <p>Validation ${escapeHtml(dashboard.executiveSummary.validationState)}. Quality gate ${escapeHtml(dashboard.qualityGateStatus)}. Agent review ${escapeHtml(dashboard.agentReview.status)}. ${dashboard.executiveSummary.remainingApprovals} approval-gated items remain.</p>
       ${renderSiteIntelligence(bundle)}
     </div>
     <div class="panel">
@@ -215,8 +228,123 @@ function renderOverviewView(bundle: ReportBundle, dashboard: ReportDashboard): s
     ${statCard("Findings", String(dashboard.evidenceStats.findings), `${dashboard.evidenceStats.groupedFindings} grouped`)}
     ${statCard("Safe fixes", String(dashboard.evidenceStats.safeAutoFixes), "non-approval queue")}
     ${statCard("Approvals", String(dashboard.evidenceStats.approvalRequired), "owner decision required")}
+    ${statCard("Agent review", dashboard.agentReview.status, dashboard.agentReview.status === "complete" ? "complete" : "blocks readiness")}
     ${statCard("Templates", String(dashboard.templateHeatmap.length), "issue heatmap entries")}
   </div>`;
+}
+
+function renderReviewView(dashboard: ReportDashboard, agentReview: AgentReview | null): string {
+  const summary = dashboard.agentReview;
+  const review = agentReview?.status === "complete" || agentReview?.status === "invalid" ? agentReview : null;
+  return `<div class="view-grid">
+    <div class="panel executive-panel">
+      <p class="panel-label">Agent Review Status</p>
+      <h2>${escapeHtml(summary.status)}</h2>
+      <p>Reviewer ${escapeHtml(summary.reviewer)}. Search intent ${escapeHtml(summary.searchIntentStatus)}. Agent skills ${escapeHtml(summary.agentSkillsStatus)}.</p>
+      <div class="timing-grid">
+        ${statCard("Strategic", String(summary.strategicFindings), "review findings")}
+        ${statCard("Copy", String(summary.copyRecommendations), "recommendations")}
+        ${statCard("Approval copy", String(summary.approvalRequiredCopy), "owner gated")}
+        ${statCard("Final audit", summary.finalAuditAvailable ? "yes" : "no", "narrative")}
+      </div>
+      ${
+        summary.status === "complete"
+          ? `<p class="status">Agent-authored review is complete and available in <code>agent-review.json</code>, <code>executive-summary.md</code> and <code>final-audit.md</code>.</p>`
+          : `<p class="empty-state">Production readiness is blocked until a repo-capable agent completes the review artifacts and strict lint passes.</p>`
+      }
+    </div>
+    <div class="panel">
+      <p class="panel-label">Executive Narrative</p>
+      ${review ? `<p>${escapeHtml(review.executiveSummary)}</p>` : emptyState("Pending agent-authored executive summary.")}
+    </div>
+    <div class="panel">
+      <p class="panel-label">Search Intent Review</p>
+      ${review ? renderSearchIntent(review) : emptyState("Pending search intent and topical coverage review.")}
+    </div>
+    <div class="panel">
+      <p class="panel-label">Agent Skills Review</p>
+      ${review ? renderAgentSkills(review) : emptyState("Pending agent skills review.")}
+    </div>
+    <div class="panel">
+      <p class="panel-label">Copy Recommendations</p>
+      ${review ? renderCopyRecommendationList(review.copyRecommendations) : emptyState("Pending copy recommendations.")}
+    </div>
+    <div class="panel">
+      <p class="panel-label">Limitations</p>
+      <ul class="compact-list">${
+        (review?.limitations ?? summary.limitations).length === 0
+          ? "<li>No limitations recorded.</li>"
+          : (review?.limitations ?? summary.limitations)
+              .map((limitation) => `<li>${escapeHtml(limitation)}</li>`)
+              .join("")
+      }</ul>
+    </div>
+  </div>
+  <div class="panel">
+    <p class="panel-label">Final Audit</p>
+    ${
+      review
+        ? `<details open><summary>Agent-authored audit narrative</summary><pre><code>${escapeHtml(review.finalAudit.finalAuditMarkdown)}</code></pre></details>`
+        : emptyState("Pending final audit narrative.")
+    }
+  </div>`;
+}
+
+function renderSearchIntent(review: AgentReview): string {
+  return `<p>${escapeHtml(review.searchIntent.summary)}</p>
+    <p><strong>Primary intent:</strong> ${escapeHtml(review.searchIntent.primaryIntent)}</p>
+    ${
+      review.searchIntent.secondaryIntents.length === 0
+        ? `<p class="muted">No secondary intents recorded.</p>`
+        : `<p><strong>Secondary:</strong> ${review.searchIntent.secondaryIntents.map(escapeHtml).join(", ")}</p>`
+    }
+    ${
+      review.searchIntent.contentGaps.length === 0
+        ? emptyState("No content gaps proposed.")
+        : `<ul class="compact-list">${review.searchIntent.contentGaps
+            .map((gap) => `<li>${escapeHtml(gap)}</li>`)
+            .join("")}</ul>`
+    }`;
+}
+
+function renderAgentSkills(review: AgentReview): string {
+  return `<p>${escapeHtml(review.agentSkills.summary)}</p>
+    ${
+      review.agentSkills.taskSimulations.length === 0
+        ? emptyState("No task simulations recorded.")
+        : `<ol class="compact-list">${review.agentSkills.taskSimulations
+            .map(
+              (task) =>
+                `<li><strong>${escapeHtml(task.outcome)}</strong> ${escapeHtml(task.task)}<br>${escapeHtml(task.recommendation)}</li>`
+            )
+            .join("")}</ol>`
+    }
+    ${
+      review.agentSkills.blockers.length === 0
+        ? `<p class="status">No agent-skills blockers recorded.</p>`
+        : `<details><summary>${review.agentSkills.blockers.length} blocker(s)</summary><ul class="compact-list">${review.agentSkills.blockers.map((blocker) => `<li>${escapeHtml(blocker)}</li>`).join("")}</ul></details>`
+    }`;
+}
+
+function renderCopyRecommendationList(items: AgentCopyRecommendation[]): string {
+  if (items.length === 0) {
+    return emptyState("No copy recommendations are currently proposed.");
+  }
+  return `<div class="copy-list">${items
+    .map(
+      (item) => `<article class="copy-item">
+        <h3>${escapeHtml(item.id)}</h3>
+        <div class="meta">
+          <span>${escapeHtml(item.target)}</span>
+          <span>Approval: ${escapeHtml(item.approvalState)}</span>
+          <span>Safe: ${item.safeToApply ? "yes" : "no"}</span>
+        </div>
+        <p><strong>Proposed:</strong> ${escapeHtml(item.proposed)}</p>
+        <p><strong>Rationale:</strong> ${escapeHtml(item.rationale)}</p>
+        <details><summary>Affected URLs and evidence</summary><p>${escapeHtml(item.affectedUrls.join(", ") || "N/A")}</p><p>${escapeHtml(item.evidence.map((link) => link.evidenceId ?? link.findingId ?? link.url ?? link.sourceArtifact ?? "evidence").join(", "))}</p></details>
+      </article>`
+    )
+    .join("")}</div>`;
 }
 
 function renderImplementationView(bundle: ReportBundle, dashboard: ReportDashboard): string {
@@ -481,7 +609,13 @@ function renderSeverityChart(findings: Finding[]): string {
   </div>`;
 }
 
-function renderHtmlSection(number: number, title: string, bundle: ReportBundle): string {
+function renderHtmlSection(
+  number: number,
+  title: string,
+  bundle: ReportBundle,
+  dashboard: ReportDashboard,
+  agentReview: AgentReview | null
+): string {
   if (number === 1) {
     const counts = countBySeverity(bundle.findings);
     const groups = groupFindings(bundle.findings);
@@ -492,7 +626,11 @@ function renderHtmlSection(number: number, title: string, bundle: ReportBundle):
           `<li>${escapeHtml(finding.id)} - ${escapeHtml(finding.title)}${escapeHtml(formatInstanceSuffix(finding.count))}</li>`
       )
       .join("");
-    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>Combined score: <strong>${bundle.score.total}/100</strong> (${escapeHtml(bundle.score.level)}). Findings are evidence-bound and generated from structured scan output.</p><p>${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info. ${groups.length} unique grouped issues.</p>${renderSiteIntelligence(bundle)}${groups.length > 0 ? `<h3>Top grouped findings</h3><ol>${top}</ol>` : emptyState("No open findings.")}</section>`;
+    const reviewSummary =
+      agentReview?.status === "complete"
+        ? `<p>${escapeHtml(agentReview.executiveSummary)}</p><p>Agent review: <strong>complete</strong>. Final audit is available in <code>final-audit.md</code>.</p>`
+        : `<p class="empty-state">Agent review: ${escapeHtml(dashboard.agentReview.status)}. Production readiness is blocked until the mandatory review artifacts are completed.</p>`;
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>Combined score: <strong>${bundle.score.total}/100</strong> (${escapeHtml(bundle.score.level)}). Findings are evidence-bound and generated from structured scan output.</p>${reviewSummary}<p>${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info. ${groups.length} unique grouped issues.</p>${renderSiteIntelligence(bundle)}${groups.length > 0 ? `<h3>Top grouped findings</h3><ol>${top}</ol>` : emptyState("No open findings.")}</section>`;
   }
   if (number === 3) {
     const instanceCounts = findingInstanceCounts(bundle.findings);
@@ -549,7 +687,7 @@ function renderHtmlSection(number: number, title: string, bundle: ReportBundle):
     return renderUserDecisionSection(number, title, bundle);
   }
   if (number === 26) {
-    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages, ${bundle.scan.performance?.resources.length ?? 0} resource timing entries.</p><ul class="summary-list">${["report-dashboard.json", "tech-stack.json", "browser-evidence.json", "field-data.json", "crux-history.json", "search-console.json", "url-inspection.json", "rum-vitals.json", "repo-analysis.json", "route-templates.json", "performance-audit.json", "resource-timing.json", "performance-runs.jsonl", "third-party-cost.json", "largest-assets.json", "critical-request-chain.json", "actionability.json", "baseline-comparison.json", "suppression-report.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul></section>`;
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages, ${bundle.scan.performance?.resources.length ?? 0} resource timing entries.</p><ul class="summary-list">${["report-dashboard.json", "agent-review-input.json", "agent-review.json", "search-intent-review.json", "agent-skills-review.json", "copy-recommendations.json", "final-audit.md", "tech-stack.json", "browser-evidence.json", "field-data.json", "crux-history.json", "search-console.json", "url-inspection.json", "rum-vitals.json", "repo-analysis.json", "route-templates.json", "performance-audit.json", "resource-timing.json", "performance-runs.jsonl", "third-party-cost.json", "largest-assets.json", "critical-request-chain.json", "actionability.json", "baseline-comparison.json", "suppression-report.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul></section>`;
   }
   if (number === 27) {
     return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>The final executable handoff is written to <code>agent-execution-plan.md</code>. Rebuild it after benchmark data with <code>seo-polish plan build --report ${escapeHtml(bundle.scan.config.outputDir)}</code>.</p></section>`;
@@ -615,6 +753,7 @@ function renderAgentInstructionsSection(number: number, title: string): string {
   return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2>
     <ul class="summary-list">
       <li>Use <code>agent-execution-plan.md</code> as the final execution contract.</li>
+      <li>Complete <code>agent-review.json</code>, <code>search-intent-review.json</code>, <code>agent-skills-review.json</code>, copy recommendations, executive summary and final audit before implementation.</li>
       <li>Use <code>report-dashboard.json</code> as the stable implementation queue and dashboard data model.</li>
       <li>Apply <code>safe_auto_fix</code> items only when the source repo path is clear.</li>
       <li>Keep policy, auth, payment, crawler, canonical and MCP mutation changes approval-required.</li>

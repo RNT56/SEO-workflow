@@ -1,5 +1,5 @@
 import { REPORT_SECTIONS, sectionHeading } from "@seo-polish/schemas";
-import type { Finding, ReportBundle, ReportSection } from "@seo-polish/schemas";
+import type { AgentReview, Finding, ReportBundle, ReportSection } from "@seo-polish/schemas";
 import { renderAgentExecutionPlan } from "./renderAgentExecutionPlan.js";
 import {
   attentionValidationChecks,
@@ -12,7 +12,14 @@ import {
   validationStatusCounts
 } from "./reportSignal.js";
 
-export function renderMarkdownReport(bundle: ReportBundle): string {
+export interface RenderMarkdownReportOptions {
+  agentReview?: AgentReview | null;
+}
+
+export function renderMarkdownReport(
+  bundle: ReportBundle,
+  options: RenderMarkdownReportOptions = {}
+): string {
   const { scan, validation } = bundle;
   const lines: string[] = [
     "# SEO Polish Report",
@@ -27,22 +34,37 @@ export function renderMarkdownReport(bundle: ReportBundle): string {
 
   for (const section of REPORT_SECTIONS) {
     lines.push(sectionHeading(section), "");
-    lines.push(renderSection(section, bundle), "");
+    lines.push(renderSection(section, bundle, options), "");
   }
 
   return `${lines.join("\n")}\n`;
 }
 
-export function renderExecutiveSummary(bundle: ReportBundle): string {
+export function renderExecutiveSummary(
+  bundle: ReportBundle,
+  options: RenderMarkdownReportOptions = {}
+): string {
+  if (options.agentReview?.status === "complete") {
+    return `# Executive Summary
+
+${options.agentReview.executiveSummary}
+
+Agent review: complete (${options.agentReview.reviewer})
+Final audit: \`final-audit.md\`
+`;
+  }
   const counts = countBySeverity(bundle.findings);
   return `# Executive Summary
 
 Target: ${bundle.scan.config.url}
 Combined SEO Polish Score: ${bundle.score.total}/100 (${bundle.score.level})
+Agent review: pending
 
 Findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info.
 
 Top priority: ${bundle.findings[0]?.title ?? "No open findings."}
+
+Production readiness is blocked until \`agent-review.json\` is completed and \`seo-polish report lint <report-dir> --strict\` passes.
 `;
 }
 
@@ -86,7 +108,7 @@ Report directory: ${reportDir}
 Current score: ${score}
 Critical findings: ${critical ?? "see findings.json"}
 
-Use the generated SEO Polish Report as the source of truth.
+Use the generated SEO Polish Report as the source of truth. Complete the mandatory agent review before implementation.
 
 ${agentNote}
 
@@ -102,19 +124,25 @@ Rules:
 
 Execution order:
 
-1. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/actionability.json\`, \`${reportDir}/repo-analysis.json\`, \`${reportDir}/tech-stack.json\`, \`${reportDir}/browser-evidence.json\`, \`${reportDir}/field-data.json\`, \`${reportDir}/search-console.json\`, \`${reportDir}/url-inspection.json\`, \`${reportDir}/rum-vitals.json\`, \`${reportDir}/performance-audit.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
-2. Implement safe fixes that are applicable to the current source repo.
-3. Do not implement policy/auth/payment/indexing/canonical/MCP mutation changes without explicit approval.
-4. Re-run \`seo-polish scan ${target} --output ${reportDir}\`.
-5. Re-run \`seo-polish report lint ${reportDir} --strict\`, \`seo-polish validate --report ${reportDir}\`, \`seo-polish benchmark --report ${reportDir}\`, \`seo-polish plan build --report ${reportDir}\`, and project build/test/security gates.
+1. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/agent-review-input.json\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/actionability.json\`, \`${reportDir}/repo-analysis.json\`, \`${reportDir}/tech-stack.json\`, \`${reportDir}/browser-evidence.json\`, \`${reportDir}/field-data.json\`, \`${reportDir}/search-console.json\`, \`${reportDir}/url-inspection.json\`, \`${reportDir}/rum-vitals.json\`, \`${reportDir}/performance-audit.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
+2. Complete \`${reportDir}/agent-review.json\`, search-intent, agent-skills, copy recommendations, \`${reportDir}/executive-summary.md\`, and \`${reportDir}/final-audit.md\` from cited evidence.
+3. Re-render and strict-lint the report before implementation.
+4. Implement safe fixes that are applicable to the current source repo.
+5. Do not implement policy/auth/payment/indexing/canonical/MCP mutation changes without explicit approval.
+6. Re-run \`seo-polish scan ${target} --output ${reportDir}\`.
+7. Re-run \`seo-polish report lint ${reportDir} --strict\`, \`seo-polish validate --report ${reportDir}\`, \`seo-polish benchmark --report ${reportDir}\`, \`seo-polish plan build --report ${reportDir}\`, and project build/test/security gates.
 `;
 }
 
-function renderSection(section: ReportSection, bundle: ReportBundle): string {
+function renderSection(
+  section: ReportSection,
+  bundle: ReportBundle,
+  options: RenderMarkdownReportOptions
+): string {
   const { findings, score, remediationPlan, validation, scan, patchDiff } = bundle;
   switch (section.number) {
     case 1:
-      return renderSummary(bundle);
+      return renderSummary(bundle, options.agentReview ?? null);
     case 2:
       return renderScorecard(score.categories);
     case 3:
@@ -150,7 +178,7 @@ function renderSection(section: ReportSection, bundle: ReportBundle): string {
     case 26:
       return renderEvidence(bundle);
     case 27:
-      return renderFinalExecutionPlanReference(bundle);
+      return renderFinalExecutionPlanReference(bundle, options.agentReview ?? null);
     default:
       return renderFindings(
         findings.filter((finding) => section.categories.includes(finding.category)),
@@ -160,7 +188,18 @@ function renderSection(section: ReportSection, bundle: ReportBundle): string {
   }
 }
 
-function renderSummary(bundle: ReportBundle): string {
+function renderSummary(bundle: ReportBundle, agentReview: AgentReview | null): string {
+  if (agentReview?.status === "complete") {
+    return `${agentReview.executiveSummary}
+
+Agent review status: **complete** (${agentReview.reviewer})
+Final audit: \`final-audit.md\`
+Copy recommendations: ${agentReview.copyRecommendations.length}
+Strategic review findings: ${agentReview.strategicFindings.length}
+
+${renderSiteIntelligence(bundle)}
+`;
+  }
   const counts = countBySeverity(bundle.findings);
   const top = groupFindings(bundle.findings)
     .slice(0, 5)
@@ -169,6 +208,7 @@ function renderSummary(bundle: ReportBundle): string {
         `${index + 1}. ${finding.id} - ${finding.title}${formatInstanceSuffix(finding.count)}`
     );
   return `Combined score: **${bundle.score.total}/100** (${bundle.score.level})
+Agent review status: **pending_agent_review**
 
 Findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info.
 Unique grouped issues: ${groupFindings(bundle.findings).length}.
@@ -176,6 +216,8 @@ Unique grouped issues: ${groupFindings(bundle.findings).length}.
 ${renderSiteIntelligence(bundle)}
 
 ${top.length > 0 ? `Top grouped findings:\n${top.join("\n")}` : "No open findings."}
+
+Production readiness requires completed \`agent-review.json\`, \`search-intent-review.json\`, \`agent-skills-review.json\`, \`copy-recommendations.json\`, \`final-audit.md\` and regenerated reports.
 `;
 }
 
@@ -460,6 +502,12 @@ function renderEvidence(bundle: ReportBundle): string {
     "- `actionability.json`",
     "- `baseline-comparison.json`",
     "- `suppression-report.json`",
+    "- `agent-review-input.json`",
+    "- `agent-review.json`",
+    "- `search-intent-review.json`",
+    "- `agent-skills-review.json`",
+    "- `copy-recommendations.json`",
+    "- `final-audit.md`",
     "",
     "Representative evidence:"
   ];
@@ -469,8 +517,8 @@ function renderEvidence(bundle: ReportBundle): string {
   return lines.join("\n");
 }
 
-function renderFinalExecutionPlanReference(bundle: ReportBundle): string {
-  const preview = renderAgentExecutionPlan(bundle).split("\n").slice(0, 18).join("\n");
+function renderFinalExecutionPlanReference(bundle: ReportBundle, agentReview: AgentReview | null): string {
+  const preview = renderAgentExecutionPlan(bundle, { agentReview }).split("\n").slice(0, 18).join("\n");
   return `The full executable handoff is written to \`agent-execution-plan.md\`.
 
 Use it as the final workflow step after scan, validation and benchmark data have been generated. Rebuild it with:

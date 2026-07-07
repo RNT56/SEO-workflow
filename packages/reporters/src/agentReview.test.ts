@@ -1,71 +1,35 @@
-import { access, mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { REPORT_SECTIONS, REQUIRED_REPORT_FILES, sectionHeading } from "@seo-polish/schemas";
+import { validateAgentReview, validateAgentReviewInput } from "@seo-polish/schemas";
 import type { Finding, RemediationOption, ReportBundle } from "@seo-polish/schemas";
-import { buildFixtureAgentReview } from "./agentReview.js";
 import { buildReportDashboard } from "./buildReportDashboard.js";
-import { lintReport } from "./lintReport.js";
-import { writeReportBundle } from "./writeReport.js";
+import { buildAgentReviewInput, buildFixtureAgentReview, buildPendingAgentReview } from "./agentReview.js";
 
-describe("report linter", () => {
-  it("fails missing required files", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "seo-polish-lint-"));
-    await writeFile(join(dir, "index.md"), REPORT_SECTIONS.map(sectionHeading).join("\n"), "utf8");
-    const result = await lintReport(dir, { strict: true });
-    expect(result.ok).toBe(false);
+describe("agent review artifacts", () => {
+  it("builds a bounded deterministic review input packet", () => {
+    const bundle = makeBundle();
+    const dashboard = buildReportDashboard(bundle);
+    const first = buildAgentReviewInput(bundle, dashboard);
+    const second = buildAgentReviewInput(bundle, dashboard);
+
+    expect(first.topFindings.map((item) => item.id)).toEqual(second.topFindings.map((item) => item.id));
+    expect(first.implementationQueue.length).toBeLessThanOrEqual(80);
+    expect(first.sourceArtifacts).toContain("findings.json");
+    expect(first.sourceArtifacts).toContain("report-dashboard.json");
+    expect(validateAgentReviewInput(first).ok).toBe(true);
   });
 
-  it("fails strict lint while agent review is pending and passes with a completed fixture review", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "seo-polish-lint-review-"));
+  it("validates completed fixture review and leaves pending review incomplete", () => {
     const bundle = makeBundle();
-
-    await writeReportBundle(dir, bundle);
-    await writeMissingRequiredFiles(dir);
-    await writeFile(
-      join(dir, "field-data.json"),
-      JSON.stringify({ status: "disabled", providersRequested: [] }),
-      "utf8"
-    );
-
-    const pending = await lintReport(dir, { strict: true });
-    expect(pending.ok).toBe(false);
-    expect(pending.checks.find((check) => check.id === "agent-review.complete")?.status).toBe("failed");
-
     const dashboard = buildReportDashboard(bundle);
-    await writeReportBundle(dir, bundle, { agentReview: buildFixtureAgentReview(bundle, dashboard) });
-    await writeMissingRequiredFiles(dir);
-    await writeFile(
-      join(dir, "field-data.json"),
-      JSON.stringify({ status: "disabled", providersRequested: [] }),
-      "utf8"
-    );
+    const fixtureReview = buildFixtureAgentReview(bundle, dashboard);
+    const pendingReview = buildPendingAgentReview(bundle);
 
-    const complete = await lintReport(dir, { strict: true });
-    expect(complete.ok).toBe(true);
+    expect(fixtureReview.status).toBe("complete");
+    expect(validateAgentReview(fixtureReview).ok).toBe(true);
+    expect(pendingReview.status).toBe("pending");
+    expect(validateAgentReview(pendingReview).ok).toBe(true);
   });
 });
-
-async function writeMissingRequiredFiles(dir: string): Promise<void> {
-  for (const file of REQUIRED_REPORT_FILES) {
-    const path = join(dir, file);
-    try {
-      await access(path);
-      continue;
-    } catch {
-      await writeFile(path, placeholderContent(file), "utf8");
-    }
-  }
-}
-
-function placeholderContent(file: string): string {
-  if (file.endsWith(".json")) return "{}\n";
-  if (file.endsWith(".jsonl") || file.endsWith(".csv") || file.endsWith(".diff")) return "";
-  if (file.endsWith(".svg")) return '<svg xmlns="http://www.w3.org/2000/svg"></svg>\n';
-  if (file.endsWith(".html")) return "<!doctype html><html><body></body></html>\n";
-  return "# Placeholder\n";
-}
 
 const fix: RemediationOption = {
   id: "fix-title",

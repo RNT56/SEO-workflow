@@ -48,7 +48,7 @@ export const REPORT_SECTIONS: ReportSection[] = [
   { number: 27, title: "Final Agent Execution Plan", categories: [] }
 ];
 
-export const REPORT_CONTRACT_VERSION = "2026-07-07.field-data";
+export const REPORT_CONTRACT_VERSION = "2026-07-07.agent-review";
 
 export const REQUIRED_REPORT_FILES = [
   "index.md",
@@ -74,6 +74,13 @@ export const REQUIRED_REPORT_FILES = [
   "search-console.json",
   "url-inspection.json",
   "rum-vitals.json",
+  "agent-review-input.json",
+  "agent-review.json",
+  "search-intent-review.json",
+  "agent-skills-review.json",
+  "copy-recommendations.json",
+  "copy-recommendations.md",
+  "final-audit.md",
   "response-index.json",
   "header-index.json",
   "body-excerpts.json",

@@ -16,6 +16,7 @@ describe("report signal rendering", () => {
     const html = renderHtmlReport(bundle);
     expect(html).toContain('data-filter="info"');
     expect(html).toContain('data-view-tab="overview"');
+    expect(html).toContain('data-view-tab="review"');
     expect(html).toContain('data-view-tab="implementation"');
     expect(html).toContain('data-view-tab="performance"');
     expect(html).toContain('data-view-tab="templates"');
@@ -30,6 +31,8 @@ describe("report signal rendering", () => {
     expect(html).toContain("Finding distribution");
     expect(html).toContain("Score model");
     expect(html).toContain("Executive Summary");
+    expect(html).toContain("Agent Review Status");
+    expect(html).toContain("Production readiness is blocked");
     expect(html).toContain("Implementation Queue");
     expect(html).toContain("Impact vs Effort");
     expect(html).toContain("Grouped Evidence Drawers");

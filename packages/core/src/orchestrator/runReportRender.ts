@@ -1,8 +1,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { writeReportBundle } from "@seo-polish/reporters";
+import { lintReport, writeReportBundle } from "@seo-polish/reporters";
 import type { AgentExecutionPlanBenchmark, ReportDashboardQualityGate } from "@seo-polish/reporters";
 import type {
+  AgentReview,
   BaselineComparison,
   Finding,
   RemediationPlan,
@@ -30,7 +31,16 @@ export async function runReportRender(reportDir: string): Promise<void> {
     join(reportDir, "quality-gate.json")
   );
   await writeReportBundle(reportDir, bundle, { benchmark, baselineComparison, qualityGate });
-  await writeRenderSupportFiles(reportDir, bundle);
+  const validation = await lintReport(reportDir, { strict: true });
+  await writeFile(join(reportDir, "validation.json"), `${JSON.stringify(validation, null, 2)}\n`, "utf8");
+  const finalBundle = { ...bundle, validation };
+  const finalQualityGate = await writeRenderQualityGate(reportDir, finalBundle, baselineComparison);
+  await writeReportBundle(reportDir, finalBundle, {
+    benchmark,
+    baselineComparison,
+    qualityGate: finalQualityGate
+  });
+  await writeRenderSupportFiles(reportDir, finalBundle);
 }
 
 async function readJson<T>(path: string): Promise<T> {
@@ -113,4 +123,56 @@ async function writeRenderSupportFiles(reportDir: string, bundle: ReportBundle):
     ])
   ];
   await writeFile(join(reportDir, "remaining-user-decisions.md"), decisionLines.join("\n"), "utf8");
+}
+
+async function writeRenderQualityGate(
+  reportDir: string,
+  bundle: ReportBundle,
+  baselineComparison: BaselineComparison | null
+): Promise<ReportDashboardQualityGate> {
+  const missingActionability = bundle.findings.filter((finding) => !finding.actionability).length;
+  const evidenceFreeFindings = bundle.findings.filter((finding) => finding.evidence.length === 0).length;
+  const invalidSafeFixes = bundle.findings.filter(
+    (finding) => finding.safeToAutoFix && finding.approvalRequired
+  ).length;
+  const agentReview = await readOptionalJson<AgentReview>(join(reportDir, "agent-review.json"));
+  const agentReviewStatus = agentReview?.status ?? "pending";
+  const agentReviewIncomplete = agentReviewStatus !== "complete";
+  const status =
+    bundle.validation.ok &&
+    missingActionability === 0 &&
+    evidenceFreeFindings === 0 &&
+    invalidSafeFixes === 0 &&
+    !agentReviewIncomplete
+      ? "passed"
+      : "failed";
+  const qualityGate = {
+    generatedAt: new Date().toISOString(),
+    status,
+    reportValid: bundle.validation.ok,
+    checks: {
+      missingActionability,
+      evidenceFreeFindings,
+      invalidSafeFixes,
+      agentReviewStatus,
+      baselineStatus: baselineComparison?.status ?? "not_configured"
+    },
+    stopConditions:
+      status === "passed"
+        ? []
+        : [
+            ...(!bundle.validation.ok ? ["validation failed"] : []),
+            ...(missingActionability > 0 ? ["findings missing actionability"] : []),
+            ...(evidenceFreeFindings > 0 ? ["findings missing evidence"] : []),
+            ...(invalidSafeFixes > 0 ? ["safe auto-fix conflicts with approval gate"] : []),
+            ...(agentReviewIncomplete ? ["agent review incomplete"] : [])
+          ]
+  };
+  await writeFile(join(reportDir, "quality-gate.json"), `${JSON.stringify(qualityGate, null, 2)}\n`, "utf8");
+  await writeFile(
+    join(reportDir, "production-readiness.json"),
+    `${JSON.stringify(qualityGate, null, 2)}\n`,
+    "utf8"
+  );
+  return qualityGate;
 }

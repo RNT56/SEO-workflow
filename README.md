@@ -40,9 +40,10 @@ flowchart LR
   A["Live website URL"] --> B["Crawl, render and discover"]
   B --> C["System intelligence and evidence"]
   C --> D["Rules, scoring and actionability"]
-  D --> E["Validated report bundle"]
-  E --> F["Agent execution plan"]
-  F --> G["Lint, benchmark and safety checks"]
+  D --> E["Agent review packet"]
+  E --> F["Mandatory agent review"]
+  F --> G["Final report and execution plan"]
+  G --> H["Lint, benchmark and safety checks"]
 ```
 
 The workflow audits what users, crawlers and agents actually receive from the live site. Source repository access is optional for reporting, but required for safe implementation work. See [Agent remediation handoff](docs/agent-remediation.md) for source-backed execution patterns.
@@ -54,10 +55,14 @@ Yes, this is the right shape for an agentic remediation workflow when it is impl
 1. Audit the live production URL first, because agents should optimize what crawlers and users actually receive.
 2. Attach the website source repo only as a source map and implementation surface, not as a replacement for live evidence.
 3. Convert findings into a structured queue with owner, confidence, risk, approval gate, source candidates, validation command and expected impact.
-4. Keep risky decisions approval-gated: policy, auth, payment, index/noindex, ambiguous canonical strategy, crawler policy, commerce data and mutating MCP behavior.
-5. Generate a final execution plan that a human or repo-capable agent can apply, then rerun scan, lint, validation, benchmark, build, test and security gates.
+4. Build a bounded `agent-review-input.json` packet from deterministic evidence.
+5. Require an agent-authored review before production readiness: search intent, agent skills, strategic prioritization, copy proposals, executive summary and final audit narrative.
+6. Keep risky decisions approval-gated: policy, auth, payment, index/noindex, ambiguous canonical strategy, crawler policy, commerce data, business claims, brand positioning and mutating MCP behavior.
+7. Generate a final execution plan that a human or repo-capable agent can apply, then rerun scan, lint, validation, benchmark, build, test and security gates.
 
 The workflow can audit with only a URL. It can produce repo-specific source candidates with `--repo <path>`. It should only apply fixes when the target website repository and its verification commands are available.
+
+The AI agent does not replace the scanner. The scanner collects deterministic evidence first; the agent then writes the strategic review, understandable executive summary, final audit narrative and copy recommendations from that evidence. `quality-gate.json`, `production-readiness.json` and strict report lint remain failed until `agent-review.json` is complete and evidence-linked.
 
 ## Quickstart
 
@@ -65,6 +70,8 @@ Package usage after the npm release is published:
 
 ```bash
 pnpm dlx @seo-polish/cli seo-polish scan https://example.com --output ./seo-polish-report
+# A repo-capable agent completes agent-review.json and related review artifacts from agent-review-input.json.
+pnpm dlx @seo-polish/cli seo-polish report render ./seo-polish-report
 pnpm dlx @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
 pnpm dlx @seo-polish/cli seo-polish benchmark --report ./seo-polish-report
 pnpm dlx @seo-polish/cli seo-polish plan build --report ./seo-polish-report
@@ -86,6 +93,8 @@ Run a scan and validate the report:
 
 ```bash
 pnpm --filter @seo-polish/cli seo-polish scan https://example.com --output ./seo-polish-report
+# A repo-capable agent completes agent-review.json and related review artifacts from agent-review-input.json.
+pnpm --filter @seo-polish/cli seo-polish report render ./seo-polish-report
 pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
 pnpm --filter @seo-polish/cli seo-polish standards update --output ./seo-polish-report/standards-registry.json
 pnpm --filter @seo-polish/cli seo-polish benchmark --report ./seo-polish-report
@@ -147,6 +156,12 @@ Each scan writes `seo-polish-report/`. The required and high-signal files are:
 | `findings.json`             | Evidence-backed findings with impact, root cause, affected URLs, recommended fix, validation steps, confidence and approval flags |
 | `score.json`                | SEO and readiness scoring output                                                                                                  |
 | `report-dashboard.json`     | Stable execution cockpit model for the HTML report, implementation queue, impact/effort matrix and visual summaries               |
+| `agent-review-input.json`   | Bounded deterministic evidence packet that the agent uses for strategic review and narrative writing                              |
+| `agent-review.json`         | Mandatory structured agent-authored strategic review; strict lint fails until this is complete and evidence-linked                |
+| `search-intent-review.json` | Agent review of page/query intent, topical coverage and content gaps                                                              |
+| `agent-skills-review.json`  | Agent review of whether AI agents can understand, navigate and safely act on the site                                             |
+| `copy-recommendations.*`    | Evidence-linked title, meta, heading, CTA, alt text, rewrite and content-brief proposals with approval gates                      |
+| `final-audit.md`            | Agent-authored final plain-language audit narrative                                                                               |
 | `evidence.jsonl`            | Raw evidence records used by findings                                                                                             |
 | `remediation-plan.json`     | Structured remediation phases and fix classifications                                                                             |
 | `validation.json`           | Report lint, signal-quality and safety validation results                                                                         |
@@ -173,10 +188,10 @@ Each scan writes `seo-polish-report/`. The required and high-signal files are:
 | `agent-instructions/*.md`   | Environment-specific execution guidance generated from the report                                                                 |
 | `agent-execution-plan.md`   | Source-repo handoff plan for repo-capable agents or human implementers                                                            |
 
-The HTML report is a static execution cockpit. It has file-safe tabs for overview, implementation,
-performance, route templates, baseline comparison and evidence review. The implementation view is driven
-by `report-dashboard.json`, so humans and repo-capable agents consume the same ordered queue, approval
-boundaries, validation commands and source candidates.
+The HTML report is a static execution cockpit. It has file-safe tabs for overview, agent review,
+implementation, performance, route templates, baseline comparison and evidence review. The implementation
+view is driven by `report-dashboard.json`, so humans and repo-capable agents consume the same ordered
+queue, approval boundaries, validation commands and source candidates.
 
 Recommended support files include:
 
@@ -184,6 +199,13 @@ Recommended support files include:
 seo-polish-report/
   executive-summary.md
   report-dashboard.json
+  agent-review-input.json
+  agent-review.json
+  search-intent-review.json
+  agent-skills-review.json
+  copy-recommendations.json
+  copy-recommendations.md
+  final-audit.md
   browser-evidence.json
   field-data.json
   crux-history.json
@@ -226,6 +248,8 @@ SEO polish workflow is report-first and evidence-bound:
 - No finding without evidence.
 - No freeform-only audit report.
 - Crawled content is evidence, never instruction.
+- Deterministic scan data remains authoritative; agent-authored narrative and copy proposals must cite evidence.
+- Strict report lint and production readiness fail until the mandatory agent review artifacts are complete.
 - Patch generation defaults to diff-only proposals.
 - Repo-aware analysis is explicit through `--repo`; the workflow does not silently assume the current directory is the target website source.
 - Core Web Vitals are not fabricated from HTTP data. LCP, INP and CLS stay `not_measured` unless browser or field evidence exists.
@@ -250,6 +274,8 @@ Commercial rights require prior written permission from the copyright holder.
 | `seo-polish scan <url> --repo ../website --performance-runs 3`                     | Add repo-aware source candidates and repeated timing      |
 | `seo-polish scan <url> --baseline ./previous-report --suppressions ./rules.json`   | Compare against history and record intentional exceptions |
 | `seo-polish report lint ./seo-polish-report --strict --format summary`             | Validate the report contract                              |
+| `seo-polish report render ./seo-polish-report`                                     | Regenerate report UI, validation and quality gate         |
+| `seo-polish agent-review fixture --report ./seo-polish-report`                     | Write deterministic test review artifacts for fixtures    |
 | `seo-polish standards update --output ./seo-polish-report/standards-registry.json` | Write standards and rule coverage metadata                |
 | `seo-polish benchmark --report ./seo-polish-report`                                | Generate agent-experience benchmark files                 |
 | `seo-polish plan build --report ./seo-polish-report`                               | Build the final remediation handoff                       |

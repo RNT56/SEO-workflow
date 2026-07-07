@@ -3,11 +3,17 @@ import { join } from "node:path";
 import { writeEvidenceStore } from "@seo-polish/evidence";
 import { generatePatchBundle } from "@seo-polish/patchers";
 import { createRemediationPlan } from "@seo-polish/remediation";
-import { lintReport, writeReportBundle, type ReportDashboardQualityGate } from "@seo-polish/reporters";
+import {
+  buildPendingAgentReview,
+  lintReport,
+  writeReportBundle,
+  type ReportDashboardQualityGate
+} from "@seo-polish/reporters";
 import { evaluateRules } from "@seo-polish/rules";
 import { scanSite } from "@seo-polish/scanner";
 import type {
   BaselineComparison,
+  AgentReview,
   Finding,
   PerformanceAudit,
   ReportBundle,
@@ -71,7 +77,10 @@ export async function runScan(input: ScanConfigInput): Promise<ScanSummary> {
   await writePatchSupportFiles(config.outputDir, patchBundle);
   await writeIntelligenceSupportFiles(config.outputDir, findings, baselineComparison, suppressionReport);
   await writeFile(join(config.outputDir, "scan-result.json"), `${JSON.stringify(scan, null, 2)}\n`, "utf8");
-  await writeReportBundle(config.outputDir, bundle, { baselineComparison });
+  await writeReportBundle(config.outputDir, bundle, {
+    baselineComparison,
+    agentReview: buildPendingAgentReview(bundle)
+  });
   await writeFinalSupportFiles(config.outputDir, bundle, baselineComparison);
   await writeQualityGate(config.outputDir, bundle, suppressionReport, baselineComparison);
 
@@ -83,7 +92,11 @@ export async function runScan(input: ScanConfigInput): Promise<ScanSummary> {
     suppressionReport,
     baselineComparison
   );
-  await writeReportBundle(config.outputDir, finalBundle, { baselineComparison, qualityGate });
+  await writeReportBundle(config.outputDir, finalBundle, {
+    baselineComparison,
+    qualityGate,
+    agentReview: buildPendingAgentReview(finalBundle)
+  });
   await writeFinalSupportFiles(config.outputDir, finalBundle, baselineComparison);
 
   return {
@@ -189,8 +202,15 @@ async function writeQualityGate(
   const invalidSafeFixes = bundle.findings.filter(
     (finding) => finding.safeToAutoFix && finding.approvalRequired
   ).length;
+  const agentReview = await readOptionalJson<AgentReview>(join(outputDir, "agent-review.json"));
+  const agentReviewStatus = agentReview?.status ?? "pending";
+  const agentReviewIncomplete = agentReviewStatus !== "complete";
   const status =
-    bundle.validation.ok && missingActionability === 0 && evidenceFreeFindings === 0 && invalidSafeFixes === 0
+    bundle.validation.ok &&
+    missingActionability === 0 &&
+    evidenceFreeFindings === 0 &&
+    invalidSafeFixes === 0 &&
+    !agentReviewIncomplete
       ? "passed"
       : "failed";
   const qualityGate = {
@@ -201,6 +221,7 @@ async function writeQualityGate(
       missingActionability,
       evidenceFreeFindings,
       invalidSafeFixes,
+      agentReviewStatus,
       suppressionMatches: suppressionReport.matches.length,
       baselineStatus: baselineComparison.status
     },
@@ -211,7 +232,8 @@ async function writeQualityGate(
             ...(!bundle.validation.ok ? ["validation failed"] : []),
             ...(missingActionability > 0 ? ["findings missing actionability"] : []),
             ...(evidenceFreeFindings > 0 ? ["findings missing evidence"] : []),
-            ...(invalidSafeFixes > 0 ? ["safe auto-fix conflicts with approval gate"] : [])
+            ...(invalidSafeFixes > 0 ? ["safe auto-fix conflicts with approval gate"] : []),
+            ...(agentReviewIncomplete ? ["agent review incomplete"] : [])
           ]
   };
   await writeFile(join(outputDir, "quality-gate.json"), `${JSON.stringify(qualityGate, null, 2)}\n`, "utf8");

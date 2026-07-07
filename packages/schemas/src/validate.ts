@@ -1,4 +1,7 @@
 import type {
+  AgentReview,
+  AgentReviewEvidenceLink,
+  AgentReviewInput,
   Evidence,
   Finding,
   RemediationPlan,
@@ -120,6 +123,170 @@ export function validateRemediationPlan(plan: RemediationPlan): SchemaValidation
   return { ok: checks.every((item) => item.status !== "failed"), checks };
 }
 
+export function validateAgentReviewInput(input: AgentReviewInput): SchemaValidationResult {
+  const sourceArtifacts = Array.isArray(input.sourceArtifacts) ? input.sourceArtifacts : [];
+  const topFindings = Array.isArray(input.topFindings) ? input.topFindings : [];
+  const nextBestFixes = Array.isArray(input.nextBestFixes) ? input.nextBestFixes : [];
+  const implementationQueue = Array.isArray(input.implementationQueue) ? input.implementationQueue : [];
+  const approvalQueue = Array.isArray(input.approvalQueue) ? input.approvalQueue : [];
+  const checks: ValidationCheck[] = [
+    check(
+      "agent-review-input.status",
+      "Agent review input status",
+      input.status === "ready",
+      "agent-review-input.json must be a ready evidence packet."
+    ),
+    check(
+      "agent-review-input.target",
+      "Agent review input target",
+      typeof input.targetUrl === "string" && input.targetUrl.length > 0,
+      "Agent review input must include the target URL."
+    ),
+    check(
+      "agent-review-input.sources",
+      "Agent review input sources",
+      sourceArtifacts.length > 0,
+      "Agent review input must list source artifacts."
+    ),
+    check(
+      "agent-review-input.findings",
+      "Agent review input findings",
+      typeof input.findingCount === "number" &&
+        input.findingCount >= 0 &&
+        typeof input.groupedFindingCount === "number" &&
+        input.groupedFindingCount >= 0,
+      "Agent review input must include finding counters."
+    ),
+    check(
+      "agent-review-input.bounded",
+      "Agent review input bounded queues",
+      topFindings.length <= 30 &&
+        nextBestFixes.length <= 20 &&
+        implementationQueue.length <= 80 &&
+        approvalQueue.length <= 80,
+      "Agent review input queues must stay bounded for model review."
+    )
+  ];
+  return { ok: checks.every((item) => item.status !== "failed"), checks };
+}
+
+export function validateAgentReview(review: AgentReview): SchemaValidationResult {
+  const sourceArtifacts = Array.isArray(review.sourceArtifacts) ? review.sourceArtifacts : [];
+  const strategicFindings = Array.isArray(review.strategicFindings) ? review.strategicFindings : [];
+  const copyRecommendations = Array.isArray(review.copyRecommendations) ? review.copyRecommendations : [];
+  const finalAudit = review.finalAudit;
+  const searchIntent = review.searchIntent;
+  const agentSkills = review.agentSkills;
+  const checks: ValidationCheck[] = [
+    check(
+      "agent-review.status",
+      "Agent review status",
+      ["pending", "complete", "invalid"].includes(review.status),
+      "agent-review.json must declare a valid status."
+    ),
+    check(
+      "agent-review.reviewer",
+      "Agent review reviewer",
+      ["pending", "agent", "fixture"].includes(review.reviewer),
+      "agent-review.json must declare the reviewer type."
+    ),
+    check(
+      "agent-review.target",
+      "Agent review target",
+      typeof review.targetUrl === "string" && review.targetUrl.length > 0,
+      "Agent review must include the target URL."
+    ),
+    check(
+      "agent-review.sources",
+      "Agent review source artifacts",
+      sourceArtifacts.length > 0,
+      "Agent review must list the source artifacts it used."
+    ),
+    check(
+      "agent-review.summary",
+      "Agent review executive summary",
+      review.status !== "complete" ||
+        (typeof review.executiveSummary === "string" && review.executiveSummary.trim().length > 0),
+      "Completed agent review must include an executive summary."
+    ),
+    check(
+      "agent-review.final-audit",
+      "Agent review final audit",
+      review.status !== "complete" ||
+        (finalAudit?.status === "complete" &&
+          typeof finalAudit.finalAuditMarkdown === "string" &&
+          finalAudit.finalAuditMarkdown.trim().length > 0 &&
+          Array.isArray(finalAudit.evidence) &&
+          finalAudit.evidence.length > 0),
+      "Completed agent review must include a cited final audit narrative."
+    ),
+    check(
+      "agent-review.search-intent",
+      "Search intent review",
+      review.status !== "complete" ||
+        (searchIntent?.status === "complete" &&
+          typeof searchIntent.summary === "string" &&
+          searchIntent.summary.trim().length > 0 &&
+          Array.isArray(searchIntent.evidence) &&
+          searchIntent.evidence.length > 0),
+      "Completed agent review must include a cited search intent review."
+    ),
+    check(
+      "agent-review.agent-skills",
+      "Agent skills review",
+      review.status !== "complete" ||
+        (agentSkills?.status === "complete" &&
+          typeof agentSkills.summary === "string" &&
+          agentSkills.summary.trim().length > 0 &&
+          Array.isArray(agentSkills.evidence) &&
+          agentSkills.evidence.length > 0),
+      "Completed agent review must include a cited agent skills review."
+    )
+  ];
+
+  for (const item of strategicFindings) {
+    checks.push(
+      check(
+        `agent-review.finding.${item.id}.evidence`,
+        `${item.id} cited evidence`,
+        Array.isArray(item.evidence) && item.evidence.length > 0 && item.evidence.every(hasAnyEvidenceAnchor),
+        "Every strategic finding must cite evidence, a finding ID, URL or source artifact."
+      ),
+      check(
+        `agent-review.finding.${item.id}.validation`,
+        `${item.id} validation`,
+        Array.isArray(item.validation) && item.validation.length > 0,
+        "Every strategic finding must include validation steps."
+      )
+    );
+  }
+
+  for (const item of copyRecommendations) {
+    checks.push(
+      check(
+        `agent-review.copy.${item.id}.proposal`,
+        `${item.id} proposal`,
+        typeof item.proposed === "string" && item.proposed.trim().length > 0,
+        "Every copy recommendation must include proposed copy."
+      ),
+      check(
+        `agent-review.copy.${item.id}.evidence`,
+        `${item.id} cited evidence`,
+        Array.isArray(item.evidence) && item.evidence.length > 0 && item.evidence.every(hasAnyEvidenceAnchor),
+        "Every copy recommendation must cite evidence, a finding ID, URL or source artifact."
+      ),
+      check(
+        `agent-review.copy.${item.id}.approval-boundary`,
+        `${item.id} approval boundary`,
+        !item.safeToApply || item.approvalState === "not_required",
+        "Copy marked safe to apply cannot also be approval-required."
+      )
+    );
+  }
+
+  return { ok: checks.every((item) => item.status !== "failed"), checks };
+}
+
 export function validateReportDashboard(dashboard: ReportDashboard): SchemaValidationResult {
   const queueItems = [
     ...dashboard.nextBestFixes,
@@ -185,6 +352,14 @@ export function validateReportDashboard(dashboard: ReportDashboard): SchemaValid
       "Dashboard evidence stats",
       dashboard.evidenceStats.evidenceEntries >= 0 && dashboard.evidenceStats.groupedFindings >= 0,
       "Dashboard must include bounded evidence counters."
+    ),
+    check(
+      "dashboard.agent-review",
+      "Dashboard agent review summary",
+      Boolean(
+        dashboard.agentReview && ["pending", "complete", "invalid"].includes(dashboard.agentReview.status)
+      ),
+      "Dashboard must include agent review status."
     )
   ];
 
@@ -193,6 +368,15 @@ export function validateReportDashboard(dashboard: ReportDashboard): SchemaValid
   }
 
   return { ok: checks.every((item) => item.status !== "failed"), checks };
+}
+
+function hasAnyEvidenceAnchor(link: AgentReviewEvidenceLink): boolean {
+  return Boolean(
+    (link.evidenceId && link.evidenceId.trim().length > 0) ||
+    (link.findingId && link.findingId.trim().length > 0) ||
+    (link.url && link.url.trim().length > 0) ||
+    (link.sourceArtifact && link.sourceArtifact.trim().length > 0)
+  );
 }
 
 function validateDashboardQueueItem(item: ReportDashboardQueueItem): ValidationCheck[] {

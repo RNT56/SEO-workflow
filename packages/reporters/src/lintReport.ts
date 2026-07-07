@@ -4,12 +4,17 @@ import {
   REQUIRED_REPORT_FILES,
   REPORT_SECTIONS,
   sectionHeading,
+  validateAgentReview,
+  validateAgentReviewInput,
   validateFindings,
   validateRemediationPlan,
   validateReportDashboard,
   validateScore
 } from "@seo-polish/schemas";
 import type {
+  AgentReview,
+  AgentReviewEvidenceLink,
+  AgentReviewInput,
   FieldDataReport,
   Finding,
   ReportDashboard,
@@ -65,6 +70,16 @@ export async function lintReport(
     "report-dashboard.json"
   );
   const fieldData = await readJson<unknown>(join(reportDir, "field-data.json"), checks, "field-data.json");
+  const agentReviewInput = await readJson<unknown>(
+    join(reportDir, "agent-review-input.json"),
+    checks,
+    "agent-review-input.json"
+  );
+  const agentReview = await readJson<unknown>(
+    join(reportDir, "agent-review.json"),
+    checks,
+    "agent-review.json"
+  );
   const remediationPlan = await readJson<unknown>(
     join(reportDir, "remediation-plan.json"),
     checks,
@@ -91,6 +106,22 @@ export async function lintReport(
     checks.push(...lintFieldData(fieldData as FieldDataReport));
   }
 
+  if (agentReviewInput && typeof agentReviewInput === "object") {
+    checks.push(...validateAgentReviewInput(agentReviewInput as AgentReviewInput).checks);
+  }
+
+  if (agentReview && typeof agentReview === "object") {
+    checks.push(...validateAgentReview(agentReview as AgentReview).checks);
+    checks.push(
+      ...lintAgentReview(
+        agentReview as AgentReview,
+        agentReviewInput as AgentReviewInput | null,
+        Array.isArray(findings) ? findings : [],
+        strict
+      )
+    );
+  }
+
   if (remediationPlan && typeof remediationPlan === "object") {
     checks.push(
       ...validateRemediationPlan(remediationPlan as Parameters<typeof validateRemediationPlan>[0]).checks
@@ -105,6 +136,19 @@ export async function lintReport(
         "Secret public report scan",
         leaked.length === 0,
         "Report should not expose secret-looking values."
+      )
+    );
+  }
+
+  if (strict && agentReview && typeof agentReview === "object") {
+    const serializedReview = JSON.stringify(agentReview);
+    const leaked = findPrivateReferences(serializedReview).filter(isSecretLikeReference);
+    checks.push(
+      check(
+        "agent-review.no-private-output",
+        "Agent review public narrative secret scan",
+        leaked.length === 0,
+        "Agent-authored public outputs must not expose secret-looking values."
       )
     );
   }
@@ -129,6 +173,141 @@ export async function lintReport(
     generatedAt: new Date().toISOString(),
     checks
   };
+}
+
+function lintAgentReview(
+  review: AgentReview,
+  input: AgentReviewInput | null,
+  findings: Finding[],
+  strict: boolean
+): ValidationCheck[] {
+  const checks: ValidationCheck[] = [];
+  const evidenceIds = new Set(findings.flatMap((finding) => finding.evidence.map((item) => item.id)));
+  const findingIds = new Set(findings.map((finding) => finding.id));
+  const urls = new Set(
+    findings.flatMap((finding) => [
+      ...finding.affectedUrls,
+      ...finding.evidence.map((item) => item.url).filter((url): url is string => Boolean(url))
+    ])
+  );
+  const sourceArtifacts = new Set([...(input?.sourceArtifacts ?? []), ...REQUIRED_REPORT_FILES]);
+
+  checks.push(
+    check(
+      "agent-review.input-present",
+      "Agent review input present",
+      Boolean(input && input.status === "ready"),
+      "agent-review-input.json must exist before review completion."
+    )
+  );
+
+  if (strict) {
+    checks.push(
+      check(
+        "agent-review.complete",
+        "Agent review complete",
+        review.status === "complete" && review.reviewer !== "pending",
+        "Strict report lint requires completed agent review artifacts."
+      )
+    );
+  }
+
+  if (review.status !== "complete") {
+    return checks;
+  }
+
+  const strategicFindings = Array.isArray(review.strategicFindings) ? review.strategicFindings : [];
+  const copyRecommendations = Array.isArray(review.copyRecommendations) ? review.copyRecommendations : [];
+  const taskSimulations = Array.isArray(review.agentSkills?.taskSimulations)
+    ? review.agentSkills.taskSimulations
+    : [];
+  const citedCollections: Array<[string, AgentReviewEvidenceLink[]]> = [
+    ["final-audit", Array.isArray(review.finalAudit?.evidence) ? review.finalAudit.evidence : []],
+    ["search-intent", Array.isArray(review.searchIntent?.evidence) ? review.searchIntent.evidence : []],
+    ["agent-skills", Array.isArray(review.agentSkills?.evidence) ? review.agentSkills.evidence : []],
+    ...taskSimulations.map((task, index): [string, AgentReviewEvidenceLink[]] => [
+      `agent-skills.task.${index}`,
+      Array.isArray(task.evidence) ? task.evidence : []
+    ]),
+    ...strategicFindings.map((finding): [string, AgentReviewEvidenceLink[]] => [
+      `strategic.${finding.id}`,
+      Array.isArray(finding.evidence) ? finding.evidence : []
+    ]),
+    ...copyRecommendations.map((copy): [string, AgentReviewEvidenceLink[]] => [
+      `copy.${copy.id}`,
+      Array.isArray(copy.evidence) ? copy.evidence : []
+    ])
+  ];
+
+  for (const [id, evidence] of citedCollections) {
+    checks.push(
+      check(
+        `agent-review.${id}.evidence-supported`,
+        `${id} evidence supported`,
+        evidence.length > 0 &&
+          evidence.every((link) =>
+            evidenceLinkSupported(link, evidenceIds, findingIds, urls, sourceArtifacts)
+          ),
+        "Completed review claims must cite existing evidence IDs, finding IDs, affected URLs or source artifacts."
+      )
+    );
+  }
+
+  for (const finding of strategicFindings) {
+    const text = [finding.title, finding.summary, finding.recommendation].join("\n");
+    checks.push(
+      check(
+        `agent-review.strategic.${finding.id}.approval`,
+        `${finding.id} approval gate`,
+        !requiresReviewApproval(text) || finding.approvalState === "approval_required",
+        "Risky policy, indexability, canonical, auth, payment, MCP, crawler, brand or commercial recommendations must be approval-gated."
+      )
+    );
+  }
+
+  for (const copy of copyRecommendations) {
+    const text = [copy.target, copy.current ?? "", copy.proposed, copy.rationale].join("\n");
+    checks.push(
+      check(
+        `agent-review.copy.${copy.id}.approval`,
+        `${copy.id} approval gate`,
+        !requiresReviewApproval(text) || copy.approvalState === "approval_required",
+        "Risky copy proposals involving claims, policy, canonical/indexing, auth, payment, crawler or MCP decisions must be approval-gated."
+      ),
+      check(
+        `agent-review.copy.${copy.id}.safe`,
+        `${copy.id} safe proposal boundary`,
+        !copy.safeToApply || copy.approvalState === "not_required",
+        "Copy proposals marked safe cannot also require approval."
+      )
+    );
+  }
+
+  return checks;
+}
+
+function evidenceLinkSupported(
+  link: AgentReviewEvidenceLink,
+  evidenceIds: Set<string>,
+  findingIds: Set<string>,
+  urls: Set<string>,
+  sourceArtifacts: Set<string>
+): boolean {
+  return Boolean(
+    (link.evidenceId && evidenceIds.has(link.evidenceId)) ||
+    (link.findingId && findingIds.has(link.findingId)) ||
+    (link.url && urls.has(link.url)) ||
+    (link.sourceArtifact && sourceArtifacts.has(link.sourceArtifact))
+  );
+}
+
+function requiresReviewApproval(text: string): boolean {
+  return (
+    requiresApprovalForText(text) ||
+    /\b(best|#1|number one|guarantee|guaranteed|certified|revenue|award-winning|official partner|trusted by|customers include|clients include)\b/i.test(
+      text
+    )
+  );
 }
 
 function lintHtmlReport(html: string): ValidationCheck[] {
