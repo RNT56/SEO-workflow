@@ -31,6 +31,7 @@ export async function runReportRender(reportDir: string): Promise<void> {
     join(reportDir, "quality-gate.json")
   );
   await writeReportBundle(reportDir, bundle, { benchmark, baselineComparison, qualityGate });
+  await writeRenderSupportFiles(reportDir, bundle, baselineComparison);
   const validation = await lintReport(reportDir, { strict: true });
   await writeFile(join(reportDir, "validation.json"), `${JSON.stringify(validation, null, 2)}\n`, "utf8");
   const finalBundle = { ...bundle, validation };
@@ -40,7 +41,7 @@ export async function runReportRender(reportDir: string): Promise<void> {
     baselineComparison,
     qualityGate: finalQualityGate
   });
-  await writeRenderSupportFiles(reportDir, finalBundle);
+  await writeRenderSupportFiles(reportDir, finalBundle, baselineComparison);
 }
 
 async function readJson<T>(path: string): Promise<T> {
@@ -59,7 +60,11 @@ async function readText(path: string): Promise<string> {
   return readFile(path, "utf8");
 }
 
-async function writeRenderSupportFiles(reportDir: string, bundle: ReportBundle): Promise<void> {
+async function writeRenderSupportFiles(
+  reportDir: string,
+  bundle: ReportBundle,
+  baselineComparison: BaselineComparison | null
+): Promise<void> {
   await writeFile(
     join(reportDir, "browser-evidence.json"),
     `${JSON.stringify(bundle.scan.browserEvidence ?? null, null, 2)}\n`,
@@ -97,17 +102,7 @@ async function writeRenderSupportFiles(reportDir: string, bundle: ReportBundle):
   );
   await writeFile(
     join(reportDir, "before-after-score.json"),
-    `${JSON.stringify(
-      {
-        baseline: null,
-        current: bundle.score,
-        after: null,
-        status: "baseline_not_available",
-        message: "Run a second scan after applying safe fixes to populate before/after score comparison."
-      },
-      null,
-      2
-    )}\n`,
+    `${JSON.stringify(buildBeforeAfterScore(bundle, baselineComparison), null, 2)}\n`,
     "utf8"
   );
 
@@ -123,6 +118,30 @@ async function writeRenderSupportFiles(reportDir: string, bundle: ReportBundle):
     ])
   ];
   await writeFile(join(reportDir, "remaining-user-decisions.md"), decisionLines.join("\n"), "utf8");
+}
+
+function buildBeforeAfterScore(bundle: ReportBundle, baselineComparison: BaselineComparison | null): unknown {
+  if (baselineComparison?.status === "ok") {
+    return {
+      baseline: {
+        scoreDelta: baselineComparison.scoreDelta,
+        newFindingGroups: baselineComparison.newFindingGroups,
+        resolvedFindingGroups: baselineComparison.resolvedFindingGroups,
+        recurringFindingGroups: baselineComparison.recurringFindingGroups
+      },
+      current: bundle.score,
+      after: null,
+      status: "baseline_compared",
+      message: "Baseline comparison is available in baseline-comparison.json."
+    };
+  }
+  return {
+    baseline: null,
+    current: bundle.score,
+    after: null,
+    status: "baseline_not_available",
+    message: "Run with --baseline <report-dir-or-file> to populate before/after score comparison."
+  };
 }
 
 async function writeRenderQualityGate(
