@@ -51,6 +51,23 @@ Treat the generated report bundle as the execution contract. Start with:
 
 No evidence means no finding, and no approval means no sensitive policy change.
 
+## Communication contract
+
+Repo-capable agents should run quietly by default. Detailed evidence, logs, plans and reasoning belong in the generated report artifacts, not in chat.
+
+User-facing updates are appropriate only when:
+
+- explicit owner approval is required
+- a blocker prevents progress
+- a security, privacy or safety boundary is reached
+- a long-running step exceeds the expected duration
+- a validation gate fails
+- the workflow is complete
+
+Do not narrate routine commands, file reads, scans, rerenders, lint passes, obvious next steps or raw command output unless the user explicitly asks for that detail. If the host agent runtime requires progress updates, keep them terse and state only material status changes.
+
+Final responses should include only the report path, final score and readiness status, top three to five actions, validation gates passed or failed, and remaining approval decisions, blockers or measurement limitations.
+
 ## Mandatory agent review
 
 The deterministic scanner is the source of truth. The agent review phase comes after evidence collection
@@ -84,18 +101,19 @@ Target live site: https://your-site.com
 Website source repo: current workspace
 
 Run the workflow end to end:
-1. Build the SEO workflow if needed.
-2. Scan the live site into ./seo-polish-report with --repo pointing at the website source repo when available.
-3. Read agent-execution-plan.md, agent-review-input.json and report-dashboard.json first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
-4. Complete the mandatory agent review artifacts, executive summary, copy recommendations and final audit narrative from cited evidence.
-5. Run report render and strict report lint; do not implement fixes until the review gate passes.
-6. Apply only safe_auto_fix items directly in the website source repo when source candidates are clear and validation commands exist.
-7. Treat manual_strategy items as normal implementation work that needs source inspection and engineering judgment.
-8. Do not make policy, auth, payment, indexing, canonical, crawler or MCP mutation changes without explicit approval.
-9. Preserve approval_required items in remaining-user-decisions.md.
-10. Re-run scan, report lint, validation, benchmark, plan build, project tests, build and security checks.
-11. Commit and push only after the verification gates pass.
-12. Summarize final score, changed files, remaining user decisions and verification results.
+1. Run quietly by default; message only for approvals, blockers, safety boundaries, long-running delays, failed gates and completion.
+2. Build the SEO workflow if needed.
+3. Scan the live site into ./seo-polish-report with --repo pointing at the website source repo when available.
+4. Read agent-execution-plan.md, agent-review-input.json and report-dashboard.json first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
+5. Complete the mandatory agent review artifacts, executive summary, copy recommendations and final audit narrative from cited evidence.
+6. Run report render and strict report lint; do not implement fixes until the review gate passes.
+7. Apply only safe_auto_fix items directly in the website source repo when source candidates are clear and validation commands exist.
+8. Treat manual_strategy items as normal implementation work that needs source inspection and engineering judgment.
+9. Do not make policy, auth, payment, indexing, canonical, crawler or MCP mutation changes without explicit approval.
+10. Preserve approval_required items in remaining-user-decisions.md.
+11. Re-run scan, report lint, validation, benchmark, plan build, project tests, build and security checks.
+12. Commit and push only after the verification gates pass.
+13. Summarize final score, changed files, remaining user decisions and verification results.
 ```
 
 Recommended scan command:

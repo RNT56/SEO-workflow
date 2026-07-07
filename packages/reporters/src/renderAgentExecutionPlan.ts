@@ -8,6 +8,10 @@ import type {
   ValidationCheck
 } from "@seo-polish/schemas";
 import { buildReportDashboard } from "./buildReportDashboard.js";
+import {
+  renderAgentCommunicationContract,
+  renderAgentCommunicationPromptClause
+} from "./agentCommunication.js";
 import { FIX_CLASS_LABEL, countBySeverity, formatSet, groupFindings } from "./reportSignal.js";
 
 export interface AgentExecutionPlanBenchmark {
@@ -88,6 +92,8 @@ export function renderAgentExecutionPlan(
     renderAgentReviewSummary(options.agentReview ?? null, dashboard),
     "",
     renderBenchmarkSummary(options.benchmark),
+    "",
+    renderAgentCommunicationContract(),
     "",
     "## Execution Policy",
     "",
@@ -407,16 +413,17 @@ Target live site: ${targetUrl}
 Website source repo: current workspace
 
 Run the remediation plan end to end:
-1. Read agent-execution-plan.md first.
-2. Read agent-review-input.json, findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, resource-timing.json, baseline-comparison.json, suppression-report.json, quality-gate.json, validation.json and benchmark.json if present.
-3. Complete the mandatory agent review artifacts, executive summary and final audit narrative from cited evidence, then rerender and strict-lint the report.
-4. Apply safe_auto_fix items first only when source candidates are clear and validation commands exist.
-5. Implement manual_strategy items where the source path is clear and normal project tests cover the change.
-6. Do not implement approval_required items until the owner explicitly approves them.
-7. Re-run the SEO Polish scan, report lint, validation, benchmark and this plan build.
-8. Run the website repo's lint, typecheck, test, build and security checks.
-9. Commit and push only after all required gates pass.
-10. Summarize before/after score, changed files, remaining approvals and verification results.
+1. Follow this communication contract: ${renderAgentCommunicationPromptClause()}
+2. Read agent-execution-plan.md first.
+3. Read agent-review-input.json, findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, resource-timing.json, baseline-comparison.json, suppression-report.json, quality-gate.json, validation.json and benchmark.json if present.
+4. Complete the mandatory agent review artifacts, executive summary and final audit narrative from cited evidence, then rerender and strict-lint the report.
+5. Apply safe_auto_fix items first only when source candidates are clear and validation commands exist.
+6. Implement manual_strategy items where the source path is clear and normal project tests cover the change.
+7. Do not implement approval_required items until the owner explicitly approves them.
+8. Re-run the SEO Polish scan, report lint, validation, benchmark and this plan build.
+9. Run the website repo's lint, typecheck, test, build and security checks.
+10. Commit and push only after all required gates pass.
+11. Summarize before/after score, changed files, remaining approvals and verification results.
 \`\`\``;
 }
 

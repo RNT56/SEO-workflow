@@ -64,6 +64,14 @@ The workflow can audit with only a URL. It can produce repo-specific source cand
 
 The AI agent does not replace the scanner. The scanner collects deterministic evidence first; the agent then writes the strategic review, understandable executive summary, final audit narrative and copy recommendations from that evidence. `quality-gate.json`, `production-readiness.json` and strict report lint remain failed until `agent-review.json` is complete and evidence-linked.
 
+## Agent communication contract
+
+Generated agent handoffs default to quiet execution. Agents should put detailed evidence, logs, plans and reasoning into report artifacts, not into chat.
+
+Agents should message the user only for approval gates, blockers, security or privacy boundaries, long-running delays, failed validation gates and final completion. Routine commands, file reads, scans, rerenders, lint passes, obvious next steps and raw command output should not be narrated unless the user asks for that detail.
+
+Final responses should stay concise: report path, final score and readiness status, top three to five actions, validation gates passed or failed, and remaining approvals, blockers or measurement limitations. The workflow cannot override higher-priority instructions from a host agent runtime, but its generated handoff files define the expected low-noise behavior.
+
 ## Quickstart
 
 Package usage after the npm release is published:

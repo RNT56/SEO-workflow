@@ -1,5 +1,6 @@
 export * from "./renderMarkdownReport.js";
 export * from "./renderAgentExecutionPlan.js";
+export * from "./agentCommunication.js";
 export * from "./renderHtmlReport.js";
 export * from "./buildReportDashboard.js";
 export * from "./agentReview.js";

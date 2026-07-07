@@ -28,6 +28,9 @@ Core commands:
 
 `standards update` writes a local standards snapshot and validates rule-to-standard coverage.
 `plan build` writes `agent-execution-plan.md`, the final human/agent handoff plan for repo remediation.
+Generated agent handoffs include a quiet communication contract: agents should avoid routine narration,
+write detail into report artifacts, and message users only for approvals, blockers, safety boundaries,
+long-running delays, failed gates and completion.
 `doctor` reports runtime, safety defaults and standards registry health.
 
 When invoked through package managers such as `pnpm --filter`, relative paths are resolved from the

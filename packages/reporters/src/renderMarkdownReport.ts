@@ -2,6 +2,10 @@ import { REPORT_SECTIONS, sectionHeading } from "@seo-polish/schemas";
 import type { AgentReview, Finding, ReportBundle, ReportSection } from "@seo-polish/schemas";
 import { renderAgentExecutionPlan } from "./renderAgentExecutionPlan.js";
 import {
+  renderAgentCommunicationContract,
+  renderAgentCommunicationPromptClause
+} from "./agentCommunication.js";
+import {
   attentionValidationChecks,
   countBySeverity,
   findingInstanceCounts,
@@ -112,6 +116,8 @@ Use the generated SEO Polish Report as the source of truth. Complete the mandato
 
 ${agentNote}
 
+${renderAgentCommunicationContract()}
+
 Rules:
 
 - Do not create findings without evidence.
@@ -124,13 +130,14 @@ Rules:
 
 Execution order:
 
-1. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/agent-review-input.json\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/actionability.json\`, \`${reportDir}/repo-analysis.json\`, \`${reportDir}/tech-stack.json\`, \`${reportDir}/browser-evidence.json\`, \`${reportDir}/field-data.json\`, \`${reportDir}/search-console.json\`, \`${reportDir}/url-inspection.json\`, \`${reportDir}/rum-vitals.json\`, \`${reportDir}/performance-audit.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
-2. Complete \`${reportDir}/agent-review.json\`, search-intent, agent-skills, copy recommendations, \`${reportDir}/executive-summary.md\`, and \`${reportDir}/final-audit.md\` from cited evidence.
-3. Re-render and strict-lint the report before implementation.
-4. Implement safe fixes that are applicable to the current source repo.
-5. Do not implement policy/auth/payment/indexing/canonical/MCP mutation changes without explicit approval.
-6. Re-run \`seo-polish scan ${target} --output ${reportDir}\`.
-7. Re-run \`seo-polish report lint ${reportDir} --strict\`, \`seo-polish validate --report ${reportDir}\`, \`seo-polish benchmark --report ${reportDir}\`, \`seo-polish plan build --report ${reportDir}\`, and project build/test/security gates.
+1. Follow the communication contract. ${renderAgentCommunicationPromptClause()}
+2. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/agent-review-input.json\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/actionability.json\`, \`${reportDir}/repo-analysis.json\`, \`${reportDir}/tech-stack.json\`, \`${reportDir}/browser-evidence.json\`, \`${reportDir}/field-data.json\`, \`${reportDir}/search-console.json\`, \`${reportDir}/url-inspection.json\`, \`${reportDir}/rum-vitals.json\`, \`${reportDir}/performance-audit.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
+3. Complete \`${reportDir}/agent-review.json\`, search-intent, agent-skills, copy recommendations, \`${reportDir}/executive-summary.md\`, and \`${reportDir}/final-audit.md\` from cited evidence.
+4. Re-render and strict-lint the report before implementation.
+5. Implement safe fixes that are applicable to the current source repo.
+6. Do not implement policy/auth/payment/indexing/canonical/MCP mutation changes without explicit approval.
+7. Re-run \`seo-polish scan ${target} --output ${reportDir}\`.
+8. Re-run \`seo-polish report lint ${reportDir} --strict\`, \`seo-polish validate --report ${reportDir}\`, \`seo-polish benchmark --report ${reportDir}\`, \`seo-polish plan build --report ${reportDir}\`, and project build/test/security gates.
 `;
 }
 
@@ -423,6 +430,7 @@ function renderImplementationPlan(
 
 function renderAgentSpecificInstructions(): string {
   return `- Repo-capable agents: start from \`agent-execution-plan.md\`, then use structured JSON artifacts for details.
+- Communication: run quietly by default; only message for approvals, blockers, safety boundaries, long-running delays, failed gates and completion.
 - Codex: use \`seo-polish scan\`, inspect structured JSON, then lint the report.
 - Claude Code: use generated report files, do not invent findings outside \`findings.json\`.
 - Gemini CLI: validate evidence and keep policy/auth/payment changes approval-required.

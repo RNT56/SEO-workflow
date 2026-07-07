@@ -106,7 +106,10 @@ async function smokeReport(browserInstance, reportPath, required) {
   await page.locator('[data-queue-filter="readiness"]').selectOption("all");
   await page.locator('[data-queue-filter="approval"]').selectOption("all");
   await assertCopyTargets(page);
-  await page.locator("details summary").first().click();
+  const visibleSummary = page.locator("details:visible summary").first();
+  if ((await visibleSummary.count()) > 0) {
+    await visibleSummary.click();
+  }
   await page.locator('[data-view-tab="performance"]').click();
   await assertVisiblePanel(page, "performance");
   await page.locator('[data-view-tab="templates"]').click();

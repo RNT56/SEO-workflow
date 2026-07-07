@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ReportBundle } from "@seo-polish/schemas";
 import { renderAgentExecutionPlan } from "./renderAgentExecutionPlan.js";
+import { renderAgentInstruction } from "./renderMarkdownReport.js";
 
 describe("renderAgentExecutionPlan", () => {
   it("renders the final handoff contract from report and benchmark data", () => {
@@ -22,10 +23,22 @@ describe("renderAgentExecutionPlan", () => {
     expect(plan).toContain("## Phase 4 - Approval-Required Queue");
     expect(plan).toContain("Confirm canonical strategy");
     expect(plan).toContain("## Agent Experience Benchmark");
+    expect(plan).toContain("## Agent Communication Contract");
+    expect(plan).toContain("Run quietly by default");
+    expect(plan).toContain("Do not narrate routine commands");
     expect(plan).toContain("Score: 73/100");
     expect(plan).toContain("## Complete Finding Queue");
     expect(plan).toContain("## Reusable Repo-Agent Prompt");
     expect(plan).toContain("seo-polish plan build --report <report-dir>");
+  });
+
+  it("renders the quiet communication contract into agent-specific instructions", () => {
+    const instructions = renderAgentInstruction("codex", bundle);
+
+    expect(instructions).toContain("## Agent Communication Contract");
+    expect(instructions).toContain("Run quietly by default");
+    expect(instructions).toContain("Do not narrate routine commands");
+    expect(instructions).toContain("Final responses should include only");
   });
 });
 
