@@ -102,7 +102,7 @@ Rules:
 
 Execution order:
 
-1. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/actionability.json\`, \`${reportDir}/repo-analysis.json\`, \`${reportDir}/tech-stack.json\`, \`${reportDir}/browser-evidence.json\`, \`${reportDir}/performance-audit.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
+1. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/actionability.json\`, \`${reportDir}/repo-analysis.json\`, \`${reportDir}/tech-stack.json\`, \`${reportDir}/browser-evidence.json\`, \`${reportDir}/field-data.json\`, \`${reportDir}/search-console.json\`, \`${reportDir}/url-inspection.json\`, \`${reportDir}/rum-vitals.json\`, \`${reportDir}/performance-audit.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
 2. Implement safe fixes that are applicable to the current source repo.
 3. Do not implement policy/auth/payment/indexing/canonical/MCP mutation changes without explicit approval.
 4. Re-run \`seo-polish scan ${target} --output ${reportDir}\`.

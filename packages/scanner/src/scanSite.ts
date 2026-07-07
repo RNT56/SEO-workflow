@@ -9,11 +9,17 @@ import type {
 } from "@seo-polish/schemas";
 import { isPrivateUrl } from "@seo-polish/security";
 import { classifySite, detectFramework } from "./classify.js";
-import { browserEvidenceEntries, endpointEvidence, pageEvidence } from "./evidence.js";
+import {
+  browserEvidenceEntries,
+  endpointEvidence,
+  fieldDataEvidenceEntries,
+  pageEvidence
+} from "./evidence.js";
 import { fetchUrl, probeEndpoint } from "./fetch.js";
 import { extractHtmlSnapshot } from "./html.js";
 import { buildPerformanceAudit } from "./performance.js";
 import { collectBrowserEvidence } from "./browserEvidence.js";
+import { collectFieldData } from "./fieldData.js";
 import { analyzeRepository } from "./repo.js";
 import { parseRobotsTxt } from "./robots.js";
 import { clusterRouteTemplates } from "./routeTemplates.js";
@@ -167,11 +173,13 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
     repo.frameworks[0] ??
     (firstPage ? detectFramework(firstPage.headers, firstPage.bodyExcerpt) : "unknown");
   const browserEvidence = await collectBrowserEvidence({ config, pages });
+  const fieldData = await collectFieldData({ config, pages, origin });
   const endpointValues = Object.values(endpoints);
   const evidence: Evidence[] = [
     ...endpointValues.map((probe, index) => endpointEvidence(probe, index)),
     ...pages.flatMap((page, index) => pageEvidence(page, index)),
-    ...browserEvidenceEntries(browserEvidence)
+    ...browserEvidenceEntries(browserEvidence),
+    ...fieldDataEvidenceEntries(fieldData)
   ];
   const performance = await buildPerformanceAudit({
     config,
@@ -179,7 +187,8 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
     pages,
     endpoints,
     pageHtml,
-    browserEvidence
+    browserEvidence,
+    fieldData
   });
   const routeTemplates = clusterRouteTemplates(pages, repo);
   const techStack = inferTechStack({
@@ -206,7 +215,8 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
     repo,
     performance,
     routeTemplates,
-    browserEvidence
+    browserEvidence,
+    fieldData
   };
 }
 

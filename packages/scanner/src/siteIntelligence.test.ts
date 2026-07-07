@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import type { BrowserEvidenceReport, PageSnapshot, ScanConfig } from "@seo-polish/schemas";
+import { collectFieldData } from "./fieldData.js";
 import { buildPerformanceAudit } from "./performance.js";
 import { analyzeRepository } from "./repo.js";
 import { discoverResources } from "./resourceDiscovery.js";
@@ -238,6 +239,76 @@ describe("site intelligence", () => {
       expect.objectContaining({ value: null, status: "not_measured", reliability: "not_measured" })
     );
   });
+
+  it("normalizes supplied RUM field data and lets field metrics outrank browser lab metrics", async () => {
+    const root = join(tmpdir(), `seo-polish-rum-${Date.now()}`);
+    await mkdir(root, { recursive: true });
+    const rumPath = join(root, "rum-vitals.json");
+    await writeFile(
+      rumPath,
+      JSON.stringify({
+        metrics: [
+          { metric: "LCP", p75: 900, samples: 120, goodRate: 0.96 },
+          { metric: "INP", p75: 140, samples: 118, goodRate: 0.93 },
+          { metric: "CLS", p75: 0.03, samples: 120, goodRate: 0.99 }
+        ]
+      }),
+      "utf8"
+    );
+    const config = { ...scanConfig(), fieldDataProviders: ["rum" as const], rumDataPath: rumPath };
+    const fieldData = await collectFieldData({
+      config,
+      origin: "https://example.com",
+      pages: [page("https://example.com/")]
+    });
+    const performance = await buildPerformanceAudit({
+      config,
+      origin: "https://example.com",
+      pages: [page("https://example.com/")],
+      endpoints: {},
+      pageHtml: new Map([["https://example.com/", "<html><head></head><body>Hello</body></html>"]]),
+      browserEvidence: browserEvidenceReport(),
+      fieldData
+    });
+
+    expect(fieldData.status).toBe("ok");
+    expect(fieldData.summary.providersAvailable).toEqual(["rum"]);
+    expect(performance.metrics.find((metric) => metric.id === "lcp-ms")).toEqual(
+      expect.objectContaining({ value: 900, reliability: "field", status: "passed" })
+    );
+    expect(performance.metrics.find((metric) => metric.id === "inp-ms")).toEqual(
+      expect.objectContaining({ value: 140, reliability: "field", status: "passed" })
+    );
+  });
+
+  it("records requested CrUX field data as unavailable when no API key is configured", async () => {
+    const previous = process.env.SEO_POLISH_CRUX_API_KEY;
+    const previousFallback = process.env.CRUX_API_KEY;
+    delete process.env.SEO_POLISH_CRUX_API_KEY;
+    delete process.env.CRUX_API_KEY;
+    try {
+      const fieldData = await collectFieldData({
+        config: { ...scanConfig(), fieldDataProviders: ["crux"] },
+        origin: "https://example.com",
+        pages: [page("https://example.com/")]
+      });
+
+      expect(fieldData.status).toBe("unavailable");
+      expect(fieldData.crux?.status).toBe("unavailable");
+      expect(fieldData.limitations.join(" ")).toContain("SEO_POLISH_CRUX_API_KEY");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.SEO_POLISH_CRUX_API_KEY;
+      } else {
+        process.env.SEO_POLISH_CRUX_API_KEY = previous;
+      }
+      if (previousFallback === undefined) {
+        delete process.env.CRUX_API_KEY;
+      } else {
+        process.env.CRUX_API_KEY = previousFallback;
+      }
+    }
+  });
 });
 
 function page(url: string): PageSnapshot {
@@ -354,6 +425,7 @@ function scanConfig(): ScanConfig {
     includeExperimentalStandards: true,
     includeAgentReadiness: true,
     includeSearchIntegrations: false,
+    fieldDataProviders: [],
     outputDir: "report",
     performanceRuns: 1,
     performanceBudgets: { documentFetchMs: 200, totalRequests: 10 },

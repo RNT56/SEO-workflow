@@ -56,6 +56,31 @@ export async function writeEvidenceStore(outputDir: string, scan: ScanResult): P
     "utf8"
   );
   await writeFile(
+    join(outputDir, "field-data.json"),
+    `${JSON.stringify(scan.fieldData ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "crux-history.json"),
+    `${JSON.stringify(scan.fieldData?.crux?.history ?? [], null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "search-console.json"),
+    `${JSON.stringify(scan.fieldData?.searchConsole ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "url-inspection.json"),
+    `${JSON.stringify(scan.fieldData?.searchConsole?.urlInspection ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(outputDir, "rum-vitals.json"),
+    `${JSON.stringify(scan.fieldData?.rum ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
     join(outputDir, "tech-stack.json"),
     `${JSON.stringify(scan.techStack ?? null, null, 2)}\n`,
     "utf8"

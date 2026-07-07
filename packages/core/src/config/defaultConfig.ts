@@ -19,8 +19,13 @@ export const DEFAULT_CONFIG: Omit<ScanConfig, "url"> = {
   includeExperimentalStandards: true,
   includeAgentReadiness: true,
   includeSearchIntegrations: false,
+  fieldDataProviders: [],
   outputDir: "seo-polish-report",
   performanceRuns: 2,
+  gscRowLimit: 250,
+  gscInspectionLimit: 5,
+  includeCruxHistory: false,
+  fieldDataUrlLimit: 3,
   performanceBudgets: {
     lcpMs: 2500,
     inpMs: 200,

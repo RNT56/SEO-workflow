@@ -310,6 +310,7 @@ function buildTemplateHeatmap(bundle: ReportBundle): ReportDashboardTemplateHeat
 function buildPerformanceSummary(bundle: ReportBundle): ReportDashboardPerformanceSummary {
   const performance = bundle.scan.performance;
   const browserEvidence = bundle.scan.browserEvidence;
+  const fieldData = bundle.scan.fieldData;
   const metrics = performance?.metrics ?? [notMeasuredPerformanceMetric()];
   const resources = performance?.resources ?? [];
   const documentDurations = (performance?.fetchTimings ?? [])
@@ -376,6 +377,36 @@ function buildPerformanceSummary(bundle: ReportBundle): ReportDashboardPerforman
         cls: 0,
         inp: 0
       }
+    },
+    fieldData: {
+      status: fieldData?.status ?? "disabled",
+      providersRequested: fieldData?.providersRequested ?? [],
+      providersAvailable: fieldData?.summary.providersAvailable ?? [],
+      metricCoverage: fieldData?.summary.metricCoverage ?? {
+        crux: {},
+        rum: {},
+        gsc: { searchAnalytics: false, urlInspection: false }
+      },
+      fieldOrigin: fieldData?.summary.origin ?? {
+        lcpP75Ms: null,
+        inpP75Ms: null,
+        clsP75: null,
+        ttfbP75Ms: null
+      },
+      searchConsole: fieldData?.summary.searchConsole ?? {
+        clicks: null,
+        impressions: null,
+        inspectedUrls: 0,
+        indexedUrls: 0,
+        nonIndexedUrls: 0
+      },
+      rum: fieldData?.summary.rum ?? {
+        lcpP75Ms: null,
+        inpP75Ms: null,
+        clsP75: null,
+        samples: null
+      },
+      limitations: fieldData?.limitations ?? ["Field data providers were not requested."]
     },
     limitations: performance?.limitations ?? ["Performance audit was not collected for this report."]
   };

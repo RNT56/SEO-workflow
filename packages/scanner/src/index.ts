@@ -6,6 +6,7 @@ export * from "./html.js";
 export * from "./classify.js";
 export * from "./performance.js";
 export * from "./browserEvidence.js";
+export * from "./fieldData.js";
 export * from "./repo.js";
 export * from "./resourceDiscovery.js";
 export * from "./routeTemplates.js";

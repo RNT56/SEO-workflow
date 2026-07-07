@@ -45,6 +45,7 @@ export function renderAgentExecutionPlan(
     "- `repo-analysis.json`: source repo path, dependency, route, metadata, deployment and SEO file candidates.",
     "- `route-templates.json`: URL template clusters and source candidates.",
     "- `browser-evidence.json`: browser-rendered DOM, console, runtime markers, resource timings and lab metric evidence.",
+    "- `field-data.json`, `crux-history.json`, `search-console.json`, `url-inspection.json`, `rum-vitals.json`: real-user and owner-auth evidence when requested.",
     "- `performance-audit.json`, `resource-timing.json`, `performance-runs.jsonl`: measured fetch/resource performance evidence.",
     "- `third-party-cost.json`, `largest-assets.json`, `critical-request-chain.json`: resource pressure drill-downs.",
     "- `actionability.json`: owner, readiness, source candidate and blocker summary for every finding.",
@@ -169,6 +170,7 @@ function renderDashboardSummary(dashboard: ReportDashboard): string {
     `- Route template heatmap entries: ${dashboard.templateHeatmap.length}`,
     `- Performance budget failures: ${dashboard.performanceSummary.statusCounts.failed}`,
     `- Browser evidence: ${dashboard.performanceSummary.browserEvidence.status}, ${dashboard.performanceSummary.browserEvidence.pagesVisited} sampled page(s)`,
+    `- Field data: ${dashboard.performanceSummary.fieldData.status}, providers ${dashboard.performanceSummary.fieldData.providersAvailable.join(", ") || "none available"}`,
     `- Baseline status: ${dashboard.baselineSummary.status}`
   ].join("\n");
 }
@@ -178,6 +180,7 @@ function renderSiteIntelligence(bundle: ReportBundle): string {
   const repo = bundle.scan.repo;
   const perf = bundle.scan.performance;
   const browser = bundle.scan.browserEvidence;
+  const fieldData = bundle.scan.fieldData;
   const templates = bundle.scan.routeTemplates ?? [];
   return [
     "Site intelligence:",
@@ -191,6 +194,11 @@ function renderSiteIntelligence(bundle: ReportBundle): string {
         ? `${browser.status}${browser.status === "ok" ? `, ${browser.summary.pagesVisited} sampled page(s), runtime ${[...browser.summary.detectedFrameworks, ...browser.summary.detectedBundlers].join(", ") || "no markers"}` : ""}`
         : "not collected"
     }`,
+    `- Field data: ${
+      fieldData
+        ? `${fieldData.status}, providers ${fieldData.summary.providersAvailable.join(", ") || "none available"}, CrUX LCP ${formatNullableMetric(fieldData.summary.origin.lcpP75Ms, "ms")}, GSC impressions ${fieldData.summary.searchConsole.impressions ?? "n/a"}`
+        : "not collected"
+    }`,
     `- Performance evidence: ${
       perf
         ? `${perf.summary.totalRequests} requests, ${perf.metrics.filter((metric) => metric.status === "failed").length} failed budget metrics`
@@ -201,7 +209,7 @@ function renderSiteIntelligence(bundle: ReportBundle): string {
         (metric) =>
           ["lcp-ms", "cls", "ttfb-ms", "fcp-ms"].includes(metric.id) && metric.reliability === "browser_lab"
       )
-        ? "browser lab evidence available for sampled pages; INP still requires interactions or field data"
+        ? "browser lab evidence available for sampled pages; field data takes precedence when present"
         : "not measured in this run; use browser/CDP or field data before making CWV claims"
     }`
   ].join("\n");
@@ -345,7 +353,7 @@ Website source repo: current workspace
 
 Run the remediation plan end to end:
 1. Read agent-execution-plan.md first.
-2. Read findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, route-templates.json, performance-audit.json, resource-timing.json, baseline-comparison.json, suppression-report.json, quality-gate.json, validation.json and benchmark.json if present.
+2. Read findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, resource-timing.json, baseline-comparison.json, suppression-report.json, quality-gate.json, validation.json and benchmark.json if present.
 3. Apply safe_auto_fix items first only when source candidates are clear and validation commands exist.
 4. Implement manual_strategy items where the source path is clear and normal project tests cover the change.
 5. Do not implement approval_required items until the owner explicitly approves them.
@@ -354,4 +362,8 @@ Run the remediation plan end to end:
 8. Commit and push only after all required gates pass.
 9. Summarize before/after score, changed files, remaining approvals and verification results.
 \`\`\``;
+}
+
+function formatNullableMetric(value: number | null, unit: string): string {
+  return value === null ? "n/a" : `${value}${unit}`;
 }

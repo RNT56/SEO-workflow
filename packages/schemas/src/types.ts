@@ -53,6 +53,8 @@ export type EvidenceType =
   | "browser_console"
   | "browser_metric"
   | "browser_runtime"
+  | "field_metric"
+  | "search_console"
   | "repo_file"
   | "tech_stack_signal"
   | "route_template"
@@ -68,6 +70,8 @@ export type ActionOwner =
 export type AutomationReadiness = "auto" | "repo_assisted" | "manual" | "approval_required";
 export type MeasurementReliability = "field" | "browser_lab" | "fetch_lab" | "heuristic" | "not_measured";
 export type BudgetStatus = "passed" | "warning" | "failed" | "not_measured";
+export type FieldDataProvider = "crux" | "gsc" | "rum";
+export type FieldDataStatus = "disabled" | "ok" | "partial" | "unavailable" | "failed";
 
 export interface ScanPolicy {
   search: "yes" | "no" | "neutral";
@@ -120,6 +124,7 @@ export interface ScanConfig {
   includeExperimentalStandards: boolean;
   includeAgentReadiness: boolean;
   includeSearchIntegrations: boolean;
+  fieldDataProviders: FieldDataProvider[];
   outputDir: string;
   policy: ScanPolicy;
   policyFile?: string;
@@ -130,6 +135,14 @@ export interface ScanConfig {
   baselinePath?: string;
   suppressions?: SuppressionRule[];
   suppressionsFile?: string;
+  gscSiteUrl?: string;
+  gscDateStart?: string;
+  gscDateEnd?: string;
+  gscRowLimit?: number;
+  gscInspectionLimit?: number;
+  rumDataPath?: string;
+  includeCruxHistory?: boolean;
+  fieldDataUrlLimit?: number;
 }
 
 export interface Evidence {
@@ -293,6 +306,16 @@ export interface ReportDashboardPerformanceSummary {
     detectedBundlers: string[];
     hydrationRiskUrls: string[];
     browserMetricCoverage: BrowserEvidenceReport["summary"]["browserMetricCoverage"];
+  };
+  fieldData: {
+    status: FieldDataReport["status"];
+    providersRequested: FieldDataProvider[];
+    providersAvailable: FieldDataProvider[];
+    metricCoverage: FieldDataReport["summary"]["metricCoverage"];
+    fieldOrigin: FieldDataReport["summary"]["origin"];
+    searchConsole: FieldDataReport["summary"]["searchConsole"];
+    rum: FieldDataReport["summary"]["rum"];
+    limitations: string[];
   };
   limitations: string[];
 }
@@ -633,6 +656,216 @@ export interface BrowserEvidenceReport {
   limitations: string[];
 }
 
+export type CruxFormFactor = "ALL" | "PHONE" | "DESKTOP" | "TABLET";
+export type CruxScope = "origin" | "url";
+export type CruxMetricName =
+  | "largest_contentful_paint"
+  | "interaction_to_next_paint"
+  | "cumulative_layout_shift"
+  | "first_contentful_paint"
+  | "experimental_time_to_first_byte";
+
+export interface CruxMetricHistogramBin {
+  start: number | string | null;
+  end: number | string | null;
+  density: number;
+}
+
+export interface CruxMetricResult {
+  metric: CruxMetricName;
+  p75: number | null;
+  unit: "ms" | "score";
+  goodDensity: number | null;
+  needsImprovementDensity: number | null;
+  poorDensity: number | null;
+  histogram: CruxMetricHistogramBin[];
+}
+
+export interface CruxRecordEvidence {
+  scope: CruxScope;
+  url: string;
+  formFactor: CruxFormFactor;
+  status: "ok" | "not_found" | "failed";
+  collectionPeriod?: {
+    firstDate: string;
+    lastDate: string;
+  };
+  normalizedUrl?: string;
+  metrics: CruxMetricResult[];
+  error?: string;
+}
+
+export interface CruxHistoryMetricPoint {
+  date: string;
+  metric: CruxMetricName;
+  p75: number | null;
+  goodDensity: number | null;
+  needsImprovementDensity: number | null;
+  poorDensity: number | null;
+}
+
+export interface CruxHistoryRecord {
+  scope: CruxScope;
+  url: string;
+  formFactor: CruxFormFactor;
+  status: "ok" | "not_found" | "failed" | "disabled";
+  points: CruxHistoryMetricPoint[];
+  error?: string;
+}
+
+export interface CruxFieldDataReport {
+  generatedAt: string;
+  status: FieldDataStatus;
+  requested: boolean;
+  source: "crux_api";
+  origin: string;
+  formFactors: CruxFormFactor[];
+  records: CruxRecordEvidence[];
+  history: CruxHistoryRecord[];
+  summary: {
+    recordsOk: number;
+    recordsNotFound: number;
+    recordsFailed: number;
+    originP75: Partial<Record<CruxMetricName, number>>;
+    phoneP75: Partial<Record<CruxMetricName, number>>;
+    desktopP75: Partial<Record<CruxMetricName, number>>;
+  };
+  limitations: string[];
+}
+
+export interface GscSearchAnalyticsRow {
+  keys: string[];
+  page?: string;
+  query?: string;
+  device?: string;
+  country?: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+export interface GscUrlInspectionResult {
+  inspectionUrl: string;
+  status: "ok" | "failed";
+  verdict?: string;
+  coverageState?: string;
+  robotsTxtState?: string;
+  indexingState?: string;
+  lastCrawlTime?: string;
+  pageFetchState?: string;
+  googleCanonical?: string;
+  userCanonical?: string;
+  referringUrls: string[];
+  rawResultAvailable: boolean;
+  error?: string;
+}
+
+export interface SearchConsoleReport {
+  generatedAt: string;
+  status: FieldDataStatus;
+  requested: boolean;
+  siteUrl?: string;
+  dateRange?: {
+    startDate: string;
+    endDate: string;
+  };
+  searchAnalytics: {
+    status: FieldDataStatus;
+    dimensions: string[];
+    rowLimit: number;
+    rows: GscSearchAnalyticsRow[];
+    totals: {
+      clicks: number;
+      impressions: number;
+      averageCtr: number | null;
+      averagePosition: number | null;
+    };
+    error?: string;
+  };
+  urlInspection: {
+    status: FieldDataStatus;
+    inspected: number;
+    limit: number;
+    results: GscUrlInspectionResult[];
+    error?: string;
+  };
+  summary: {
+    topPages: Array<{ page: string; clicks: number; impressions: number; position: number | null }>;
+    topQueries: Array<{ query: string; clicks: number; impressions: number; position: number | null }>;
+    indexedUrls: number;
+    nonIndexedUrls: number;
+  };
+  limitations: string[];
+}
+
+export interface RumVitalsMetric {
+  metric: "LCP" | "INP" | "CLS" | "TTFB" | "FCP";
+  p75: number;
+  unit: "ms" | "score";
+  samples: number | null;
+  goodRate: number | null;
+  url?: string;
+  route?: string;
+  device?: string;
+}
+
+export interface RumVitalsReport {
+  generatedAt: string;
+  status: FieldDataStatus;
+  requested: boolean;
+  sourcePath?: string;
+  metrics: RumVitalsMetric[];
+  summary: {
+    metricCount: number;
+    sampleCount: number | null;
+    p75: Partial<Record<RumVitalsMetric["metric"], number>>;
+    worstMetrics: RumVitalsMetric[];
+  };
+  limitations: string[];
+}
+
+export interface FieldDataReport {
+  generatedAt: string;
+  status: FieldDataStatus;
+  requested: boolean;
+  providersRequested: FieldDataProvider[];
+  crux?: CruxFieldDataReport;
+  searchConsole?: SearchConsoleReport;
+  rum?: RumVitalsReport;
+  summary: {
+    providersAvailable: FieldDataProvider[];
+    metricCoverage: {
+      crux: Partial<Record<CruxMetricName, boolean>>;
+      rum: Partial<Record<RumVitalsMetric["metric"], boolean>>;
+      gsc: {
+        searchAnalytics: boolean;
+        urlInspection: boolean;
+      };
+    };
+    origin: {
+      lcpP75Ms: number | null;
+      inpP75Ms: number | null;
+      clsP75: number | null;
+      ttfbP75Ms: number | null;
+    };
+    searchConsole: {
+      clicks: number | null;
+      impressions: number | null;
+      inspectedUrls: number;
+      indexedUrls: number;
+      nonIndexedUrls: number;
+    };
+    rum: {
+      lcpP75Ms: number | null;
+      inpP75Ms: number | null;
+      clsP75: number | null;
+      samples: number | null;
+    };
+  };
+  limitations: string[];
+}
+
 export interface TechStackSignal {
   category:
     | "framework"
@@ -766,6 +999,7 @@ export interface ScanResult {
   performance?: PerformanceAudit;
   routeTemplates?: RouteTemplateCluster[];
   browserEvidence?: BrowserEvidenceReport;
+  fieldData?: FieldDataReport;
 }
 
 export interface ReportBundle {

@@ -13,5 +13,6 @@
 - Added final agent execution plan output and `seo-polish plan build` handoff generation.
 - Added `report-dashboard.json` and the static execution cockpit report UI with implementation queues, impact/effort matrix, template heatmap, performance summaries, baseline comparison and evidence drawers.
 - Added optional browser evidence collection with rendered DOM comparison, console/network/runtime markers and browser lab metrics.
+- Added optional field-data collection for CrUX, Search Console and first-party RUM, with field metrics prioritized over lab evidence.
 - Added non-commercial package release preparation for `@seo-polish/cli` and its runtime package set.
 - Kept `@seo-polish/sdk` private and excluded from the npm release set.

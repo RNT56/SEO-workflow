@@ -36,6 +36,7 @@ const config: ScanConfig = {
   includeExperimentalStandards: false,
   includeAgentReadiness: true,
   includeSearchIntegrations: false,
+  fieldDataProviders: [],
   outputDir: "seo-polish-report",
   policy: {
     search: "yes",

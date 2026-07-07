@@ -173,6 +173,14 @@ export function validateReportDashboard(dashboard: ReportDashboard): SchemaValid
       "Dashboard must include browser evidence status."
     ),
     check(
+      "dashboard.field-data",
+      "Dashboard field data summary",
+      ["disabled", "ok", "partial", "unavailable", "failed"].includes(
+        dashboard.performanceSummary.fieldData.status
+      ),
+      "Dashboard must include field data status."
+    ),
+    check(
       "dashboard.evidence",
       "Dashboard evidence stats",
       dashboard.evidenceStats.evidenceEntries >= 0 && dashboard.evidenceStats.groupedFindings >= 0,

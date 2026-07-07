@@ -19,6 +19,18 @@ and captures:
 INP is intentionally not fabricated. It remains `not_measured` unless scripted interactions or field
 data are available.
 
+When the CLI is run with `--field-data`, the scanner can also attach real-user or owner-auth evidence:
+
+- `--field-data crux` queries the Chrome UX Report API with `SEO_POLISH_CRUX_API_KEY`.
+- `--field-data gsc --gsc-site <property>` reads Search Console Search Analytics and bounded URL
+  Inspection data with `SEO_POLISH_GSC_ACCESS_TOKEN`.
+- `--field-data rum --rum-file <path>` normalizes a first-party Web Vitals export into p75 metrics.
+
+Field data is bounded and summarized into `field-data.json`; supporting artifacts include
+`crux-history.json`, `search-console.json`, `url-inspection.json` and `rum-vitals.json`. Credential
+values are never stored in scan results. Performance metrics prefer first-party RUM, then CrUX field
+data, then browser lab samples, then `not_measured`.
+
 Live browser evidence is strong runtime evidence, but the source repo remains authoritative for private
 dependencies and exact implementation targets. Use `scan <url> --repo <path> --browser-evidence` for the
 best production remediation input.

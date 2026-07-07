@@ -100,6 +100,7 @@ pnpm --filter @seo-polish/cli seo-polish scan https://example.com \
   --repo ../website \
   --output ./seo-polish-report \
   --browser-evidence \
+  --field-data crux \
   --performance-runs 3 \
   --baseline ./previous-seo-polish-report \
   --budget-total-js-kb 250 \
@@ -109,6 +110,32 @@ pnpm --filter @seo-polish/cli seo-polish scan https://example.com \
 Add `--browser-evidence` when you want the workflow to launch a bounded browser lab pass. Add
 `--core-web-vitals` when you specifically want browser-only metrics such as LCP and CLS attempted.
 INP remains `not_measured` unless scripted interactions or field data are available.
+
+Add field data when you need real-user or owner-auth evidence:
+
+```bash
+SEO_POLISH_CRUX_API_KEY=... \
+pnpm --filter @seo-polish/cli seo-polish scan https://example.com \
+  --output ./seo-polish-report \
+  --field-data crux \
+  --crux-history
+
+SEO_POLISH_GSC_ACCESS_TOKEN=... \
+pnpm --filter @seo-polish/cli seo-polish scan https://example.com \
+  --output ./seo-polish-report \
+  --field-data gsc \
+  --gsc-site sc-domain:example.com
+
+pnpm --filter @seo-polish/cli seo-polish scan https://example.com \
+  --output ./seo-polish-report \
+  --field-data rum \
+  --rum-file ./rum-vitals.json
+```
+
+Credential values are read from the environment and are not written into report artifacts. CrUX is
+public aggregate Chrome field data. GSC requires owner-authorized Search Console access. RUM uses a
+first-party Web Vitals export supplied by the site owner. When a provider is requested but credentials
+or data are missing, the report records `unavailable` instead of failing the scan.
 
 ## Report bundle
 
@@ -127,6 +154,11 @@ Each scan writes `seo-polish-report/`. The required and high-signal files are:
 | `crawl-graph.json`          | Crawl relationship data                                                                                                           |
 | `raw-render-diff.json`      | Raw comparison data for fetch and rendered output                                                                                 |
 | `browser-evidence.json`     | Browser-rendered DOM, console errors, failed requests, runtime stack markers, resource timing and lab metric evidence             |
+| `field-data.json`           | Unified CrUX, Search Console and RUM field-data summary when requested                                                            |
+| `crux-history.json`         | Optional CrUX historical p75 trend points when `--crux-history` is enabled                                                        |
+| `search-console.json`       | Owner-auth Search Console Search Analytics summary when GSC is requested                                                          |
+| `url-inspection.json`       | Bounded URL Inspection results for sampled crawled URLs when GSC is requested                                                     |
+| `rum-vitals.json`           | First-party Web Vitals export normalized to p75 metrics when supplied                                                             |
 | `tech-stack.json`           | Framework, hosting, CDN, CMS, analytics, bundler and rendering signals                                                            |
 | `repo-analysis.json`        | Source repo framework, route, metadata, deployment and SEO file candidates                                                        |
 | `route-templates.json`      | Crawled URL clusters by route/template shape                                                                                      |
@@ -153,6 +185,11 @@ seo-polish-report/
   executive-summary.md
   report-dashboard.json
   browser-evidence.json
+  field-data.json
+  crux-history.json
+  search-console.json
+  url-inspection.json
+  rum-vitals.json
   crawl-graph.svg
   response-index.json
   header-index.json

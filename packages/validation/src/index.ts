@@ -20,6 +20,11 @@ const RECOMMENDED_SCAN_FILES = [
   "crawl-graph.svg",
   "raw-render-diff.json",
   "browser-evidence.json",
+  "field-data.json",
+  "crux-history.json",
+  "search-console.json",
+  "url-inspection.json",
+  "rum-vitals.json",
   "response-index.json",
   "header-index.json",
   "body-excerpts.json",
@@ -284,6 +289,49 @@ function validateScanArtifacts(scan: ScanResult): ValidationCheck[] {
       "warning"
     )
   );
+  checks.push(
+    check(
+      "intelligence.field-data",
+      "Field data status declared",
+      Boolean(scan.fieldData && scan.fieldData.status),
+      "The scan should include field-data.json with disabled, ok, partial, unavailable or failed status.",
+      "warning"
+    )
+  );
+  if ((scan.config.fieldDataProviders ?? []).length > 0) {
+    checks.push(
+      check(
+        "field-data.requested",
+        "Requested field data attempted",
+        Boolean(scan.fieldData?.requested),
+        "When field data providers are requested, field-data.json must record the attempt.",
+        "warning"
+      )
+    );
+  }
+  if (scan.fieldData?.crux) {
+    checks.push(
+      check(
+        "field-data.crux-bounded",
+        "CrUX records bounded",
+        scan.fieldData.crux.records.length <= 3 + (scan.config.fieldDataUrlLimit ?? 3),
+        "CrUX collection should stay bounded to origin device summaries plus sampled page URLs.",
+        "warning"
+      )
+    );
+  }
+  if (scan.fieldData?.searchConsole) {
+    checks.push(
+      check(
+        "field-data.gsc-bounded",
+        "Search Console payload bounded",
+        scan.fieldData.searchConsole.searchAnalytics.rows.length <= (scan.config.gscRowLimit ?? 250) &&
+          scan.fieldData.searchConsole.urlInspection.results.length <= (scan.config.gscInspectionLimit ?? 5),
+        "Search Console rows and URL inspections should respect configured limits.",
+        "warning"
+      )
+    );
+  }
   if (
     scan.config.includeBrowserEvidence ||
     scan.config.includeCoreWebVitals ||

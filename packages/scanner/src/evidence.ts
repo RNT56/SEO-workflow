@@ -1,4 +1,10 @@
-import type { BrowserEvidenceReport, EndpointProbe, Evidence, PageSnapshot } from "@seo-polish/schemas";
+import type {
+  BrowserEvidenceReport,
+  EndpointProbe,
+  Evidence,
+  FieldDataReport,
+  PageSnapshot
+} from "@seo-polish/schemas";
 
 export function evidenceId(prefix: string, index: number): string {
   return `${prefix}-${String(index + 1).padStart(4, "0")}`;
@@ -110,4 +116,69 @@ export function browserEvidenceEntries(browserEvidence: BrowserEvidenceReport): 
       timestamp: browserEvidence.generatedAt
     }
   ]);
+}
+
+export function fieldDataEvidenceEntries(fieldData: FieldDataReport): Evidence[] {
+  const generatedAt = fieldData.generatedAt;
+  const entries: Evidence[] = [
+    {
+      id: "field-data-status",
+      type: "field_metric",
+      value: {
+        status: fieldData.status,
+        requested: fieldData.requested,
+        providersRequested: fieldData.providersRequested,
+        providersAvailable: fieldData.summary.providersAvailable,
+        limitations: fieldData.limitations.slice(0, 8)
+      },
+      timestamp: generatedAt
+    }
+  ];
+
+  if (fieldData.crux) {
+    entries.push({
+      id: "field-data-crux-origin",
+      type: "field_metric",
+      url: fieldData.crux.origin,
+      value: {
+        status: fieldData.crux.status,
+        originP75: fieldData.crux.summary.originP75,
+        recordsOk: fieldData.crux.summary.recordsOk,
+        recordsNotFound: fieldData.crux.summary.recordsNotFound
+      },
+      timestamp: generatedAt
+    });
+  }
+
+  if (fieldData.rum) {
+    entries.push({
+      id: "field-data-rum-vitals",
+      type: "field_metric",
+      value: {
+        status: fieldData.rum.status,
+        p75: fieldData.rum.summary.p75,
+        sampleCount: fieldData.rum.summary.sampleCount
+      },
+      timestamp: generatedAt
+    });
+  }
+
+  if (fieldData.searchConsole) {
+    entries.push({
+      id: "search-console-summary",
+      type: "search_console",
+      value: {
+        status: fieldData.searchConsole.status,
+        siteUrl: fieldData.searchConsole.siteUrl,
+        clicks: fieldData.searchConsole.searchAnalytics.totals.clicks,
+        impressions: fieldData.searchConsole.searchAnalytics.totals.impressions,
+        inspectedUrls: fieldData.searchConsole.urlInspection.inspected,
+        indexedUrls: fieldData.searchConsole.summary.indexedUrls,
+        nonIndexedUrls: fieldData.searchConsole.summary.nonIndexedUrls
+      },
+      timestamp: generatedAt
+    });
+  }
+
+  return entries;
 }

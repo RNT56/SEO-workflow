@@ -264,6 +264,7 @@ function renderPerformanceView(dashboard: ReportDashboard): string {
       </div>
     </div>
     ${renderBrowserEvidencePanel(perf)}
+    ${renderFieldDataPanel(perf)}
     <div class="panel">
       <p class="panel-label">Third-Party Cost</p>
       <h2>${perf.thirdParty.requests} requests</h2>
@@ -281,6 +282,39 @@ function renderPerformanceView(dashboard: ReportDashboard): string {
       <p class="panel-label">Limitations</p>
       <ul class="compact-list">${perf.limitations.map((limitation) => `<li>${escapeHtml(limitation)}</li>`).join("")}</ul>
     </div>
+  </div>`;
+}
+
+function renderFieldDataPanel(perf: ReportDashboard["performanceSummary"]): string {
+  const field = perf.fieldData;
+  const providers =
+    field.providersAvailable.length > 0
+      ? field.providersAvailable.join(", ")
+      : field.providersRequested.length > 0
+        ? `requested: ${field.providersRequested.join(", ")}`
+        : "not requested";
+  return `<div class="panel">
+    <p class="panel-label">Field Data</p>
+    <h2>${escapeHtml(field.status)}</h2>
+    <p>${escapeHtml(providers)}</p>
+    <div class="timing-grid">
+      ${statCard("CrUX LCP", formatMetricValue(field.fieldOrigin.lcpP75Ms, "ms"), "origin p75")}
+      ${statCard("CrUX INP", formatMetricValue(field.fieldOrigin.inpP75Ms, "ms"), "origin p75")}
+      ${statCard("RUM LCP", formatMetricValue(field.rum.lcpP75Ms, "ms"), `${field.rum.samples ?? 0} samples`)}
+      ${statCard("GSC", field.searchConsole.impressions === null ? "n/a" : String(field.searchConsole.impressions), "impressions")}
+    </div>
+    <p>URL inspections: ${field.searchConsole.inspectedUrls}; indexed ${field.searchConsole.indexedUrls}, needs review ${field.searchConsole.nonIndexedUrls}.</p>
+    <details>
+      <summary>Provider limitations</summary>
+      <ul class="compact-list">${
+        field.limitations.length === 0
+          ? "<li>No field-data limitations recorded.</li>"
+          : field.limitations
+              .slice(0, 8)
+              .map((limitation) => `<li>${escapeHtml(limitation)}</li>`)
+              .join("")
+      }</ul>
+    </details>
   </div>`;
 }
 
@@ -360,7 +394,7 @@ function renderEvidenceView(bundle: ReportBundle, dashboard: ReportDashboard): s
     </div>
     <div class="panel">
       <p class="panel-label">Evidence Files</p>
-      <ul class="summary-list">${["findings.json", "evidence.jsonl", "report-dashboard.json", "browser-evidence.json", "performance-audit.json", "resource-timing.json", "route-templates.json", "validation.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul>
+      <ul class="summary-list">${["findings.json", "evidence.jsonl", "report-dashboard.json", "browser-evidence.json", "field-data.json", "crux-history.json", "search-console.json", "url-inspection.json", "rum-vitals.json", "performance-audit.json", "resource-timing.json", "route-templates.json", "validation.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul>
     </div>
   </div>
   <div class="panel">
@@ -515,7 +549,7 @@ function renderHtmlSection(number: number, title: string, bundle: ReportBundle):
     return renderUserDecisionSection(number, title, bundle);
   }
   if (number === 26) {
-    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages, ${bundle.scan.performance?.resources.length ?? 0} resource timing entries.</p><ul class="summary-list">${["report-dashboard.json", "tech-stack.json", "browser-evidence.json", "repo-analysis.json", "route-templates.json", "performance-audit.json", "resource-timing.json", "performance-runs.jsonl", "third-party-cost.json", "largest-assets.json", "critical-request-chain.json", "actionability.json", "baseline-comparison.json", "suppression-report.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul></section>`;
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages, ${bundle.scan.performance?.resources.length ?? 0} resource timing entries.</p><ul class="summary-list">${["report-dashboard.json", "tech-stack.json", "browser-evidence.json", "field-data.json", "crux-history.json", "search-console.json", "url-inspection.json", "rum-vitals.json", "repo-analysis.json", "route-templates.json", "performance-audit.json", "resource-timing.json", "performance-runs.jsonl", "third-party-cost.json", "largest-assets.json", "critical-request-chain.json", "actionability.json", "baseline-comparison.json", "suppression-report.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul></section>`;
   }
   if (number === 27) {
     return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>The final executable handoff is written to <code>agent-execution-plan.md</code>. Rebuild it after benchmark data with <code>seo-polish plan build --report ${escapeHtml(bundle.scan.config.outputDir)}</code>.</p></section>`;

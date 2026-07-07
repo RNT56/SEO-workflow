@@ -74,6 +74,7 @@ const bundle: ReportBundle = {
       includeExperimentalStandards: false,
       includeAgentReadiness: true,
       includeSearchIntegrations: false,
+      fieldDataProviders: [],
       outputDir: "seo-polish-report",
       policy: {
         search: "yes",

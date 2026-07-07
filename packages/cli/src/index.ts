@@ -16,6 +16,7 @@ import {
 import { renderAgentExecutionPlan, type AgentExecutionPlanBenchmark } from "@seo-polish/reporters";
 import type {
   Finding,
+  FieldDataProvider,
   PerformanceBudget,
   ReportDashboard,
   ReportBundle,
@@ -50,6 +51,11 @@ async function main(argv: string[]): Promise<void> {
     const framework = flagOptionalString(args, "framework");
     const baselinePath = flagOptionalString(args, "baseline");
     const suppressionsFile = flagOptionalString(args, "suppressions");
+    const gscSiteUrl = flagOptionalString(args, "gsc-site");
+    const gscDateStart = flagOptionalString(args, "gsc-start");
+    const gscDateEnd = flagOptionalString(args, "gsc-end");
+    const rumDataPath = flagOptionalString(args, "rum-file");
+    const requestedFieldDataProviders = fieldDataProviders(args);
     const budgets = budgetOverrides(args);
     const summary = await runScan({
       url,
@@ -60,11 +66,20 @@ async function main(argv: string[]): Promise<void> {
       siteType: flagString(args, "site-type", DEFAULT_CONFIG.siteType) as SiteType,
       includeBrowserEvidence: flagBoolean(args, "browser-evidence", DEFAULT_CONFIG.includeBrowserEvidence),
       includeCoreWebVitals: flagBoolean(args, "core-web-vitals", DEFAULT_CONFIG.includeCoreWebVitals),
+      gscRowLimit: flagNumber(args, "gsc-row-limit", DEFAULT_CONFIG.gscRowLimit ?? 250),
+      gscInspectionLimit: flagNumber(args, "gsc-inspection-limit", DEFAULT_CONFIG.gscInspectionLimit ?? 5),
+      includeCruxHistory: flagBoolean(args, "crux-history", DEFAULT_CONFIG.includeCruxHistory ?? false),
+      fieldDataUrlLimit: flagNumber(args, "field-data-url-limit", DEFAULT_CONFIG.fieldDataUrlLimit ?? 3),
       performanceRuns: flagNumber(args, "performance-runs", DEFAULT_CONFIG.performanceRuns ?? 1),
       ...(repoPath ? { repoPath } : {}),
       ...(framework ? { framework } : {}),
       ...(baselinePath ? { baselinePath } : {}),
       ...(suppressionsFile ? { suppressionsFile } : {}),
+      ...(requestedFieldDataProviders ? { fieldDataProviders: requestedFieldDataProviders } : {}),
+      ...(gscSiteUrl ? { gscSiteUrl } : {}),
+      ...(gscDateStart ? { gscDateStart } : {}),
+      ...(gscDateEnd ? { gscDateEnd } : {}),
+      ...(rumDataPath ? { rumDataPath } : {}),
       ...(Object.keys(budgets).length > 0 ? { performanceBudgets: budgets } : {}),
       includeExperimentalStandards: Boolean(
         args.flags["include-experimental"] ?? DEFAULT_CONFIG.includeExperimentalStandards
@@ -145,6 +160,7 @@ async function main(argv: string[]): Promise<void> {
           maxPages: 500,
           renderJs: "auto",
           respectRobotsTxt: true,
+          fieldDataProviders: [],
           outputDir: "seo-polish-report",
           policy: DEFAULT_CONFIG.policy
         },
@@ -320,6 +336,19 @@ function flagBoolean(args: ParsedArgs, key: string, fallback: boolean): boolean 
   return fallback;
 }
 
+function fieldDataProviders(args: ParsedArgs): FieldDataProvider[] | undefined {
+  const value = args.flags["field-data"];
+  if (typeof value !== "string") return undefined;
+  const providers = value
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .flatMap((item) => (item === "all" ? ["crux", "gsc", "rum"] : item === "none" ? [] : [item]));
+  const valid = new Set<FieldDataProvider>(["crux", "gsc", "rum"]);
+  return [...new Set(providers)].filter((provider): provider is FieldDataProvider =>
+    valid.has(provider as FieldDataProvider)
+  );
+}
+
 function budgetOverrides(args: ParsedArgs): PerformanceBudget {
   const budget: PerformanceBudget = {};
   setBudgetNumber(args, budget, "budget-lcp-ms", "lcpMs");
@@ -396,6 +425,7 @@ function printHelp(): void {
 Usage:
   seo-polish scan <url> [--output ./seo-polish-report] [--max-pages 50] [--repo ../site]
                    [--browser-evidence] [--core-web-vitals] [--performance-runs 3] [--baseline ./previous-report]
+                   [--field-data crux,gsc,rum] [--gsc-site sc-domain:example.com] [--rum-file ./rum-vitals.json]
                    [--budget-total-js-kb 250] [--suppressions ./suppressions.json]
   seo-polish plan --scan ./seo-polish-report/findings.json
   seo-polish plan build --report ./seo-polish-report

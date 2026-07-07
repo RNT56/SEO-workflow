@@ -9,7 +9,13 @@ import {
   validateReportDashboard,
   validateScore
 } from "@seo-polish/schemas";
-import type { Finding, ReportDashboard, ValidationCheck, ValidationResult } from "@seo-polish/schemas";
+import type {
+  FieldDataReport,
+  Finding,
+  ReportDashboard,
+  ValidationCheck,
+  ValidationResult
+} from "@seo-polish/schemas";
 import { findPrivateReferences, requiresApprovalForText } from "@seo-polish/security";
 
 export interface ReportLintOptions {
@@ -58,6 +64,7 @@ export async function lintReport(
     checks,
     "report-dashboard.json"
   );
+  const fieldData = await readJson<unknown>(join(reportDir, "field-data.json"), checks, "field-data.json");
   const remediationPlan = await readJson<unknown>(
     join(reportDir, "remediation-plan.json"),
     checks,
@@ -78,6 +85,10 @@ export async function lintReport(
 
   if (dashboard && typeof dashboard === "object") {
     checks.push(...validateReportDashboard(dashboard as ReportDashboard).checks);
+  }
+
+  if (fieldData && typeof fieldData === "object") {
+    checks.push(...lintFieldData(fieldData as FieldDataReport));
   }
 
   if (remediationPlan && typeof remediationPlan === "object") {
@@ -170,6 +181,30 @@ function lintHtmlReport(html: string): ValidationCheck[] {
         html.includes(`data-queue-filter="${filter}"`)
       ),
       "Report must include owner, fix class, readiness and approval filters."
+    )
+  ];
+}
+
+function lintFieldData(fieldData: FieldDataReport): ValidationCheck[] {
+  const serialized = JSON.stringify(fieldData);
+  return [
+    check(
+      "field-data.status",
+      "Field data status declared",
+      ["disabled", "ok", "partial", "unavailable", "failed"].includes(fieldData.status),
+      "field-data.json must declare a valid status."
+    ),
+    check(
+      "field-data.providers",
+      "Field data providers bounded",
+      fieldData.providersRequested.every((provider) => ["crux", "gsc", "rum"].includes(provider)),
+      "field-data.json must only include known provider names."
+    ),
+    check(
+      "field-data.no-credentials",
+      "Field data artifact excludes credentials",
+      !/(AIza[0-9A-Za-z_-]{20,}|Bearer\s+[0-9A-Za-z._-]+)/.test(serialized),
+      "field-data.json must not serialize API keys or bearer tokens."
     )
   ];
 }

@@ -23,6 +23,11 @@ Treat the generated report bundle as the execution contract. Start with:
 - `seo-polish-report/repo-analysis.json`
 - `seo-polish-report/tech-stack.json`
 - `seo-polish-report/browser-evidence.json`
+- `seo-polish-report/field-data.json`
+- `seo-polish-report/crux-history.json`
+- `seo-polish-report/search-console.json`
+- `seo-polish-report/url-inspection.json`
+- `seo-polish-report/rum-vitals.json`
 - `seo-polish-report/route-templates.json`
 - `seo-polish-report/performance-audit.json`
 - `seo-polish-report/resource-timing.json`
@@ -52,7 +57,7 @@ Website source repo: current workspace
 Run the workflow end to end:
 1. Build the SEO workflow if needed.
 2. Scan the live site into ./seo-polish-report with --repo pointing at the website source repo when available.
-3. Read agent-execution-plan.md and report-dashboard.json first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
+3. Read agent-execution-plan.md and report-dashboard.json first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
 4. Apply only safe_auto_fix items directly in the website source repo when source candidates are clear and validation commands exist.
 5. Treat manual_strategy items as normal implementation work that needs source inspection and engineering judgment.
 6. Do not make policy, auth, payment, indexing, canonical, crawler or MCP mutation changes without explicit approval.
@@ -69,9 +74,14 @@ pnpm --filter @seo-polish/cli seo-polish scan https://your-site.com \
   --repo . \
   --output ./seo-polish-report \
   --browser-evidence \
+  --field-data crux \
   --performance-runs 3 \
   --baseline ./previous-seo-polish-report
 ```
+
+For Search Console or first-party RUM prioritization, add `--field-data gsc --gsc-site <property>` with
+`SEO_POLISH_GSC_ACCESS_TOKEN`, or `--field-data rum --rum-file ./rum-vitals.json`. Field data changes
+priority and evidence strength; it does not remove approval gates.
 
 ## Approval gates
 

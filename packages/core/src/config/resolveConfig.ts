@@ -62,7 +62,30 @@ function readEnvConfig(): Partial<ScanConfig> {
   if (process.env.SEO_POLISH_OUTPUT_DIR) {
     config.outputDir = process.env.SEO_POLISH_OUTPUT_DIR;
   }
+  if (process.env.SEO_POLISH_FIELD_DATA) {
+    config.fieldDataProviders = normalizeFieldDataProviders(process.env.SEO_POLISH_FIELD_DATA);
+  }
+  if (process.env.SEO_POLISH_GSC_SITE) {
+    config.gscSiteUrl = process.env.SEO_POLISH_GSC_SITE;
+  }
+  if (process.env.SEO_POLISH_RUM_FILE) {
+    config.rumDataPath = process.env.SEO_POLISH_RUM_FILE;
+  }
   return config;
+}
+
+function normalizeFieldDataProviders(value: string): ScanConfig["fieldDataProviders"] {
+  const valid = new Set<ScanConfig["fieldDataProviders"][number]>(["crux", "gsc", "rum"]);
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((item) => item.trim().toLowerCase())
+        .flatMap((item) => (item === "all" ? ["crux", "gsc", "rum"] : item === "none" ? [] : [item]))
+    )
+  ].filter((provider): provider is ScanConfig["fieldDataProviders"][number] =>
+    valid.has(provider as ScanConfig["fieldDataProviders"][number])
+  );
 }
 
 function normalizeConfigObject(json: Record<string, unknown>): Partial<ScanConfig> {

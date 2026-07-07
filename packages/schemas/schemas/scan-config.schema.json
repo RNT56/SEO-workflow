@@ -12,12 +12,25 @@
     "respectRobotsTxt": { "type": "boolean" },
     "includeBrowserEvidence": { "type": "boolean" },
     "includeCoreWebVitals": { "type": "boolean" },
+    "fieldDataProviders": {
+      "type": "array",
+      "items": { "enum": ["crux", "gsc", "rum"] },
+      "uniqueItems": true
+    },
     "outputDir": { "type": "string" },
     "repoPath": { "type": "string" },
     "framework": { "type": "string" },
     "performanceRuns": { "type": "number", "minimum": 1, "maximum": 5 },
     "baselinePath": { "type": "string" },
     "suppressionsFile": { "type": "string" },
+    "gscSiteUrl": { "type": "string" },
+    "gscDateStart": { "type": "string" },
+    "gscDateEnd": { "type": "string" },
+    "gscRowLimit": { "type": "number", "minimum": 1, "maximum": 25000 },
+    "gscInspectionLimit": { "type": "number", "minimum": 0, "maximum": 50 },
+    "rumDataPath": { "type": "string" },
+    "includeCruxHistory": { "type": "boolean" },
+    "fieldDataUrlLimit": { "type": "number", "minimum": 0, "maximum": 25 },
     "performanceBudgets": {
       "type": "object",
       "properties": {

@@ -1,6 +1,7 @@
 import type {
   BrowserEvidenceReport,
   EndpointProbe,
+  FieldDataReport,
   FetchTimingSnapshot,
   PageSnapshot,
   PerformanceAudit,
@@ -22,6 +23,7 @@ export interface BuildPerformanceAuditInput {
   endpoints: Record<string, EndpointProbe>;
   pageHtml: Map<string, string>;
   browserEvidence?: BrowserEvidenceReport;
+  fieldData?: FieldDataReport;
 }
 
 export async function buildPerformanceAudit(input: BuildPerformanceAuditInput): Promise<PerformanceAudit> {
@@ -33,7 +35,8 @@ export async function buildPerformanceAudit(input: BuildPerformanceAuditInput): 
   const fetchTimings = await collectFetchTimings(input);
   const summary = summarizePerformance(fetchTimings, measuredResources);
   const browserMetrics = summarizeBrowserMetrics(input.browserEvidence);
-  const metrics = buildMetrics(summary, budgets, browserMetrics);
+  const fieldMetrics = summarizeFieldMetrics(input.fieldData);
+  const metrics = buildMetrics(summary, budgets, browserMetrics, fieldMetrics);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -54,6 +57,16 @@ export async function buildPerformanceAudit(input: BuildPerformanceAuditInput): 
               reliability: "browser_lab" as const
             }
           ]
+        : []),
+      ...(input.fieldData && input.fieldData.status !== "disabled"
+        ? [
+            {
+              id: "field-data",
+              label: "Real-user field data profile",
+              runs: Math.max(1, input.fieldData.summary.providersAvailable.length),
+              reliability: "field" as const
+            }
+          ]
         : [])
     ],
     metrics,
@@ -70,6 +83,12 @@ export async function buildPerformanceAudit(input: BuildPerformanceAuditInput): 
             "HTTP fetch timings and static resource discovery are measured, but browser rendering metrics are not collected in this run.",
             "LCP, INP, CLS and true TTFB require browser/CDP or field data and are marked not_measured when unavailable."
           ]),
+      ...(input.fieldData && input.fieldData.status !== "disabled"
+        ? [
+            "Field data was requested; available RUM and CrUX p75 metrics take precedence over lab metrics.",
+            "Search Console traffic data is used for prioritization context, not raw performance timing."
+          ]
+        : []),
       "Resource byte totals use Content-Length headers when available and are lower bounds when servers omit them."
     ]
   };
@@ -187,11 +206,30 @@ interface BrowserMetricSummary {
   cls: number | null;
 }
 
+interface FieldMetricSummary {
+  ttfbMs: SourceMetric;
+  fcpMs: SourceMetric;
+  lcpMs: SourceMetric;
+  inpMs: SourceMetric;
+  cls: SourceMetric;
+}
+
+interface SourceMetric {
+  value: number | null;
+  source: "rum" | "crux" | null;
+}
+
 function buildMetrics(
   summary: PerformanceAudit["summary"],
   budgets: PerformanceBudget,
-  browserMetrics: BrowserMetricSummary
+  browserMetrics: BrowserMetricSummary,
+  fieldMetrics: FieldMetricSummary
 ): PerformanceMetricSnapshot[] {
+  const ttfb = chooseMetric(fieldMetrics.ttfbMs, browserMetrics.ttfbMs);
+  const fcp = chooseMetric(fieldMetrics.fcpMs, browserMetrics.fcpMs);
+  const lcp = chooseMetric(fieldMetrics.lcpMs, browserMetrics.lcpMs);
+  const inp = chooseMetric(fieldMetrics.inpMs, null);
+  const cls = chooseMetric(fieldMetrics.cls, browserMetrics.cls);
   return [
     budgetMetric(
       "document-fetch-ms",
@@ -205,49 +243,75 @@ function buildMetrics(
     budgetMetric(
       "ttfb-ms",
       "Browser time to first byte",
-      browserMetrics.ttfbMs,
+      ttfb.value,
       "ms",
       budgets.ttfbMs,
-      browserMetrics.ttfbMs === null ? "not_measured" : "browser_lab",
-      browserMetrics.ttfbMs === null
+      ttfb.reliability,
+      ttfb.value === null
         ? ["Browser navigation timing evidence was not collected."]
-        : ["Median browser navigation responseStart minus requestStart from sampled pages."]
+        : [
+            metricEvidenceText(
+              ttfb.source,
+              "TTFB",
+              "Median browser navigation responseStart minus requestStart from sampled pages."
+            )
+          ]
     ),
     budgetMetric(
       "fcp-ms",
       "First Contentful Paint",
-      browserMetrics.fcpMs,
+      fcp.value,
       "ms",
       undefined,
-      browserMetrics.fcpMs === null ? "not_measured" : "browser_lab",
-      browserMetrics.fcpMs === null
+      fcp.reliability,
+      fcp.value === null
         ? ["Browser paint timing evidence was not collected."]
-        : ["Median browser paint timing from sampled pages."]
+        : [metricEvidenceText(fcp.source, "FCP", "Median browser paint timing from sampled pages.")]
     ),
     budgetMetric(
       "lcp-ms",
       "Largest Contentful Paint",
-      browserMetrics.lcpMs,
+      lcp.value,
       "ms",
       budgets.lcpMs,
-      browserMetrics.lcpMs === null ? "not_measured" : "browser_lab",
-      browserMetrics.lcpMs === null
+      lcp.reliability,
+      lcp.value === null
         ? ["Browser rendering evidence was not collected."]
-        : ["Median browser Largest Contentful Paint from sampled pages."]
+        : [
+            metricEvidenceText(
+              lcp.source,
+              "LCP",
+              "Median browser Largest Contentful Paint from sampled pages."
+            )
+          ]
     ),
-    budgetMetric("inp-ms", "Interaction to Next Paint", null, "ms", budgets.inpMs, "not_measured", [
-      "Browser interaction evidence was not collected."
-    ]),
+    budgetMetric(
+      "inp-ms",
+      "Interaction to Next Paint",
+      inp.value,
+      "ms",
+      budgets.inpMs,
+      inp.reliability,
+      inp.value === null
+        ? ["Browser interaction or field evidence was not collected."]
+        : [metricEvidenceText(inp.source, "INP", "Field Interaction to Next Paint p75.")]
+    ),
     budgetMetric(
       "cls",
       "Cumulative Layout Shift",
-      browserMetrics.cls,
+      cls.value,
       "score",
       budgets.cls,
-      browserMetrics.cls === null ? "not_measured" : "browser_lab",
-      browserMetrics.cls === null
+      cls.reliability,
+      cls.value === null
         ? ["Browser layout shift evidence was not collected."]
-        : ["Maximum browser Cumulative Layout Shift from sampled pages."]
+        : [
+            metricEvidenceText(
+              cls.source,
+              "CLS",
+              "Maximum browser Cumulative Layout Shift from sampled pages."
+            )
+          ]
     ),
     budgetMetric(
       "total-requests",
@@ -311,6 +375,83 @@ function summarizeBrowserMetrics(browserEvidence: BrowserEvidenceReport | undefi
     lcpMs: median(pages.map((page) => page.metrics.largestContentfulPaintMs).filter(isNumber)),
     cls: maxOrNull(pages.map((page) => page.metrics.cumulativeLayoutShift).filter(isNumber))
   };
+}
+
+function summarizeFieldMetrics(fieldData: FieldDataReport | undefined): FieldMetricSummary {
+  return {
+    ttfbMs: sourceMetric(
+      fieldData?.rum?.summary.p75.TTFB ?? null,
+      "rum",
+      fieldData?.summary.origin.ttfbP75Ms ?? null,
+      "crux"
+    ),
+    fcpMs: sourceMetric(
+      fieldData?.rum?.summary.p75.FCP ?? null,
+      "rum",
+      cruxP75(fieldData, "first_contentful_paint"),
+      "crux"
+    ),
+    lcpMs: sourceMetric(
+      fieldData?.summary.rum.lcpP75Ms ?? null,
+      "rum",
+      fieldData?.summary.origin.lcpP75Ms ?? null,
+      "crux"
+    ),
+    inpMs: sourceMetric(
+      fieldData?.summary.rum.inpP75Ms ?? null,
+      "rum",
+      fieldData?.summary.origin.inpP75Ms ?? null,
+      "crux"
+    ),
+    cls: sourceMetric(
+      fieldData?.summary.rum.clsP75 ?? null,
+      "rum",
+      fieldData?.summary.origin.clsP75 ?? null,
+      "crux"
+    )
+  };
+}
+
+function sourceMetric(
+  primaryValue: number | null | undefined,
+  primarySource: SourceMetric["source"],
+  fallbackValue: number | null | undefined,
+  fallbackSource: SourceMetric["source"]
+): SourceMetric {
+  if (typeof primaryValue === "number") return { value: primaryValue, source: primarySource };
+  if (typeof fallbackValue === "number") return { value: fallbackValue, source: fallbackSource };
+  return { value: null, source: null };
+}
+
+function cruxP75(fieldData: FieldDataReport | undefined, metric: "first_contentful_paint"): number | null {
+  return fieldData?.crux?.summary.originP75[metric] ?? null;
+}
+
+function chooseMetric(
+  fieldMetric: SourceMetric,
+  browserValue: number | null
+): {
+  value: number | null;
+  reliability: PerformanceMetricSnapshot["reliability"];
+  source: SourceMetric["source"] | "browser" | null;
+} {
+  if (fieldMetric.value !== null) {
+    return { value: fieldMetric.value, reliability: "field", source: fieldMetric.source };
+  }
+  if (browserValue !== null) {
+    return { value: browserValue, reliability: "browser_lab", source: "browser" };
+  }
+  return { value: null, reliability: "not_measured", source: null };
+}
+
+function metricEvidenceText(
+  source: SourceMetric["source"] | "browser" | null,
+  metric: string,
+  browserFallback: string
+): string {
+  if (source === "rum") return `First-party RUM ${metric} p75 from supplied Web Vitals export.`;
+  if (source === "crux") return `CrUX origin-level real-user ${metric} p75.`;
+  return browserFallback;
 }
 
 function budgetMetric(

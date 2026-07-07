@@ -56,6 +56,31 @@ async function writeRenderSupportFiles(reportDir: string, bundle: ReportBundle):
     "utf8"
   );
   await writeFile(
+    join(reportDir, "field-data.json"),
+    `${JSON.stringify(bundle.scan.fieldData ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(reportDir, "crux-history.json"),
+    `${JSON.stringify(bundle.scan.fieldData?.crux?.history ?? [], null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(reportDir, "search-console.json"),
+    `${JSON.stringify(bundle.scan.fieldData?.searchConsole ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(reportDir, "url-inspection.json"),
+    `${JSON.stringify(bundle.scan.fieldData?.searchConsole?.urlInspection ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(reportDir, "rum-vitals.json"),
+    `${JSON.stringify(bundle.scan.fieldData?.rum ?? null, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
     join(reportDir, "standards-registry.json"),
     `${JSON.stringify(buildStandardsSnapshot(), null, 2)}\n`,
     "utf8"
