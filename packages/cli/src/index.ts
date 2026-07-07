@@ -5,13 +5,16 @@ import { benchmarkAgentExperience, renderBenchmarkMarkdown } from "@seo-polish/b
 import {
   DEFAULT_CONFIG,
   runApply,
+  runExport,
   runPlan,
   runReportLint,
   runReportRender,
   runScan,
   runValidate,
   type RenderJsMode,
-  type SiteType
+  type SiteType,
+  type AuditExportFormat,
+  type AuditExportProfile
 } from "@seo-polish/core";
 import {
   buildFixtureAgentReview,
@@ -63,9 +66,11 @@ async function main(argv: string[]): Promise<void> {
     const rumDataPath = flagOptionalString(args, "rum-file");
     const requestedFieldDataProviders = fieldDataProviders(args);
     const budgets = budgetOverrides(args);
+    const outputDir = flagOptionalString(args, "output");
+    const auditRoot = flagOptionalString(args, "audit-root");
+    const auditName = flagOptionalString(args, "audit-name");
     const summary = await runScan({
       url,
-      outputDir: flagString(args, "output", DEFAULT_CONFIG.outputDir),
       maxPages: flagNumber(args, "max-pages", DEFAULT_CONFIG.maxPages),
       maxDepth: flagNumber(args, "max-depth", DEFAULT_CONFIG.maxDepth),
       renderJs: flagString(args, "render-js", DEFAULT_CONFIG.renderJs) as RenderJsMode,
@@ -77,6 +82,9 @@ async function main(argv: string[]): Promise<void> {
       includeCruxHistory: flagBoolean(args, "crux-history", DEFAULT_CONFIG.includeCruxHistory ?? false),
       fieldDataUrlLimit: flagNumber(args, "field-data-url-limit", DEFAULT_CONFIG.fieldDataUrlLimit ?? 3),
       performanceRuns: flagNumber(args, "performance-runs", DEFAULT_CONFIG.performanceRuns ?? 1),
+      ...(outputDir ? { outputDir } : {}),
+      ...(auditRoot ? { auditRoot } : {}),
+      ...(auditName ? { auditName } : {}),
       ...(repoPath ? { repoPath } : {}),
       ...(framework ? { framework } : {}),
       ...(baselinePath ? { baselinePath } : {}),
@@ -90,6 +98,21 @@ async function main(argv: string[]): Promise<void> {
       includeExperimentalStandards: Boolean(
         args.flags["include-experimental"] ?? DEFAULT_CONFIG.includeExperimentalStandards
       )
+    });
+    console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
+
+  if (command === "export") {
+    const reportDir = flagString(args, "report", args.positionals[0] ?? "seo-polish-report");
+    const outputPath = flagOptionalString(args, "output");
+    const summary = await runExport({
+      reportDir,
+      profile: flagString(args, "profile", "review") as AuditExportProfile,
+      format: flagString(args, "format", "zip") as AuditExportFormat,
+      ...(outputPath ? { outputPath } : {}),
+      includePrivatePaths: flagBoolean(args, "include-private-paths", false),
+      overwrite: flagBoolean(args, "overwrite", false)
     });
     console.log(JSON.stringify(summary, null, 2));
     return;
@@ -183,7 +206,7 @@ async function main(argv: string[]): Promise<void> {
           renderJs: "auto",
           respectRobotsTxt: true,
           fieldDataProviders: [],
-          outputDir: "seo-polish-report",
+          auditRoot: "audit-reports",
           policy: DEFAULT_CONFIG.policy
         },
         null,
@@ -251,7 +274,8 @@ async function main(argv: string[]): Promise<void> {
           node: process.version,
           cwd: process.cwd(),
           packageManager: "pnpm@11.10.0",
-          defaultOutput: DEFAULT_CONFIG.outputDir,
+          defaultAuditRoot: DEFAULT_CONFIG.auditRoot,
+          defaultOutput: "audit-reports/<site>/<timestamp>-<scanId> unless --output is provided",
           commands: [
             "scan",
             "plan",
@@ -264,6 +288,7 @@ async function main(argv: string[]): Promise<void> {
             "policy init",
             "standards update",
             "benchmark",
+            "export",
             "doctor"
           ],
           safetyDefaults: DEFAULT_CONFIG.policy,
@@ -448,6 +473,7 @@ function printHelp(): void {
 
 Usage:
   seo-polish scan <url> [--output ./seo-polish-report] [--max-pages 50] [--repo ../site]
+                   [--audit-root ./audit-reports] [--audit-name "Company Name"]
                    [--browser-evidence] [--core-web-vitals] [--performance-runs 3] [--baseline ./previous-report]
                    [--field-data crux,gsc,rum] [--gsc-site sc-domain:example.com] [--rum-file ./rum-vitals.json]
                    [--budget-total-js-kb 250] [--suppressions ./suppressions.json]
@@ -461,6 +487,7 @@ Usage:
   seo-polish policy init
   seo-polish standards update --output ./seo-polish-report/standards-registry.json
   seo-polish benchmark --report ./seo-polish-report
+  seo-polish export --report ./audit-reports/example-com/<run> [--profile review|full|repo-import] [--format zip|directory]
   seo-polish doctor
 `);
 }

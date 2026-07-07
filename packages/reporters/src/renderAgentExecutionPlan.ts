@@ -4,8 +4,7 @@ import type {
   ReportDashboard,
   ReportDashboardQueueItem,
   ReportBundle,
-  ScoreCategory,
-  ValidationCheck
+  ScoreCategory
 } from "@seo-polish/schemas";
 import { buildReportDashboard } from "./buildReportDashboard.js";
 import {
@@ -72,6 +71,7 @@ export function renderAgentExecutionPlan(
     "- `manual-actions.md`: implementation notes for humans.",
     "- `remaining-user-decisions.md`: approval gates that must stay unresolved until the owner decides.",
     "- `validation.json`: current report and safety validation state.",
+    "- `audit-run.json`: storage metadata for the audit run folder, export profiles and privacy defaults.",
     "- `standards-registry.json`: standards and rule mapping snapshot.",
     options.benchmark
       ? "- `benchmark.json` and `benchmark.md`: agent-experience benchmark context."
@@ -135,9 +135,9 @@ export function renderAgentExecutionPlan(
     "",
     renderUserDecisionQueue(bundle.remediationPlan.userDecisions),
     "",
-    renderValidationPlan(bundle.validation.checks),
+    renderValidationPlan(bundle),
     "",
-    renderReusablePrompt(bundle.scan.config.url, bundle.scan.config.outputDir),
+    renderReusablePrompt(bundle),
     "",
     "## Completion Criteria",
     "",
@@ -376,7 +376,8 @@ function renderUserDecisionQueue(decisions: ReportBundle["remediationPlan"]["use
   return lines.join("\n");
 }
 
-function renderValidationPlan(checks: ValidationCheck[]): string {
+function renderValidationPlan(bundle: ReportBundle): string {
+  const checks = bundle.validation.checks;
   const warnings = checks.filter((check) => check.status === "warning");
   const failures = checks.filter((check) => check.status === "failed");
   const lines = [
@@ -385,7 +386,7 @@ function renderValidationPlan(checks: ValidationCheck[]): string {
     "Run these after each implementation pass:",
     "",
     "```bash",
-    "seo-polish scan <live-url> --output <report-dir>",
+    scanCommand(bundle),
     "seo-polish report lint <report-dir> --strict",
     "seo-polish validate --report <report-dir>",
     "seo-polish benchmark --report <report-dir>",
@@ -401,7 +402,9 @@ function renderValidationPlan(checks: ValidationCheck[]): string {
   return lines.join("\n");
 }
 
-function renderReusablePrompt(targetUrl: string, reportDir: string): string {
+function renderReusablePrompt(bundle: ReportBundle): string {
+  const targetUrl = bundle.scan.config.url;
+  const reportDir = bundle.scan.config.outputDir;
   return `## Reusable Repo-Agent Prompt
 
 Use this prompt inside the website source repository:
@@ -425,6 +428,28 @@ Run the remediation plan end to end:
 10. Commit and push only after all required gates pass.
 11. Summarize before/after score, changed files, remaining approvals and verification results.
 \`\`\``;
+}
+
+function scanCommand(bundle: ReportBundle): string {
+  const config = bundle.scan.config;
+  if (config.auditOutputMode === "auto" || config.auditRoot) {
+    const parts = ["seo-polish", "scan", shellArg(config.url)];
+    if (config.auditRoot) {
+      parts.push("--audit-root", shellArg(config.auditRoot));
+    }
+    if (config.auditName || config.auditSlug) {
+      parts.push("--audit-name", shellArg(config.auditName ?? config.auditSlug ?? ""));
+    }
+    if (config.repoPath) {
+      parts.push("--repo", shellArg(config.repoPath));
+    }
+    return parts.join(" ");
+  }
+  return `seo-polish scan ${shellArg(config.url)} --output ${shellArg(config.outputDir)}`;
+}
+
+function shellArg(value: string): string {
+  return /^[A-Za-z0-9_./:@-]+$/.test(value) ? value : JSON.stringify(value);
 }
 
 function formatNullableMetric(value: number | null, unit: string): string {

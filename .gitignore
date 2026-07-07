@@ -5,6 +5,7 @@ coverage/
 .DS_Store
 *.tsbuildinfo
 seo-polish-report/
+audit-reports/
 reports/
 .release-tarballs/
 .env

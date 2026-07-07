@@ -77,12 +77,12 @@ Final responses should stay concise: report path, final score and readiness stat
 Package usage after the npm release is published:
 
 ```bash
-pnpm dlx @seo-polish/cli seo-polish scan https://example.com --output ./seo-polish-report
+pnpm dlx @seo-polish/cli seo-polish scan https://example.com --audit-name "Example"
 # A repo-capable agent completes agent-review.json and related review artifacts from agent-review-input.json.
-pnpm dlx @seo-polish/cli seo-polish report render ./seo-polish-report
-pnpm dlx @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
-pnpm dlx @seo-polish/cli seo-polish benchmark --report ./seo-polish-report
-pnpm dlx @seo-polish/cli seo-polish plan build --report ./seo-polish-report
+pnpm dlx @seo-polish/cli seo-polish report render ./audit-reports/example/<run>
+pnpm dlx @seo-polish/cli seo-polish report lint ./audit-reports/example/<run> --strict
+pnpm dlx @seo-polish/cli seo-polish benchmark --report ./audit-reports/example/<run>
+pnpm dlx @seo-polish/cli seo-polish plan build --report ./audit-reports/example/<run>
 ```
 
 The npm package is non-commercial only. Review [License](LICENSE) before installing or running it.
@@ -100,13 +100,13 @@ pnpm build
 Run a scan and validate the report:
 
 ```bash
-pnpm --filter @seo-polish/cli seo-polish scan https://example.com --output ./seo-polish-report
+pnpm --filter @seo-polish/cli seo-polish scan https://example.com --audit-name "Example"
 # A repo-capable agent completes agent-review.json and related review artifacts from agent-review-input.json.
-pnpm --filter @seo-polish/cli seo-polish report render ./seo-polish-report
-pnpm --filter @seo-polish/cli seo-polish report lint ./seo-polish-report --strict
-pnpm --filter @seo-polish/cli seo-polish standards update --output ./seo-polish-report/standards-registry.json
-pnpm --filter @seo-polish/cli seo-polish benchmark --report ./seo-polish-report
-pnpm --filter @seo-polish/cli seo-polish plan build --report ./seo-polish-report
+pnpm --filter @seo-polish/cli seo-polish report render ./audit-reports/example/<run>
+pnpm --filter @seo-polish/cli seo-polish report lint ./audit-reports/example/<run> --strict
+pnpm --filter @seo-polish/cli seo-polish standards update --output ./audit-reports/example/<run>/standards-registry.json
+pnpm --filter @seo-polish/cli seo-polish benchmark --report ./audit-reports/example/<run>
+pnpm --filter @seo-polish/cli seo-polish plan build --report ./audit-reports/example/<run>
 pnpm --filter @seo-polish/cli seo-polish doctor
 ```
 
@@ -115,7 +115,8 @@ Run a repo-aware production scan when you have the website source repository:
 ```bash
 pnpm --filter @seo-polish/cli seo-polish scan https://example.com \
   --repo ../website \
-  --output ./seo-polish-report \
+  --audit-root ./audit-reports \
+  --audit-name "Example" \
   --browser-evidence \
   --field-data crux \
   --performance-runs 3 \
@@ -133,18 +134,18 @@ Add field data when you need real-user or owner-auth evidence:
 ```bash
 SEO_POLISH_CRUX_API_KEY=... \
 pnpm --filter @seo-polish/cli seo-polish scan https://example.com \
-  --output ./seo-polish-report \
+  --audit-name "Example" \
   --field-data crux \
   --crux-history
 
 SEO_POLISH_GSC_ACCESS_TOKEN=... \
 pnpm --filter @seo-polish/cli seo-polish scan https://example.com \
-  --output ./seo-polish-report \
+  --audit-name "Example" \
   --field-data gsc \
   --gsc-site sc-domain:example.com
 
 pnpm --filter @seo-polish/cli seo-polish scan https://example.com \
-  --output ./seo-polish-report \
+  --audit-name "Example" \
   --field-data rum \
   --rum-file ./rum-vitals.json
 ```
@@ -154,9 +155,56 @@ public aggregate Chrome field data. GSC requires owner-authorized Search Console
 first-party Web Vitals export supplied by the site owner. When a provider is requested but credentials
 or data are missing, the report records `unavailable` instead of failing the scan.
 
+## Audit storage and export
+
+By default, scans are stored outside the website source tree in deterministic audit folders:
+
+```text
+audit-reports/
+  example-com/
+    2026-07-07T081631Z-scan_mradiqnr/
+      index.html
+      final-audit.md
+      report-dashboard.json
+      findings.json
+      audit-run.json
+      exports/
+```
+
+Folder naming uses `--audit-name` when supplied, otherwise a URL/domain slug. The run folder contains
+the UTC timestamp and scan ID so repeated audits never overwrite each other. Use `--audit-root <dir>`
+or `SEO_POLISH_AUDIT_ROOT` to place audits in the SEO workflow repository when running from another
+project. Use `--output <dir>` only when you intentionally want a manual fixed path.
+
+Each completed scan also writes `audit-run.json`; auto-root scans update `audit-reports/audit-index.json`.
+
+Export a portable package:
+
+```bash
+seo-polish export --report ./audit-reports/example-com/<run> --profile review
+seo-polish export --report ./audit-reports/example-com/<run> --profile repo-import
+seo-polish export --report ./audit-reports/example-com/<run> --profile full --format directory
+```
+
+Export profiles:
+
+| Profile       | Purpose                                                          |
+| ------------- | ---------------------------------------------------------------- |
+| `review`      | Customer-readable report package with executive/audit narrative  |
+| `repo-import` | Repo-capable agent or human implementation handoff package       |
+| `full`        | Internal raw audit artifact package for complete forensic review |
+
+Exports include `export-manifest.json`, `checksums.sha256` and `LICENSE-NOTICE.md`. Local absolute
+paths are redacted by default; pass `--include-private-paths` only for trusted internal handoff.
+
+Cloud storage is intentionally not built into the core workflow. The workflow produces local zip or
+directory packages; an agent with explicitly authorized Google Drive, Dropbox, S3 or similar connector
+access can upload that package when the user asks. This keeps OAuth scopes, sharing permissions and
+storage secrets outside the audit engine.
+
 ## Report bundle
 
-Each scan writes `seo-polish-report/`. The required and high-signal files are:
+Each scan writes a complete report folder. The required and high-signal files are:
 
 | File                        | Purpose                                                                                                                           |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -191,10 +239,12 @@ Each scan writes `seo-polish-report/`. The required and high-signal files are:
 | `baseline-comparison.json`  | Score, finding and performance deltas against a configured previous report                                                        |
 | `suppression-report.json`   | Non-destructive ledger for intentional exceptions                                                                                 |
 | `quality-gate.json`         | Final report production gate status                                                                                               |
+| `audit-run.json`            | Storage metadata for the audit run folder, export profiles and privacy defaults                                                   |
 | `priority-action-plan.md`   | Ordered remediation summary                                                                                                       |
 | `standards-registry.json`   | Local standards snapshot and rule mapping metadata                                                                                |
 | `agent-instructions/*.md`   | Environment-specific execution guidance generated from the report                                                                 |
 | `agent-execution-plan.md`   | Source-repo handoff plan for repo-capable agents or human implementers                                                            |
+| `exports/`                  | Optional portable review, repo-import or full packages generated by `seo-polish export`                                           |
 
 The HTML report is a static execution cockpit. It has file-safe tabs for overview, agent review,
 implementation, performance, route templates, baseline comparison and evidence review. The implementation
@@ -238,8 +288,10 @@ seo-polish-report/
   github-pr-comment.md
   before-after-score.json
   remaining-user-decisions.md
+  audit-run.json
   benchmark.json
   benchmark.md
+  exports/
   agent-instructions/
     README.md
     codex.md
@@ -276,18 +328,19 @@ Commercial rights require prior written permission from the copyright holder.
 
 ## CLI commands
 
-| Command                                                                            | Use                                                       |
-| ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `seo-polish scan <url>`                                                            | Crawl and analyze a live site                             |
-| `seo-polish scan <url> --repo ../website --performance-runs 3`                     | Add repo-aware source candidates and repeated timing      |
-| `seo-polish scan <url> --baseline ./previous-report --suppressions ./rules.json`   | Compare against history and record intentional exceptions |
-| `seo-polish report lint ./seo-polish-report --strict --format summary`             | Validate the report contract                              |
-| `seo-polish report render ./seo-polish-report`                                     | Regenerate report UI, validation and quality gate         |
-| `seo-polish agent-review fixture --report ./seo-polish-report`                     | Write deterministic test review artifacts for fixtures    |
-| `seo-polish standards update --output ./seo-polish-report/standards-registry.json` | Write standards and rule coverage metadata                |
-| `seo-polish benchmark --report ./seo-polish-report`                                | Generate agent-experience benchmark files                 |
-| `seo-polish plan build --report ./seo-polish-report`                               | Build the final remediation handoff                       |
-| `seo-polish doctor`                                                                | Check runtime, standards registry and safety defaults     |
+| Command                                                                          | Use                                                       |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `seo-polish scan <url>`                                                          | Crawl and analyze a live site                             |
+| `seo-polish scan <url> --repo ../website --performance-runs 3`                   | Add repo-aware source candidates and repeated timing      |
+| `seo-polish scan <url> --baseline ./previous-report --suppressions ./rules.json` | Compare against history and record intentional exceptions |
+| `seo-polish report lint <audit-run-dir> --strict --format summary`               | Validate the report contract                              |
+| `seo-polish report render <audit-run-dir>`                                       | Regenerate report UI, validation and quality gate         |
+| `seo-polish agent-review fixture --report <audit-run-dir>`                       | Write deterministic test review artifacts for fixtures    |
+| `seo-polish standards update --output <audit-run-dir>/standards-registry.json`   | Write standards and rule coverage metadata                |
+| `seo-polish benchmark --report <audit-run-dir>`                                  | Generate agent-experience benchmark files                 |
+| `seo-polish plan build --report <audit-run-dir>`                                 | Build the final remediation handoff                       |
+| `seo-polish export --report <audit-run-dir> --profile review\|repo-import\|full` | Create a portable audit package                           |
+| `seo-polish doctor`                                                              | Check runtime, standards registry and safety defaults     |
 
 ## Repository packages
 

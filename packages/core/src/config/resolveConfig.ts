@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { ScanConfig } from "@seo-polish/schemas";
+import { auditSlugForTarget, initialAuditOutputDir } from "./auditOutput.js";
 import { DEFAULT_CONFIG } from "./defaultConfig.js";
 
 export type ScanConfigInput = Partial<ScanConfig> & { url: string };
@@ -8,8 +9,10 @@ export type ScanConfigInput = Partial<ScanConfig> & { url: string };
 export async function resolveConfig(input: ScanConfigInput): Promise<ScanConfig> {
   const fileConfig = await readConfigFile(input.repoPath ?? process.cwd());
   const envConfig = readEnvConfig();
+  const hasExplicitOutput =
+    hasOwn(input, "outputDir") || hasOwn(fileConfig, "outputDir") || hasOwn(envConfig, "outputDir");
 
-  const merged: ScanConfig = {
+  const mergedBase: ScanConfig = {
     ...DEFAULT_CONFIG,
     ...fileConfig,
     ...envConfig,
@@ -26,6 +29,14 @@ export async function resolveConfig(input: ScanConfigInput): Promise<ScanConfig>
       ...(envConfig.policy ?? {}),
       ...(input.policy ?? {})
     }
+  };
+
+  const auditSlug = mergedBase.auditSlug || auditSlugForTarget(mergedBase.url, mergedBase.auditName);
+  const merged: ScanConfig = {
+    ...mergedBase,
+    auditSlug,
+    auditOutputMode: hasExplicitOutput ? "explicit" : "auto",
+    outputDir: hasExplicitOutput ? mergedBase.outputDir : initialAuditOutputDir({ ...mergedBase, auditSlug })
   };
 
   const suppressionsFromFile = merged.suppressionsFile
@@ -62,6 +73,12 @@ function readEnvConfig(): Partial<ScanConfig> {
   if (process.env.SEO_POLISH_OUTPUT_DIR) {
     config.outputDir = process.env.SEO_POLISH_OUTPUT_DIR;
   }
+  if (process.env.SEO_POLISH_AUDIT_ROOT) {
+    config.auditRoot = process.env.SEO_POLISH_AUDIT_ROOT;
+  }
+  if (process.env.SEO_POLISH_AUDIT_NAME) {
+    config.auditName = process.env.SEO_POLISH_AUDIT_NAME;
+  }
   if (process.env.SEO_POLISH_FIELD_DATA) {
     config.fieldDataProviders = normalizeFieldDataProviders(process.env.SEO_POLISH_FIELD_DATA);
   }
@@ -72,6 +89,10 @@ function readEnvConfig(): Partial<ScanConfig> {
     config.rumDataPath = process.env.SEO_POLISH_RUM_FILE;
   }
   return config;
+}
+
+function hasOwn<T extends object>(object: T, key: PropertyKey): boolean {
+  return Object.prototype.hasOwnProperty.call(object, key);
 }
 
 function normalizeFieldDataProviders(value: string): ScanConfig["fieldDataProviders"] {

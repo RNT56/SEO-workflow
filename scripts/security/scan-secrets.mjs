@@ -10,6 +10,7 @@ const IGNORED_DIRS = new Set([
   "dist",
   "node_modules",
   "seo-polish-report",
+  "audit-reports",
   "reports"
 ]);
 

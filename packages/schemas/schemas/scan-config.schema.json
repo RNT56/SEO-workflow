@@ -18,6 +18,11 @@
       "uniqueItems": true
     },
     "outputDir": { "type": "string" },
+    "auditRoot": { "type": "string" },
+    "auditName": { "type": "string" },
+    "auditSlug": { "type": "string" },
+    "auditRunId": { "type": "string" },
+    "auditOutputMode": { "enum": ["auto", "explicit"] },
     "repoPath": { "type": "string" },
     "framework": { "type": "string" },
     "performanceRuns": { "type": "number", "minimum": 1, "maximum": 5 },

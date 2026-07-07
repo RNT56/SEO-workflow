@@ -72,6 +72,7 @@ export type MeasurementReliability = "field" | "browser_lab" | "fetch_lab" | "he
 export type BudgetStatus = "passed" | "warning" | "failed" | "not_measured";
 export type FieldDataProvider = "crux" | "gsc" | "rum";
 export type FieldDataStatus = "disabled" | "ok" | "partial" | "unavailable" | "failed";
+export type AuditOutputMode = "auto" | "explicit";
 export type AgentReviewStatus = "pending" | "complete" | "invalid";
 export type AgentReviewReviewer = "pending" | "agent" | "fixture";
 export type AgentReviewApprovalState = "not_required" | "approval_required";
@@ -131,6 +132,11 @@ export interface ScanConfig {
   includeSearchIntegrations: boolean;
   fieldDataProviders: FieldDataProvider[];
   outputDir: string;
+  auditRoot?: string;
+  auditName?: string;
+  auditSlug?: string;
+  auditRunId?: string;
+  auditOutputMode?: AuditOutputMode;
   policy: ScanPolicy;
   policyFile?: string;
   repoPath?: string;

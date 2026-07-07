@@ -136,8 +136,9 @@ Execution order:
 4. Re-render and strict-lint the report before implementation.
 5. Implement safe fixes that are applicable to the current source repo.
 6. Do not implement policy/auth/payment/indexing/canonical/MCP mutation changes without explicit approval.
-7. Re-run \`seo-polish scan ${target} --output ${reportDir}\`.
+7. Re-run \`${bundle ? agentInstructionScanCommand(bundle) : `seo-polish scan ${target} --audit-root ./audit-reports`}\`.
 8. Re-run \`seo-polish report lint ${reportDir} --strict\`, \`seo-polish validate --report ${reportDir}\`, \`seo-polish benchmark --report ${reportDir}\`, \`seo-polish plan build --report ${reportDir}\`, and project build/test/security gates.
+9. Export the final handoff with \`seo-polish export --report ${reportDir} --profile review\` or \`--profile repo-import\` when a portable package is needed.
 `;
 }
 
@@ -453,6 +454,28 @@ function agentExecutionNote(name: string): string {
     default:
       return "Use structured report artifacts as the execution contract.";
   }
+}
+
+function agentInstructionScanCommand(bundle: ReportBundle): string {
+  const config = bundle.scan.config;
+  if (config.auditOutputMode === "auto" || config.auditRoot) {
+    const parts = ["seo-polish", "scan", shellArg(config.url)];
+    if (config.auditRoot) {
+      parts.push("--audit-root", shellArg(config.auditRoot));
+    }
+    if (config.auditName || config.auditSlug) {
+      parts.push("--audit-name", shellArg(config.auditName ?? config.auditSlug ?? ""));
+    }
+    if (config.repoPath) {
+      parts.push("--repo", shellArg(config.repoPath));
+    }
+    return parts.join(" ");
+  }
+  return `seo-polish scan ${shellArg(config.url)} --output ${shellArg(config.outputDir)}`;
+}
+
+function shellArg(value: string): string {
+  return /^[A-Za-z0-9_./:@-]+$/.test(value) ? value : JSON.stringify(value);
 }
 
 function renderValidation(validation: ReportBundle["validation"]): string {

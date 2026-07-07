@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { writeEvidenceStore } from "@seo-polish/evidence";
 import { generatePatchBundle } from "@seo-polish/patchers";
@@ -28,16 +28,19 @@ import { calculateScore } from "@seo-polish/scoring";
 import { redactSensitiveValue } from "@seo-polish/security";
 import { buildStandardsSnapshot } from "@seo-polish/standards-registry";
 import { runValidation } from "@seo-polish/validation";
+import { finalizeAuditOutputConfig } from "../config/auditOutput.js";
 import type { ScanConfigInput } from "../config/resolveConfig.js";
 import { resolveConfig } from "../config/resolveConfig.js";
 
 export async function runScan(input: ScanConfigInput): Promise<ScanSummary> {
-  const config = await resolveConfig(input);
-  await mkdir(config.outputDir, { recursive: true });
+  const initialConfig = await resolveConfig(input);
 
-  const rawScan = await scanSite(config);
-  const rawFindings = evaluateRules(rawScan);
-  const scan = redactSensitiveValue(rawScan);
+  const rawScan = await scanSite(initialConfig);
+  const config = finalizeAuditOutputConfig(initialConfig, rawScan.scanId);
+  const rawScanWithFinalConfig = { ...rawScan, config };
+  await mkdir(config.outputDir, { recursive: true });
+  const rawFindings = evaluateRules(rawScanWithFinalConfig);
+  const scan = redactSensitiveValue(rawScanWithFinalConfig);
   const findings = rawFindings.map((finding) => redactSensitiveValue(finding));
   const score = calculateScore(findings);
   const remediationPlan = createRemediationPlan(findings);
@@ -98,12 +101,119 @@ export async function runScan(input: ScanConfigInput): Promise<ScanSummary> {
     agentReview: buildPendingAgentReview(finalBundle)
   });
   await writeFinalSupportFiles(config.outputDir, finalBundle, baselineComparison);
+  await writeAuditRunFiles(config.outputDir, finalBundle, qualityGate);
 
   return {
     scanId: scan.scanId,
     reportPath: config.outputDir,
     score,
     findingCounts: countFindings(findings)
+  };
+}
+
+async function writeAuditRunFiles(
+  outputDir: string,
+  bundle: ReportBundle,
+  qualityGate: ReportDashboardQualityGate
+): Promise<void> {
+  const config = bundle.scan.config;
+  const artifacts = [...new Set([...(await artifactList(outputDir)), "audit-run.json"])].sort();
+  const metadata = {
+    version: "2026-07-07.audit-storage",
+    generatedAt: new Date().toISOString(),
+    targetUrl: config.url,
+    scanId: bundle.scan.scanId,
+    startedAt: bundle.scan.startedAt,
+    completedAt: bundle.scan.completedAt,
+    auditRoot: config.auditRoot ?? null,
+    auditName: config.auditName ?? null,
+    auditSlug: config.auditSlug ?? null,
+    auditRunId: config.auditRunId ?? null,
+    auditOutputMode: config.auditOutputMode ?? "explicit",
+    reportPath: outputDir,
+    score: bundle.score.total,
+    level: bundle.score.level,
+    findingCounts: countFindings(bundle.findings),
+    qualityGateStatus: qualityGate.status ?? "failed",
+    productionReadiness: qualityGate.status ?? "failed",
+    artifacts,
+    exportProfiles: ["review", "full", "repo-import"],
+    privacy: {
+      exportsRedactLocalPathsByDefault: true,
+      cloudUploadRequiresExplicitUserDirection: true
+    }
+  };
+  await writeFile(join(outputDir, "audit-run.json"), `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
+
+  if (config.auditOutputMode === "auto" && config.auditRoot) {
+    await writeAuditIndex(config.auditRoot, metadata);
+  }
+}
+
+async function artifactList(outputDir: string): Promise<string[]> {
+  const entries = await readdir(outputDir, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .sort();
+}
+
+async function writeAuditIndex(
+  auditRoot: string,
+  metadata: Awaited<ReturnType<typeof buildAuditIndexEntry>>
+): Promise<void> {
+  await mkdir(auditRoot, { recursive: true });
+  const indexPath = join(auditRoot, "audit-index.json");
+  const existing = await readOptionalJson<{ version?: string; runs?: unknown[] }>(indexPath);
+  const runs = Array.isArray(existing?.runs) ? existing.runs : [];
+  const entry = buildAuditIndexEntry(metadata);
+  const filtered = runs.filter(
+    (item) =>
+      !(
+        item &&
+        typeof item === "object" &&
+        "scanId" in item &&
+        (item as { scanId?: unknown }).scanId === entry.scanId
+      )
+  );
+  await writeFile(
+    indexPath,
+    `${JSON.stringify({ version: "2026-07-07.audit-index", updatedAt: new Date().toISOString(), runs: [...filtered, entry] }, null, 2)}\n`,
+    "utf8"
+  );
+}
+
+function buildAuditIndexEntry(metadata: {
+  targetUrl: string;
+  scanId: string;
+  completedAt: string;
+  auditSlug: string | null;
+  auditRunId: string | null;
+  reportPath: string;
+  score: number;
+  level: string;
+  qualityGateStatus: string;
+}): {
+  targetUrl: string;
+  scanId: string;
+  completedAt: string;
+  auditSlug: string | null;
+  auditRunId: string | null;
+  reportPath: string;
+  score: number;
+  level: string;
+  qualityGateStatus: string;
+} {
+  return {
+    targetUrl: metadata.targetUrl,
+    scanId: metadata.scanId,
+    completedAt: metadata.completedAt,
+    auditSlug: metadata.auditSlug,
+    auditRunId: metadata.auditRunId,
+    reportPath: metadata.reportPath,
+    score: metadata.score,
+    level: metadata.level,
+    qualityGateStatus: metadata.qualityGateStatus
   };
 }
 

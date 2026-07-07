@@ -11,43 +11,78 @@ End-to-end remediation needs two inputs:
 
 If only the live URL is available, SEO polish workflow can still produce a full audit and remediation plan. It should not claim that implementation fixes were safely applied without source access.
 
+## Audit storage
+
+Do not scatter audit output into the website source tree by default. Store each run as a complete,
+portable folder under an audit root:
+
+```text
+audit-reports/
+  company-or-domain/
+    2026-07-07T081631Z-scan_mradiqnr/
+```
+
+When running from the SEO workflow repository, the default `audit-reports/` folder is correct. When a
+repo-capable agent is running from the website source repository, pass `--audit-root /path/to/SEO-workflow/audit-reports`
+or set `SEO_POLISH_AUDIT_ROOT` so the generated audit stays with the workflow repository instead of
+the target website repo. Use `--audit-name` for stable company/customer folder names. Use `--output`
+only for explicit one-off paths.
+
+After the report is complete, build a portable package with:
+
+```bash
+seo-polish export --report <audit-run-dir> --profile review
+seo-polish export --report <audit-run-dir> --profile repo-import
+seo-polish export --report <audit-run-dir> --profile full
+```
+
+The export command writes `export-manifest.json`, `checksums.sha256` and `LICENSE-NOTICE.md`; zip is
+the default format. Local absolute paths are redacted by default unless `--include-private-paths` is
+explicitly passed for trusted internal handoff.
+
+Cloud storage is an agent/connector concern, not a core audit concern. If the user explicitly asks and
+the agent has Google Drive, Dropbox, S3 or similar access, upload the generated export package. Do not
+embed OAuth, sharing or storage secrets into the workflow report itself.
+
 ## Source of truth
 
 Treat the generated report bundle as the execution contract. Start with:
 
-- `seo-polish-report/agent-execution-plan.md`
-- `seo-polish-report/agent-review-input.json`
-- `seo-polish-report/agent-review.json`
-- `seo-polish-report/search-intent-review.json`
-- `seo-polish-report/agent-skills-review.json`
-- `seo-polish-report/copy-recommendations.json`
-- `seo-polish-report/final-audit.md`
-- `seo-polish-report/executive-summary.md`
-- `seo-polish-report/report-dashboard.json`
-- `seo-polish-report/findings.json`
-- `seo-polish-report/remediation-plan.json`
-- `seo-polish-report/actionability.json`
-- `seo-polish-report/repo-analysis.json`
-- `seo-polish-report/tech-stack.json`
-- `seo-polish-report/browser-evidence.json`
-- `seo-polish-report/field-data.json`
-- `seo-polish-report/crux-history.json`
-- `seo-polish-report/search-console.json`
-- `seo-polish-report/url-inspection.json`
-- `seo-polish-report/rum-vitals.json`
-- `seo-polish-report/route-templates.json`
-- `seo-polish-report/performance-audit.json`
-- `seo-polish-report/resource-timing.json`
-- `seo-polish-report/priority-action-plan.md`
-- `seo-polish-report/patch.diff`
-- `seo-polish-report/manual-actions.md`
-- `seo-polish-report/baseline-comparison.json`
-- `seo-polish-report/suppression-report.json`
-- `seo-polish-report/remaining-user-decisions.md`
-- `seo-polish-report/validation.json`
-- `seo-polish-report/quality-gate.json`
-- `seo-polish-report/standards-registry.json`
-- `seo-polish-report/agent-instructions/`
+- `<audit-run-dir>/agent-execution-plan.md`
+- `<audit-run-dir>/agent-review-input.json`
+- `<audit-run-dir>/agent-review.json`
+- `<audit-run-dir>/search-intent-review.json`
+- `<audit-run-dir>/agent-skills-review.json`
+- `<audit-run-dir>/copy-recommendations.json`
+- `<audit-run-dir>/final-audit.md`
+- `<audit-run-dir>/executive-summary.md`
+- `<audit-run-dir>/report-dashboard.json`
+- `<audit-run-dir>/findings.json`
+- `<audit-run-dir>/remediation-plan.json`
+- `<audit-run-dir>/actionability.json`
+- `<audit-run-dir>/repo-analysis.json`
+- `<audit-run-dir>/tech-stack.json`
+- `<audit-run-dir>/browser-evidence.json`
+- `<audit-run-dir>/field-data.json`
+- `<audit-run-dir>/crux-history.json`
+- `<audit-run-dir>/search-console.json`
+- `<audit-run-dir>/url-inspection.json`
+- `<audit-run-dir>/rum-vitals.json`
+- `<audit-run-dir>/route-templates.json`
+- `<audit-run-dir>/performance-audit.json`
+- `<audit-run-dir>/resource-timing.json`
+- `<audit-run-dir>/priority-action-plan.md`
+- `<audit-run-dir>/patch.diff`
+- `<audit-run-dir>/manual-actions.md`
+- `<audit-run-dir>/baseline-comparison.json`
+- `<audit-run-dir>/suppression-report.json`
+- `<audit-run-dir>/remaining-user-decisions.md`
+- `<audit-run-dir>/validation.json`
+- `<audit-run-dir>/quality-gate.json`
+- `<audit-run-dir>/audit-run.json`
+- `<audit-run-dir>/standards-registry.json`
+- `<audit-run-dir>/agent-instructions/`
+- `<audit-run-dir>/exports/`
 
 No evidence means no finding, and no approval means no sensitive policy change.
 
@@ -103,7 +138,7 @@ Website source repo: current workspace
 Run the workflow end to end:
 1. Run quietly by default; message only for approvals, blockers, safety boundaries, long-running delays, failed gates and completion.
 2. Build the SEO workflow if needed.
-3. Scan the live site into ./seo-polish-report with --repo pointing at the website source repo when available.
+3. Scan the live site into the audit root with --repo pointing at the website source repo when available.
 4. Read agent-execution-plan.md, agent-review-input.json and report-dashboard.json first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
 5. Complete the mandatory agent review artifacts, executive summary, copy recommendations and final audit narrative from cited evidence.
 6. Run report render and strict report lint; do not implement fixes until the review gate passes.
@@ -121,7 +156,8 @@ Recommended scan command:
 ```bash
 pnpm --filter @seo-polish/cli seo-polish scan https://your-site.com \
   --repo . \
-  --output ./seo-polish-report \
+  --audit-root /path/to/SEO-workflow/audit-reports \
+  --audit-name "Your Site" \
   --browser-evidence \
   --field-data crux \
   --performance-runs 3 \

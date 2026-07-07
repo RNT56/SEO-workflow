@@ -6,36 +6,41 @@ Use this skill when scanning, reporting, validating or improving a website for S
 
 1. Run quietly by default. Message the user only for approvals, blockers, safety boundaries, long-running delays, failed gates and final completion.
 2. Put detailed evidence, logs, plans and reasoning into report artifacts instead of chat.
-3. Run the workflow through `seo-polish scan <url> --output ./seo-polish-report`; add `--repo <path>` when the website source repository is available.
+3. Run the workflow through `seo-polish scan <url> --audit-root ./audit-reports`; add `--repo <path>` when the website source repository is available.
 4. Use the generated structured files as the source of truth.
 5. Do not create a freeform-only audit report.
 6. Do not emit a finding without evidence.
 7. Do not publish policy, auth, payment, crawler, index/noindex, ambiguous canonical or mutating MCP changes without explicit approval.
-8. Build the final handoff with `seo-polish plan build --report ./seo-polish-report`.
-9. Validate with `seo-polish report lint ./seo-polish-report --strict`.
+8. Build the final handoff with `seo-polish plan build --report <audit-run-dir>`.
+9. Validate with `seo-polish report lint <audit-run-dir> --strict`.
+10. Export shareable packages with `seo-polish export --report <audit-run-dir> --profile review|repo-import|full`.
 
 ## Required outputs
 
-- `seo-polish-report/index.md`
-- `seo-polish-report/index.html`
-- `seo-polish-report/findings.json`
-- `seo-polish-report/score.json`
-- `seo-polish-report/evidence.jsonl`
-- `seo-polish-report/remediation-plan.json`
-- `seo-polish-report/validation.json`
-- `seo-polish-report/tech-stack.json`
-- `seo-polish-report/repo-analysis.json`
-- `seo-polish-report/route-templates.json`
-- `seo-polish-report/performance-audit.json`
-- `seo-polish-report/resource-timing.json`
-- `seo-polish-report/actionability.json`
-- `seo-polish-report/baseline-comparison.json`
-- `seo-polish-report/suppression-report.json`
-- `seo-polish-report/quality-gate.json`
-- `seo-polish-report/priority-action-plan.md`
-- `seo-polish-report/agent-execution-plan.md`
-- `seo-polish-report/standards-registry.json`
-- `seo-polish-report/agent-instructions/codex.md`
+The audit run directory must contain:
+
+- `index.md`
+- `index.html`
+- `findings.json`
+- `score.json`
+- `evidence.jsonl`
+- `remediation-plan.json`
+- `validation.json`
+- `tech-stack.json`
+- `repo-analysis.json`
+- `route-templates.json`
+- `performance-audit.json`
+- `resource-timing.json`
+- `actionability.json`
+- `baseline-comparison.json`
+- `suppression-report.json`
+- `quality-gate.json`
+- `priority-action-plan.md`
+- `agent-execution-plan.md`
+- `standards-registry.json`
+- `agent-instructions/codex.md`
+- `audit-run.json`
+- `exports/<profile>.zip`
 
 ## References
 

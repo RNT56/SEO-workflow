@@ -21,6 +21,8 @@ export const DEFAULT_CONFIG: Omit<ScanConfig, "url"> = {
   includeSearchIntegrations: false,
   fieldDataProviders: [],
   outputDir: "seo-polish-report",
+  auditRoot: "audit-reports",
+  auditOutputMode: "auto",
   performanceRuns: 2,
   gscRowLimit: 250,
   gscInspectionLimit: 5,
