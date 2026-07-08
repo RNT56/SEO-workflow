@@ -49,30 +49,21 @@ flowchart LR
 
 The workflow audits what users, crawlers and agents actually receive from the live site. Source repository access is optional for reporting, but required for safe implementation work. See [Agent remediation handoff](docs/agent-remediation.md) for source-backed execution patterns.
 
-## Agentic workflow architecture
+## Evidence-first remediation
 
-Yes, this is the right shape for an agentic remediation workflow when it is implemented with evidence and boundaries:
+SEO polish workflow separates measurement from judgment. The scanner records what the live site actually serves; the report then turns that evidence into prioritized, reviewable work.
 
-1. Audit the live production URL first, because agents should optimize what crawlers and users actually receive.
-2. Attach the website source repo only as a source map and implementation surface, not as a replacement for live evidence.
-3. Convert findings into a structured queue with owner, confidence, risk, approval gate, source candidates, validation command and expected impact.
-4. Build a bounded `agent-review-input.json` packet from deterministic evidence.
-5. Require an agent-authored review before production readiness: search intent, agent skills, strategic prioritization, copy proposals, executive summary and final audit narrative.
-6. Require a maintainer-facing workflow retrospective before declaring the workflow run fully complete.
-7. Keep risky decisions approval-gated: policy, auth, payment, index/noindex, ambiguous canonical strategy, crawler policy, commerce data, business claims, brand positioning and mutating MCP behavior.
-8. Generate a final execution plan that a human or repo-capable agent can apply, then rerun scan, lint, validation, benchmark, build, test and security gates.
+The result is an audit package that can be used in three ways:
 
-The workflow can audit with only a URL. It can produce repo-specific source candidates with `--repo <path>`. It should only apply fixes when the target website repository and its verification commands are available.
+| Mode           | What you get                                                                                       |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| URL-only audit | Evidence-backed findings, scores, rendered report, manual actions and approval-gated decisions     |
+| Repo-aware     | Source candidates, route/template mapping, safer implementation queues and validation commands     |
+| Agent-assisted | Evidence-linked strategic review, copy proposals, final audit narrative and implementation handoff |
 
-The AI agent does not replace the scanner. The scanner collects deterministic evidence first; the agent then writes the strategic review, understandable executive summary, final audit narrative and copy recommendations from that evidence. `quality-gate.json`, `production-readiness.json` and strict report lint remain failed until `agent-review.json` is complete and evidence-linked. After validation, the agent writes `workflow-retrospective.json` so maintainers can review noisy findings, missed signals, report UX friction and workflow improvement proposals without letting one audit auto-mutate the workflow.
+Repo access is useful, but it does not replace the live scan. It lets a human or repo-capable agent map findings to files, apply safe fixes, and run the website's own checks. Decisions that affect policy, auth, payment, indexing, canonical strategy, crawler rules, business claims, brand positioning or mutating MCP behavior stay approval-gated.
 
-## Agent communication contract
-
-Generated agent handoffs default to quiet execution. Agents should put detailed evidence, logs, plans and reasoning into report artifacts, not into chat.
-
-Agents should message the user only for approval gates, blockers, security or privacy boundaries, long-running delays, failed validation gates and final completion. Routine commands, file reads, scans, rerenders, lint passes, obvious next steps and raw command output should not be narrated unless the user asks for that detail.
-
-Final responses should stay concise: report path, final score and readiness status, top three to five actions, validation gates passed or failed, and remaining approvals, blockers or measurement limitations. The workflow cannot override higher-priority instructions from a host agent runtime, but its generated handoff files define the expected low-noise behavior.
+For agent-assisted audits, the scanner still remains the source of truth. The agent adds strategic review, plain-language narrative, copy proposals and implementation planning from the generated evidence packet. A private retrospective can also record workflow friction for maintainers, without changing rules or code automatically.
 
 ## Quickstart
 
@@ -80,12 +71,26 @@ Package usage after the npm release is published:
 
 ```bash
 pnpm dlx @seo-polish/cli seo-polish scan https://example.com --audit-name "Example"
-# A repo-capable agent completes agent-review.json and related review artifacts from agent-review-input.json.
 pnpm dlx @seo-polish/cli seo-polish report render ./audit-reports/example/<run>
+pnpm dlx @seo-polish/cli seo-polish export --report ./audit-reports/example/<run> --profile review
+```
+
+The scan creates `audit-reports/example/<run>/index.html` and the machine-readable report bundle.
+
+For a production-complete handoff, complete the generated review artifacts from `agent-review-input.json`
+first, then run the strict gates:
+
+```bash
 pnpm dlx @seo-polish/cli seo-polish report lint ./audit-reports/example/<run> --strict
 pnpm dlx @seo-polish/cli seo-polish benchmark --report ./audit-reports/example/<run>
 pnpm dlx @seo-polish/cli seo-polish plan build --report ./audit-reports/example/<run>
+```
+
+Maintainer learnings are internal. After a retrospective has been completed, validate and collect them with:
+
+```bash
 pnpm dlx @seo-polish/cli seo-polish learnings validate --report ./audit-reports/example/<run>
+pnpm dlx @seo-polish/cli seo-polish learnings collect --report ./audit-reports/example/<run>
 ```
 
 The npm package is non-commercial only. Review [License](LICENSE) before installing or running it.
@@ -100,12 +105,17 @@ pnpm install --frozen-lockfile
 pnpm build
 ```
 
-Run a scan and validate the report:
+Run a local development scan:
 
 ```bash
 pnpm --filter @seo-polish/cli seo-polish scan https://example.com --audit-name "Example"
-# A repo-capable agent completes agent-review.json and related review artifacts from agent-review-input.json.
 pnpm --filter @seo-polish/cli seo-polish report render ./audit-reports/example/<run>
+pnpm --filter @seo-polish/cli seo-polish export --report ./audit-reports/example/<run> --profile review
+```
+
+Run the stricter local gates after the review and retrospective artifacts have been completed:
+
+```bash
 pnpm --filter @seo-polish/cli seo-polish report lint ./audit-reports/example/<run> --strict
 pnpm --filter @seo-polish/cli seo-polish standards update --output ./audit-reports/example/<run>/standards-registry.json
 pnpm --filter @seo-polish/cli seo-polish benchmark --report ./audit-reports/example/<run>
@@ -158,6 +168,14 @@ Credential values are read from the environment and are not written into report 
 public aggregate Chrome field data. GSC requires owner-authorized Search Console access. RUM uses a
 first-party Web Vitals export supplied by the site owner. When a provider is requested but credentials
 or data are missing, the report records `unavailable` instead of failing the scan.
+
+## Low-noise agent handoff
+
+Generated agent handoffs default to quiet execution. Agents should put detailed evidence, logs, plans and reasoning into report artifacts, not into chat.
+
+Agents should message the user only for approval gates, blockers, security or privacy boundaries, long-running delays, failed validation gates and final completion. Routine commands, file reads, scans, rerenders, lint passes, obvious next steps and raw command output should not be narrated unless the user asks for that detail.
+
+Final responses should stay concise: report path, final score and readiness status, top three to five actions, validation gates passed or failed, and remaining approvals, blockers or measurement limitations. The workflow cannot override higher-priority instructions from a host agent runtime, but its generated handoff files define the expected low-noise behavior.
 
 ## Audit storage and export
 
