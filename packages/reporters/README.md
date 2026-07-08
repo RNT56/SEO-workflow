@@ -4,7 +4,8 @@ Renders SEO Polish Reports and enforces the report contract through a strict lin
 
 Rendered bundles include the Markdown/HTML report, structured JSON files, executive summary,
 priority action plan, mandatory agent review artifacts, final agent execution plan, PR comment and
-target-aware agent instruction files.
+target-aware agent instruction files. Bundles also include mandatory workflow retrospective artifacts for
+maintainer-facing learnings.
 
 The report contract includes production intelligence artifacts such as `report-dashboard.json`,
 `tech-stack.json`, `browser-evidence.json`, `field-data.json`, `crux-history.json`, `search-console.json`,
@@ -12,7 +13,8 @@ The report contract includes production intelligence artifacts such as `report-d
 `performance-audit.json`, `resource-timing.json`, `actionability.json`, `baseline-comparison.json`,
 `suppression-report.json`, `agent-review-input.json`, `agent-review.json`,
 `search-intent-review.json`, `agent-skills-review.json`, `copy-recommendations.json`,
-`final-audit.md` and `quality-gate.json`.
+`final-audit.md`, `workflow-retrospective.json`, `workflow-completion.json`,
+`workflow-learnings/` and `quality-gate.json`.
 
 `report-dashboard.json` is the stable execution cockpit model. It drives the HTML views for overview,
 mandatory agent review status, implementation queue, impact/effort matrix, route template heatmap,
@@ -22,3 +24,7 @@ and must keep tabs, filters, copy buttons and section anchors working under `fil
 Strict lint fails while `agent-review.json` is pending. Completed review artifacts must cite evidence IDs,
 finding IDs, affected URLs or source artifacts, and risky policy, indexability, auth, payment, crawler,
 MCP, business-claim and brand-positioning recommendations must stay approval-gated.
+
+Workflow retrospectives are private-by-default maintainer artifacts. They must cite report artifacts,
+finding IDs, evidence IDs, validation checks, report sections or blockers. They propose workflow
+improvements but do not authorize agents to mutate workflow code.

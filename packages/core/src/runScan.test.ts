@@ -85,6 +85,17 @@ describe("runScan", () => {
     expect(auditRun.auditOutputMode).toBe("auto");
     expect(auditRun.auditSlug).toBe("127-0-0-1");
     expect(auditRun.artifacts).toContain("index.html");
+    expect(auditRun.exportProfiles).toContain("learnings");
+
+    const retrospective = JSON.parse(
+      await readFile(join(summary.reportPath, "workflow-retrospective.json"), "utf8")
+    );
+    expect(retrospective.status).toBe("pending");
+
+    const completion = JSON.parse(
+      await readFile(join(summary.reportPath, "workflow-completion.json"), "utf8")
+    );
+    expect(completion.status).toBe("blocked");
 
     const index = JSON.parse(await readFile(join(auditRoot, "audit-index.json"), "utf8"));
     expect(index.runs.some((run: { scanId: string }) => run.scanId === summary.scanId)).toBe(true);

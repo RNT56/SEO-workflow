@@ -78,6 +78,23 @@ export type AgentReviewReviewer = "pending" | "agent" | "fixture";
 export type AgentReviewApprovalState = "not_required" | "approval_required";
 export type AgentReviewCategory =
   FindingCategory | "strategic" | "copywriting" | "search_intent" | "agent_skills";
+export type WorkflowRetrospectiveStatus = "pending" | "complete" | "invalid";
+export type WorkflowRetrospectiveReviewer = "pending" | "agent" | "fixture";
+export type WorkflowLearningCategory =
+  | "rule_gap"
+  | "report_ux_gap"
+  | "agent_friction"
+  | "artifact_gap"
+  | "false_positive"
+  | "missed_issue"
+  | "validation_gap"
+  | "documentation_gap"
+  | "export_gap"
+  | "other";
+export type WorkflowLearningSeverity = "critical" | "high" | "medium" | "low" | "info";
+export type WorkflowLearningPrivacy = "public" | "redacted" | "private";
+export type WorkflowMaintainerActionStatus = "proposed" | "accepted" | "rejected" | "implemented";
+export type WorkflowCompletionStatus = "complete" | "blocked";
 
 export interface ScanPolicy {
   search: "yes" | "no" | "neutral";
@@ -475,6 +492,83 @@ export interface AgentReviewInput {
     performance?: PerformanceAudit;
   };
   instructions: string[];
+}
+
+export interface WorkflowRetrospectiveEvidenceLink {
+  sourceArtifact?: string;
+  findingId?: string;
+  evidenceId?: string;
+  validationCheckId?: string;
+  reportSection?: string;
+  blockerId?: string;
+  note: string;
+}
+
+export interface WorkflowLearningItem {
+  id: string;
+  title: string;
+  category: WorkflowLearningCategory;
+  severity: WorkflowLearningSeverity;
+  privacy: WorkflowLearningPrivacy;
+  summary: string;
+  evidence: WorkflowRetrospectiveEvidenceLink[];
+  recommendation: string;
+  affectsWorkflowAreas: string[];
+  maintainerActionStatus: WorkflowMaintainerActionStatus;
+  redactionRequired: boolean;
+}
+
+export interface WorkflowRetrospectiveInput {
+  generatedAt: string;
+  status: "ready";
+  targetUrl: string;
+  reportContractVersion: string;
+  sourceArtifacts: string[];
+  score: Score;
+  findingCount: number;
+  groupedFindingCount: number;
+  validationSummary: Record<ValidationStatus, number> & { total: number };
+  qualityGateStatus: "passed" | "failed" | "unknown";
+  productionReadinessStatus: "passed" | "failed" | "unknown";
+  agentReviewStatus: AgentReviewStatus;
+  artifactInventory: string[];
+  topFindings: AgentReviewInput["topFindings"];
+  dashboardQueues: {
+    nextBestFixes: ReportDashboardQueueItem[];
+    implementationQueue: ReportDashboardQueueItem[];
+    approvalQueue: ReportDashboardQueueItem[];
+  };
+  reportUi: {
+    views: string[];
+    knownLimitations: string[];
+  };
+  instructions: string[];
+}
+
+export interface WorkflowRetrospective {
+  generatedAt: string;
+  status: WorkflowRetrospectiveStatus;
+  reviewer: WorkflowRetrospectiveReviewer;
+  targetUrl: string;
+  sourceArtifacts: string[];
+  summary: string;
+  workflowOutcome: "completed" | "blocked" | "partial";
+  whatWorked: string[];
+  ruleGaps: WorkflowLearningItem[];
+  reportUxGaps: WorkflowLearningItem[];
+  agentFriction: WorkflowLearningItem[];
+  maintainerActions: WorkflowLearningItem[];
+  limitations: string[];
+  evidence: WorkflowRetrospectiveEvidenceLink[];
+}
+
+export interface WorkflowCompletion {
+  generatedAt: string;
+  status: WorkflowCompletionStatus;
+  retrospectiveStatus: WorkflowRetrospectiveStatus;
+  reportProductionReady: boolean;
+  requiredActions: string[];
+  checks: ValidationCheck[];
 }
 
 export interface ReportDashboardAgentReviewSummary {

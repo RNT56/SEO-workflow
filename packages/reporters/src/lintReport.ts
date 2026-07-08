@@ -9,7 +9,9 @@ import {
   validateFindings,
   validateRemediationPlan,
   validateReportDashboard,
-  validateScore
+  validateScore,
+  validateWorkflowRetrospective,
+  validateWorkflowRetrospectiveInput
 } from "@seo-polish/schemas";
 import type {
   AgentReview,
@@ -19,7 +21,11 @@ import type {
   Finding,
   ReportDashboard,
   ValidationCheck,
-  ValidationResult
+  ValidationResult,
+  WorkflowCompletion,
+  WorkflowRetrospective,
+  WorkflowRetrospectiveEvidenceLink,
+  WorkflowRetrospectiveInput
 } from "@seo-polish/schemas";
 import { findPrivateReferences, requiresApprovalForText } from "@seo-polish/security";
 
@@ -80,6 +86,21 @@ export async function lintReport(
     checks,
     "agent-review.json"
   );
+  const workflowRetrospectiveInput = await readJson<unknown>(
+    join(reportDir, "workflow-retrospective-input.json"),
+    checks,
+    "workflow-retrospective-input.json"
+  );
+  const workflowRetrospective = await readJson<unknown>(
+    join(reportDir, "workflow-retrospective.json"),
+    checks,
+    "workflow-retrospective.json"
+  );
+  const workflowCompletion = await readJson<unknown>(
+    join(reportDir, "workflow-completion.json"),
+    checks,
+    "workflow-completion.json"
+  );
   const remediationPlan = await readJson<unknown>(
     join(reportDir, "remediation-plan.json"),
     checks,
@@ -122,6 +143,28 @@ export async function lintReport(
     );
   }
 
+  if (workflowRetrospectiveInput && typeof workflowRetrospectiveInput === "object") {
+    checks.push(
+      ...validateWorkflowRetrospectiveInput(workflowRetrospectiveInput as WorkflowRetrospectiveInput).checks
+    );
+  }
+
+  if (workflowRetrospective && typeof workflowRetrospective === "object") {
+    checks.push(...validateWorkflowRetrospective(workflowRetrospective as WorkflowRetrospective).checks);
+    checks.push(
+      ...lintWorkflowRetrospective(
+        workflowRetrospective as WorkflowRetrospective,
+        workflowRetrospectiveInput as WorkflowRetrospectiveInput | null,
+        Array.isArray(findings) ? findings : [],
+        checks
+      )
+    );
+  }
+
+  if (workflowCompletion && typeof workflowCompletion === "object") {
+    checks.push(...lintWorkflowCompletion(workflowCompletion as WorkflowCompletion));
+  }
+
   if (remediationPlan && typeof remediationPlan === "object") {
     checks.push(
       ...validateRemediationPlan(remediationPlan as Parameters<typeof validateRemediationPlan>[0]).checks
@@ -149,6 +192,19 @@ export async function lintReport(
         "Agent review public narrative secret scan",
         leaked.length === 0,
         "Agent-authored public outputs must not expose secret-looking values."
+      )
+    );
+  }
+
+  if (strict && workflowRetrospective && typeof workflowRetrospective === "object") {
+    const serializedRetrospective = JSON.stringify(workflowRetrospective);
+    const leaked = findPrivateReferences(serializedRetrospective).filter(isSecretLikeReference);
+    checks.push(
+      check(
+        "workflow-retrospective.no-private-output",
+        "Workflow retrospective secret scan",
+        leaked.length === 0,
+        "Workflow retrospective outputs must not expose secret-looking values."
       )
     );
   }
@@ -286,6 +342,85 @@ function lintAgentReview(
   return checks;
 }
 
+function lintWorkflowRetrospective(
+  retrospective: WorkflowRetrospective,
+  input: WorkflowRetrospectiveInput | null,
+  findings: Finding[],
+  validationChecks: ValidationCheck[]
+): ValidationCheck[] {
+  const checks: ValidationCheck[] = [];
+  const evidenceIds = new Set(findings.flatMap((finding) => finding.evidence.map((item) => item.id)));
+  const findingIds = new Set(findings.map((finding) => finding.id));
+  const validationCheckIds = new Set(validationChecks.map((item) => item.id));
+  const sourceArtifacts = new Set([...(input?.sourceArtifacts ?? []), ...REQUIRED_REPORT_FILES]);
+
+  checks.push(
+    check(
+      "workflow-retrospective.input-present",
+      "Workflow retrospective input present",
+      Boolean(input && input.status === "ready"),
+      "workflow-retrospective-input.json must exist before retrospective completion."
+    )
+  );
+
+  if (retrospective.status !== "complete") {
+    return checks;
+  }
+
+  const citedCollections: Array<[string, WorkflowRetrospectiveEvidenceLink[]]> = [
+    ["summary", Array.isArray(retrospective.evidence) ? retrospective.evidence : []],
+    ...workflowLearningItems(retrospective).map((item): [string, WorkflowRetrospectiveEvidenceLink[]] => [
+      item.id,
+      Array.isArray(item.evidence) ? item.evidence : []
+    ])
+  ];
+
+  for (const [id, evidence] of citedCollections) {
+    checks.push(
+      check(
+        `workflow-retrospective.${id}.evidence-supported`,
+        `${id} evidence supported`,
+        evidence.length > 0 &&
+          evidence.every((link) =>
+            retrospectiveEvidenceLinkSupported(
+              link,
+              sourceArtifacts,
+              findingIds,
+              evidenceIds,
+              validationCheckIds
+            )
+          ),
+        "Completed retrospective claims must cite source artifacts, finding IDs, evidence IDs, validation checks, report sections or blockers."
+      )
+    );
+  }
+
+  return checks;
+}
+
+function lintWorkflowCompletion(completion: WorkflowCompletion): ValidationCheck[] {
+  return [
+    check(
+      "workflow-completion.status",
+      "Workflow completion status",
+      completion.status === "complete" || completion.status === "blocked",
+      "workflow-completion.json must declare complete or blocked status."
+    ),
+    check(
+      "workflow-completion.retrospective-status",
+      "Workflow completion retrospective status",
+      ["pending", "complete", "invalid"].includes(completion.retrospectiveStatus),
+      "workflow-completion.json must include the retrospective status."
+    ),
+    check(
+      "workflow-completion.checks",
+      "Workflow completion checks",
+      Array.isArray(completion.checks) && completion.checks.length > 0,
+      "workflow-completion.json must include checks."
+    )
+  ];
+}
+
 function evidenceLinkSupported(
   link: AgentReviewEvidenceLink,
   evidenceIds: Set<string>,
@@ -299,6 +434,35 @@ function evidenceLinkSupported(
     (link.url && urls.has(link.url)) ||
     (link.sourceArtifact && sourceArtifacts.has(link.sourceArtifact))
   );
+}
+
+function retrospectiveEvidenceLinkSupported(
+  link: WorkflowRetrospectiveEvidenceLink,
+  sourceArtifacts: Set<string>,
+  findingIds: Set<string>,
+  evidenceIds: Set<string>,
+  validationCheckIds: Set<string>
+): boolean {
+  return Boolean(
+    (link.sourceArtifact && sourceArtifacts.has(link.sourceArtifact)) ||
+    (link.findingId && findingIds.has(link.findingId)) ||
+    (link.evidenceId && evidenceIds.has(link.evidenceId)) ||
+    (link.validationCheckId && validationCheckIds.has(link.validationCheckId)) ||
+    (link.reportSection && link.reportSection.trim().length > 0) ||
+    (link.blockerId && link.blockerId.trim().length > 0)
+  );
+}
+
+function workflowLearningItems(retrospective: WorkflowRetrospective): Array<{
+  id: string;
+  evidence: WorkflowRetrospectiveEvidenceLink[];
+}> {
+  return [
+    ...(Array.isArray(retrospective.ruleGaps) ? retrospective.ruleGaps : []),
+    ...(Array.isArray(retrospective.reportUxGaps) ? retrospective.reportUxGaps : []),
+    ...(Array.isArray(retrospective.agentFriction) ? retrospective.agentFriction : []),
+    ...(Array.isArray(retrospective.maintainerActions) ? retrospective.maintainerActions : [])
+  ];
 }
 
 function requiresReviewApproval(text: string): boolean {

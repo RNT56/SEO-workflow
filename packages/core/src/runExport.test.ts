@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -49,6 +49,24 @@ describe("runExport", () => {
     expect(archive.subarray(0, 4).toString("binary")).toBe("PK\u0003\u0004");
     expect(archive.includes(Buffer.from("export-manifest.json"))).toBe(true);
   });
+
+  it("creates a redacted maintainer learnings export", async () => {
+    const reportDir = await fixtureReport();
+    const summary = await runExport({ reportDir, profile: "learnings", format: "directory" });
+
+    expect(summary.profile).toBe("learnings");
+    const retrospective = await readFile(join(summary.outputPath, "workflow-retrospective.json"), "utf8");
+    expect(retrospective).toContain("[redacted-url]");
+    expect(retrospective).toContain("[redacted-local-path]");
+    expect(retrospective).not.toContain("https://example.com");
+    expect(retrospective).not.toContain("/Users/");
+
+    const manifest = JSON.parse(await readFile(join(summary.outputPath, "export-manifest.json"), "utf8"));
+    expect(manifest.targetUrl).toBe("[redacted-url]");
+    expect(manifest.privacy.siteIdentityRedacted).toBe(true);
+
+    await expect(readFile(join(summary.outputPath, "index.html"), "utf8")).rejects.toThrow();
+  });
 });
 
 async function fixtureReport(): Promise<string> {
@@ -80,5 +98,20 @@ async function fixtureReport(): Promise<string> {
   await writeFile(join(reportDir, "patch.diff"), "");
   await writeFile(join(reportDir, "repo-analysis.json"), '{"path":"/Users/mt/private/site"}\n');
   await writeFile(join(reportDir, "audit-run.json"), "{}\n");
+  await writeFile(
+    join(reportDir, "workflow-retrospective-input.json"),
+    '{"status":"ready","targetUrl":"https://example.com"}\n'
+  );
+  await writeFile(
+    join(reportDir, "workflow-retrospective.json"),
+    '{"status":"complete","targetUrl":"https://example.com","summary":"See /Users/mt/private/site and https://example.com/page"}\n'
+  );
+  await writeFile(join(reportDir, "workflow-retrospective.md"), "# Retrospective\n");
+  await writeFile(join(reportDir, "workflow-completion.json"), '{"status":"complete"}\n');
+  await mkdir(join(reportDir, "workflow-learnings"), { recursive: true });
+  await writeFile(join(reportDir, "workflow-learnings/rule-gaps.json"), "[]\n");
+  await writeFile(join(reportDir, "workflow-learnings/report-ux-gaps.json"), "[]\n");
+  await writeFile(join(reportDir, "workflow-learnings/agent-friction.json"), "[]\n");
+  await writeFile(join(reportDir, "workflow-learnings/maintainer-actions.json"), "[]\n");
   return reportDir;
 }

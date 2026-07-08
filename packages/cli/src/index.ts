@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { benchmarkAgentExperience, renderBenchmarkMarkdown } from "@seo-polish/benchmark";
 import {
   DEFAULT_CONFIG,
+  auditTimestamp,
   runApply,
   runExport,
   runPlan,
@@ -18,6 +19,7 @@ import {
 } from "@seo-polish/core";
 import {
   buildFixtureAgentReview,
+  buildFixtureWorkflowRetrospective,
   buildReportDashboard,
   renderAgentExecutionPlan,
   writeReportBundle,
@@ -27,11 +29,13 @@ import type {
   Finding,
   FieldDataProvider,
   PerformanceBudget,
+  AgentReview,
   ReportDashboard,
   ReportBundle,
   ScanResult,
   ValidationResult,
-  ValidationStatus
+  ValidationStatus,
+  WorkflowRetrospective
 } from "@seo-polish/schemas";
 import { buildStandardsSnapshot, validateStandardsRegistry } from "@seo-polish/standards-registry";
 
@@ -124,10 +128,17 @@ async function main(argv: string[]): Promise<void> {
     const bundle = await readReportBundle(reportDir);
     const benchmark = await readOptionalJson<AgentExecutionPlanBenchmark>(join(reportDir, "benchmark.json"));
     const dashboard = await readOptionalJson<ReportDashboard>(join(reportDir, "report-dashboard.json"));
+    const workflowRetrospective = await readOptionalJson<WorkflowRetrospective>(
+      join(reportDir, "workflow-retrospective.json")
+    );
     await mkdir(dirname(outputPath), { recursive: true });
     await writeFile(
       outputPath,
-      renderAgentExecutionPlan(bundle, { benchmark, ...(dashboard ? { dashboard } : {}) }),
+      renderAgentExecutionPlan(bundle, {
+        benchmark,
+        ...(dashboard ? { dashboard } : {}),
+        ...(workflowRetrospective ? { workflowRetrospective } : {})
+      }),
       "utf8"
     );
     console.log(JSON.stringify({ outputPath, benchmarkIncluded: Boolean(benchmark) }, null, 2));
@@ -196,6 +207,40 @@ async function main(argv: string[]): Promise<void> {
     return;
   }
 
+  if (command === "workflow-retrospective" && subcommand === "fixture") {
+    const reportDir = flagString(args, "report", args.positionals[0] ?? "seo-polish-report");
+    const bundle = await readReportBundle(reportDir);
+    const dashboard =
+      (await readOptionalJson<ReportDashboard>(join(reportDir, "report-dashboard.json"))) ??
+      buildReportDashboard(bundle);
+    const existingAgentReview = await readOptionalJson<AgentReview>(join(reportDir, "agent-review.json"));
+    const agentReview =
+      existingAgentReview?.status === "complete"
+        ? existingAgentReview
+        : buildFixtureAgentReview(bundle, dashboard);
+    const benchmark = await readOptionalJson<AgentExecutionPlanBenchmark>(join(reportDir, "benchmark.json"));
+    const workflowRetrospective = buildFixtureWorkflowRetrospective(bundle, dashboard, agentReview);
+    await writeReportBundle(reportDir, bundle, {
+      dashboard,
+      benchmark,
+      agentReview,
+      workflowRetrospective
+    });
+    await runReportRender(reportDir);
+    console.log(
+      JSON.stringify(
+        {
+          reportDir,
+          status: workflowRetrospective.status,
+          reviewer: workflowRetrospective.reviewer
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
   if (command === "policy" && subcommand === "init") {
     await writeFile(
       flagString(args, "output", "seo-polish.config.json"),
@@ -257,12 +302,50 @@ async function main(argv: string[]): Promise<void> {
     await writeFile(join(reportDir, "benchmark.md"), renderBenchmarkMarkdown(result), "utf8");
     const bundle = await readReportBundle(reportDir);
     const dashboard = await readOptionalJson<ReportDashboard>(join(reportDir, "report-dashboard.json"));
+    const workflowRetrospective = await readOptionalJson<WorkflowRetrospective>(
+      join(reportDir, "workflow-retrospective.json")
+    );
     await writeFile(
       join(reportDir, "agent-execution-plan.md"),
-      renderAgentExecutionPlan(bundle, { benchmark: result, ...(dashboard ? { dashboard } : {}) }),
+      renderAgentExecutionPlan(bundle, {
+        benchmark: result,
+        ...(dashboard ? { dashboard } : {}),
+        ...(workflowRetrospective ? { workflowRetrospective } : {})
+      }),
       "utf8"
     );
     console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  if (command === "learnings" && subcommand === "validate") {
+    const reportDir = flagString(args, "report", args.positionals[0] ?? "seo-polish-report");
+    const result = await validateLearnings(reportDir);
+    printValidationResult(result, args);
+    process.exitCode = result.ok ? 0 : 1;
+    return;
+  }
+
+  if (command === "learnings" && subcommand === "collect") {
+    const reportDir = flagString(args, "report", args.positionals[0] ?? "seo-polish-report");
+    const outputRoot = flagString(args, "output", "workflow-learnings/inbox");
+    const format = flagString(args, "format", "zip") as AuditExportFormat;
+    const scan = await readOptionalJson<ScanResult>(join(reportDir, "scan-result.json"));
+    const slug = scan?.config.auditSlug ?? basename(reportDir) ?? "site-audit";
+    const outputPath = join(
+      outputRoot,
+      format === "zip"
+        ? `seo-polish-learnings-${slug}-${auditTimestamp()}.zip`
+        : `seo-polish-learnings-${slug}-${auditTimestamp()}`
+    );
+    const summary = await runExport({
+      reportDir,
+      profile: "learnings",
+      format,
+      outputPath,
+      overwrite: flagBoolean(args, "overwrite", false)
+    });
+    console.log(JSON.stringify(summary, null, 2));
     return;
   }
 
@@ -285,6 +368,9 @@ async function main(argv: string[]): Promise<void> {
             "report lint",
             "report render",
             "agent-review fixture",
+            "workflow-retrospective fixture",
+            "learnings validate",
+            "learnings collect",
             "policy init",
             "standards update",
             "benchmark",
@@ -346,6 +432,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       (command[0] === "report" && command.length === 1) ||
       (command[0] === "plan" && command.length === 1) ||
       (command[0] === "agent-review" && command.length === 1) ||
+      (command[0] === "workflow-retrospective" && command.length === 1) ||
+      (command[0] === "learnings" && command.length === 1) ||
       (command[0] === "policy" && command.length === 1) ||
       (command[0] === "standards" && command.length === 1)
     ) {
@@ -484,12 +572,51 @@ Usage:
   seo-polish report lint ./seo-polish-report --strict [--format summary|full|json]
   seo-polish report render ./seo-polish-report
   seo-polish agent-review fixture --report ./seo-polish-report
+  seo-polish workflow-retrospective fixture --report ./seo-polish-report
+  seo-polish learnings validate --report ./seo-polish-report
+  seo-polish learnings collect --report ./seo-polish-report [--output ./workflow-learnings/inbox] [--format zip|directory]
   seo-polish policy init
   seo-polish standards update --output ./seo-polish-report/standards-registry.json
   seo-polish benchmark --report ./seo-polish-report
-  seo-polish export --report ./audit-reports/example-com/<run> [--profile review|full|repo-import] [--format zip|directory]
+  seo-polish export --report ./audit-reports/example-com/<run> [--profile review|full|repo-import|learnings] [--format zip|directory]
   seo-polish doctor
 `);
+}
+
+async function validateLearnings(reportDir: string): Promise<ValidationResult> {
+  const lint = await runReportLint(reportDir, true);
+  const retrospective = await readOptionalJson<WorkflowRetrospective>(
+    join(reportDir, "workflow-retrospective.json")
+  );
+  const completion = await readOptionalJson<{ status?: string }>(join(reportDir, "workflow-completion.json"));
+  const checks = lint.checks.filter(
+    (check) => check.id.includes("workflow-retrospective") || check.id.includes("workflow-completion")
+  );
+  checks.push({
+    id: "learnings.retrospective-complete",
+    title: "Retrospective complete",
+    status: retrospective?.status === "complete" ? "passed" : "failed",
+    severity: retrospective?.status === "complete" ? "info" : "error",
+    message:
+      retrospective?.status === "complete"
+        ? "workflow-retrospective.json is complete."
+        : "Complete workflow-retrospective.json before collecting maintainer learnings."
+  });
+  checks.push({
+    id: "learnings.workflow-complete",
+    title: "Workflow completion gate",
+    status: completion?.status === "complete" ? "passed" : "failed",
+    severity: completion?.status === "complete" ? "info" : "error",
+    message:
+      completion?.status === "complete"
+        ? "workflow-completion.json is complete."
+        : "Rerender the report after completing workflow-retrospective.json."
+  });
+  return {
+    ok: checks.every((check) => check.status !== "failed"),
+    generatedAt: new Date().toISOString(),
+    checks
+  };
 }
 
 async function readJson<T>(path: string): Promise<T> {

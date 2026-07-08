@@ -687,10 +687,10 @@ function renderHtmlSection(
     return renderUserDecisionSection(number, title, bundle);
   }
   if (number === 26) {
-    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages, ${bundle.scan.performance?.resources.length ?? 0} resource timing entries.</p><ul class="summary-list">${["report-dashboard.json", "agent-review-input.json", "agent-review.json", "search-intent-review.json", "agent-skills-review.json", "copy-recommendations.json", "final-audit.md", "tech-stack.json", "browser-evidence.json", "field-data.json", "crux-history.json", "search-console.json", "url-inspection.json", "rum-vitals.json", "repo-analysis.json", "route-templates.json", "performance-audit.json", "resource-timing.json", "performance-runs.jsonl", "third-party-cost.json", "largest-assets.json", "critical-request-chain.json", "actionability.json", "baseline-comparison.json", "suppression-report.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul></section>`;
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>${bundle.scan.evidence.length} evidence entries, ${bundle.scan.pages.length} crawled pages, ${bundle.scan.performance?.resources.length ?? 0} resource timing entries.</p><ul class="summary-list">${["report-dashboard.json", "agent-review-input.json", "agent-review.json", "search-intent-review.json", "agent-skills-review.json", "copy-recommendations.json", "final-audit.md", "workflow-retrospective-input.json", "workflow-retrospective.json", "workflow-retrospective.md", "workflow-completion.json", "workflow-learnings/", "tech-stack.json", "browser-evidence.json", "field-data.json", "crux-history.json", "search-console.json", "url-inspection.json", "rum-vitals.json", "repo-analysis.json", "route-templates.json", "performance-audit.json", "resource-timing.json", "performance-runs.jsonl", "third-party-cost.json", "largest-assets.json", "critical-request-chain.json", "actionability.json", "baseline-comparison.json", "suppression-report.json"].map((file) => `<li><code>${file}</code></li>`).join("")}</ul></section>`;
   }
   if (number === 27) {
-    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>The final executable handoff is written to <code>agent-execution-plan.md</code>. Rebuild it after benchmark data with <code>seo-polish plan build --report ${escapeHtml(bundle.scan.config.outputDir)}</code>.</p></section>`;
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>The final executable handoff is written to <code>agent-execution-plan.md</code>. Complete <code>workflow-retrospective.json</code> and rerender before declaring the workflow run complete. Rebuild the plan after benchmark data with <code>seo-polish plan build --report ${escapeHtml(bundle.scan.config.outputDir)}</code>.</p></section>`;
   }
 
   const section = REPORT_SECTIONS.find((item) => item.number === number);
@@ -754,6 +754,7 @@ function renderAgentInstructionsSection(number: number, title: string): string {
     <ul class="summary-list">
       <li>Use <code>agent-execution-plan.md</code> as the final execution contract.</li>
       <li>Complete <code>agent-review.json</code>, <code>search-intent-review.json</code>, <code>agent-skills-review.json</code>, copy recommendations, executive summary and final audit before implementation.</li>
+      <li>Complete <code>workflow-retrospective.json</code> after validation so maintainers can review workflow learnings.</li>
       <li>Use <code>report-dashboard.json</code> as the stable implementation queue and dashboard data model.</li>
       <li>Apply <code>safe_auto_fix</code> items only when the source repo path is clear.</li>
       <li>Keep policy, auth, payment, crawler, canonical and MCP mutation changes approval-required.</li>

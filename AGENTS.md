@@ -53,6 +53,11 @@ Required outputs:
 - `seo-polish-report/raw-render-diff.json`
 - `seo-polish-report/priority-action-plan.md`
 - `seo-polish-report/agent-execution-plan.md`
+- `seo-polish-report/workflow-retrospective-input.json`
+- `seo-polish-report/workflow-retrospective.json`
+- `seo-polish-report/workflow-retrospective.md`
+- `seo-polish-report/workflow-completion.json`
+- `seo-polish-report/workflow-learnings/maintainer-actions.json`
 - `seo-polish-report/standards-registry.json`
 - `seo-polish-report/agent-instructions/codex.md`
 

@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AgentReview, ReportBundle } from "@seo-polish/schemas";
+import type { AgentReview, ReportBundle, WorkflowRetrospective } from "@seo-polish/schemas";
 import {
   buildAgentReviewInput,
   buildPendingAgentReview,
@@ -12,6 +12,12 @@ import { renderAgentExecutionPlan } from "./renderAgentExecutionPlan.js";
 import type { ReportDashboardOptions } from "./buildReportDashboard.js";
 import { buildReportDashboard } from "./buildReportDashboard.js";
 import {
+  buildPendingWorkflowRetrospective,
+  buildWorkflowRetrospectiveInput,
+  writeWorkflowRetrospectiveArtifacts,
+  type WorkflowRetrospectiveArtifactOptions
+} from "./workflowRetrospective.js";
+import {
   renderAgentInstructionIndex,
   renderAgentInstruction,
   renderExecutiveSummary,
@@ -22,7 +28,11 @@ import { renderHtmlReport } from "./renderHtmlReport.js";
 import { findingInstanceCounts, formatInstanceSuffix, uniqueRemediationOptions } from "./reportSignal.js";
 
 export interface ReportBundleWriteOptions
-  extends AgentExecutionPlanOptions, ReportDashboardOptions, AgentReviewArtifactOptions {}
+  extends
+    AgentExecutionPlanOptions,
+    ReportDashboardOptions,
+    AgentReviewArtifactOptions,
+    WorkflowRetrospectiveArtifactOptions {}
 
 export async function writeReportBundle(
   outputDir: string,
@@ -37,6 +47,17 @@ export async function writeReportBundle(
   const dashboard = buildReportDashboard(bundle, { ...options, agentReview });
   const agentReviewInput = buildAgentReviewInput(bundle, dashboard);
   await writeAgentReviewArtifacts(outputDir, agentReviewInput, agentReview);
+  const workflowRetrospective =
+    options.workflowRetrospective ??
+    (await readExistingWorkflowRetrospective(outputDir)) ??
+    buildPendingWorkflowRetrospective(bundle);
+  const workflowRetrospectiveInput = buildWorkflowRetrospectiveInput(bundle, dashboard, agentReview);
+  await writeWorkflowRetrospectiveArtifacts(
+    outputDir,
+    workflowRetrospectiveInput,
+    workflowRetrospective,
+    agentReview.status === "complete" && bundle.validation.ok
+  );
 
   await writeFile(join(outputDir, "index.md"), renderMarkdownReport(bundle, { agentReview }), "utf8");
   await writeFile(
@@ -70,7 +91,7 @@ export async function writeReportBundle(
   await writeFile(join(outputDir, "priority-action-plan.md"), renderPriorityActionPlan(bundle), "utf8");
   await writeFile(
     join(outputDir, "agent-execution-plan.md"),
-    renderAgentExecutionPlan(bundle, { ...options, dashboard, agentReview }),
+    renderAgentExecutionPlan(bundle, { ...options, dashboard, agentReview, workflowRetrospective }),
     "utf8"
   );
   await writeFile(join(outputDir, "github-pr-comment.md"), renderGitHubPrComment(bundle), "utf8");
@@ -89,6 +110,17 @@ async function readExistingAgentReview(outputDir: string): Promise<AgentReview |
   try {
     const review = JSON.parse(await readFile(join(outputDir, "agent-review.json"), "utf8")) as AgentReview;
     return review.status === "complete" || review.status === "invalid" ? review : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readExistingWorkflowRetrospective(outputDir: string): Promise<WorkflowRetrospective | null> {
+  try {
+    const retrospective = JSON.parse(
+      await readFile(join(outputDir, "workflow-retrospective.json"), "utf8")
+    ) as WorkflowRetrospective;
+    return retrospective.status === "complete" || retrospective.status === "invalid" ? retrospective : null;
   } catch {
     return null;
   }

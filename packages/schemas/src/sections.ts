@@ -48,7 +48,7 @@ export const REPORT_SECTIONS: ReportSection[] = [
   { number: 27, title: "Final Agent Execution Plan", categories: [] }
 ];
 
-export const REPORT_CONTRACT_VERSION = "2026-07-07.agent-review";
+export const REPORT_CONTRACT_VERSION = "2026-07-08.workflow-retrospective";
 
 export const REQUIRED_REPORT_FILES = [
   "index.md",
@@ -81,6 +81,14 @@ export const REQUIRED_REPORT_FILES = [
   "copy-recommendations.json",
   "copy-recommendations.md",
   "final-audit.md",
+  "workflow-retrospective-input.json",
+  "workflow-retrospective.json",
+  "workflow-retrospective.md",
+  "workflow-completion.json",
+  "workflow-learnings/rule-gaps.json",
+  "workflow-learnings/report-ux-gaps.json",
+  "workflow-learnings/agent-friction.json",
+  "workflow-learnings/maintainer-actions.json",
   "response-index.json",
   "header-index.json",
   "body-excerpts.json",

@@ -44,7 +44,7 @@ async function scanDir(dir) {
     const path = join(dir, entry.name);
     const rel = relative(ROOT, path);
     if (entry.isDirectory()) {
-      if (!IGNORED_DIRS.has(entry.name)) {
+      if (!IGNORED_DIRS.has(entry.name) && rel !== join("workflow-learnings", "inbox")) {
         await scanDir(path);
       }
       continue;

@@ -4,5 +4,6 @@ export * from "./agentCommunication.js";
 export * from "./renderHtmlReport.js";
 export * from "./buildReportDashboard.js";
 export * from "./agentReview.js";
+export * from "./workflowRetrospective.js";
 export * from "./lintReport.js";
 export * from "./writeReport.js";

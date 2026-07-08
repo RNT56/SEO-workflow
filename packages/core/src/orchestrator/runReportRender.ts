@@ -10,7 +10,8 @@ import type {
   ReportBundle,
   ScanResult,
   Score,
-  ValidationResult
+  ValidationResult,
+  WorkflowRetrospective
 } from "@seo-polish/schemas";
 import { buildStandardsSnapshot } from "@seo-polish/standards-registry";
 
@@ -157,6 +158,10 @@ async function writeRenderQualityGate(
   const agentReview = await readOptionalJson<AgentReview>(join(reportDir, "agent-review.json"));
   const agentReviewStatus = agentReview?.status ?? "pending";
   const agentReviewIncomplete = agentReviewStatus !== "complete";
+  const workflowRetrospective = await readOptionalJson<WorkflowRetrospective>(
+    join(reportDir, "workflow-retrospective.json")
+  );
+  const workflowRetrospectiveStatus = workflowRetrospective?.status ?? "pending";
   const status =
     bundle.validation.ok &&
     missingActionability === 0 &&
@@ -174,6 +179,7 @@ async function writeRenderQualityGate(
       evidenceFreeFindings,
       invalidSafeFixes,
       agentReviewStatus,
+      workflowRetrospectiveStatus,
       baselineStatus: baselineComparison?.status ?? "not_configured"
     },
     stopConditions:

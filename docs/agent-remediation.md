@@ -34,6 +34,7 @@ After the report is complete, build a portable package with:
 seo-polish export --report <audit-run-dir> --profile review
 seo-polish export --report <audit-run-dir> --profile repo-import
 seo-polish export --report <audit-run-dir> --profile full
+seo-polish export --report <audit-run-dir> --profile learnings
 ```
 
 The export command writes `export-manifest.json`, `checksums.sha256` and `LICENSE-NOTICE.md`; zip is
@@ -56,6 +57,11 @@ Treat the generated report bundle as the execution contract. Start with:
 - `<audit-run-dir>/copy-recommendations.json`
 - `<audit-run-dir>/final-audit.md`
 - `<audit-run-dir>/executive-summary.md`
+- `<audit-run-dir>/workflow-retrospective-input.json`
+- `<audit-run-dir>/workflow-retrospective.json`
+- `<audit-run-dir>/workflow-retrospective.md`
+- `<audit-run-dir>/workflow-completion.json`
+- `<audit-run-dir>/workflow-learnings/`
 - `<audit-run-dir>/report-dashboard.json`
 - `<audit-run-dir>/findings.json`
 - `<audit-run-dir>/remediation-plan.json`
@@ -125,6 +131,25 @@ policy, MCP mutation, business claims and brand-positioning changes remain appro
 `quality-gate.json`, `production-readiness.json` and `report lint --strict` stay failed until the review
 is complete and evidence-linked.
 
+## Mandatory workflow retrospective
+
+The workflow retrospective phase comes after deterministic evidence collection, agent review, report
+validation and implementation verification. It is maintainer-facing and private by default. A repo-capable
+agent must complete:
+
+- `workflow-retrospective.json`
+- `workflow-retrospective.md`
+- `workflow-completion.json`
+- `workflow-learnings/rule-gaps.json`
+- `workflow-learnings/report-ux-gaps.json`
+- `workflow-learnings/agent-friction.json`
+- `workflow-learnings/maintainer-actions.json`
+
+Every retrospective learning must cite source artifacts, finding IDs, evidence IDs, validation checks,
+report sections or explicit blockers. The retrospective may propose workflow improvements, but it must
+not mutate workflow code, rules, schemas, docs or tests. Use `seo-polish learnings collect --report
+<audit-run-dir>` to create a redacted maintainer package under `workflow-learnings/inbox/`.
+
 ## Execution sequence
 
 Use this sequence inside the website source repository:
@@ -139,7 +164,7 @@ Run the workflow end to end:
 1. Run quietly by default; message only for approvals, blockers, safety boundaries, long-running delays, failed gates and completion.
 2. Build the SEO workflow if needed.
 3. Scan the live site into the audit root with --repo pointing at the website source repo when available.
-4. Read agent-execution-plan.md, agent-review-input.json and report-dashboard.json first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
+4. Read agent-execution-plan.md, agent-review-input.json, workflow-retrospective-input.json and report-dashboard.json first, then findings.json, remediation-plan.json, actionability.json, repo-analysis.json, tech-stack.json, browser-evidence.json, field-data.json, crux-history.json, search-console.json, url-inspection.json, rum-vitals.json, route-templates.json, performance-audit.json, priority-action-plan.md, patch.diff, manual-actions.md, remaining-user-decisions.md, validation.json and benchmark.json if present.
 5. Complete the mandatory agent review artifacts, executive summary, copy recommendations and final audit narrative from cited evidence.
 6. Run report render and strict report lint; do not implement fixes until the review gate passes.
 7. Apply only safe_auto_fix items directly in the website source repo when source candidates are clear and validation commands exist.
@@ -147,8 +172,9 @@ Run the workflow end to end:
 9. Do not make policy, auth, payment, indexing, canonical, crawler or MCP mutation changes without explicit approval.
 10. Preserve approval_required items in remaining-user-decisions.md.
 11. Re-run scan, report lint, validation, benchmark, plan build, project tests, build and security checks.
-12. Commit and push only after the verification gates pass.
-13. Summarize final score, changed files, remaining user decisions and verification results.
+12. Complete the mandatory workflow retrospective, rerender, and verify `workflow-completion.json` is complete.
+13. Commit and push only after the verification gates pass.
+14. Summarize final score, changed files, remaining user decisions, workflow learning status and verification results.
 ```
 
 Recommended scan command:

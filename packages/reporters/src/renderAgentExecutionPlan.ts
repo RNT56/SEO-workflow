@@ -4,7 +4,8 @@ import type {
   ReportDashboard,
   ReportDashboardQueueItem,
   ReportBundle,
-  ScoreCategory
+  ScoreCategory,
+  WorkflowRetrospective
 } from "@seo-polish/schemas";
 import { buildReportDashboard } from "./buildReportDashboard.js";
 import {
@@ -27,6 +28,7 @@ export interface AgentExecutionPlanOptions {
   benchmark?: AgentExecutionPlanBenchmark | null;
   dashboard?: ReportDashboard;
   agentReview?: AgentReview | null;
+  workflowRetrospective?: WorkflowRetrospective | null;
 }
 
 export function renderAgentExecutionPlan(
@@ -65,6 +67,10 @@ export function renderAgentExecutionPlan(
     "- `agent-skills-review.json`: review of whether agents can understand, navigate and safely act on the site.",
     "- `copy-recommendations.json` and `copy-recommendations.md`: evidence-linked copy proposals and approval gates.",
     "- `final-audit.md` and `executive-summary.md`: agent-authored final audit narrative once review is complete.",
+    "- `workflow-retrospective-input.json`: bounded packet for maintainer-facing workflow learning.",
+    "- `workflow-retrospective.json` and `workflow-retrospective.md`: agent-authored retrospective about workflow performance.",
+    "- `workflow-completion.json`: final workflow completion gate.",
+    "- `workflow-learnings/`: structured maintainer learning queues.",
     "- `remediation-plan.json`: fix classes, phases, risks and validation commands.",
     "- `priority-action-plan.md`: ordered remediation summary.",
     "- `patch.diff` and `patch-plan.md`: diff-only proposals where available.",
@@ -137,6 +143,8 @@ export function renderAgentExecutionPlan(
     "",
     renderValidationPlan(bundle),
     "",
+    renderWorkflowRetrospectivePhase(options.workflowRetrospective ?? null),
+    "",
     renderReusablePrompt(bundle),
     "",
     "## Completion Criteria",
@@ -148,6 +156,7 @@ export function renderAgentExecutionPlan(
     "- `agent-review.json` is complete, evidence-linked and reflected in `executive-summary.md` and `final-audit.md`.",
     "- `seo-polish validate --report <report-dir>` passes.",
     "- `seo-polish benchmark --report <report-dir>` has been rerun when agent-readiness work changed.",
+    "- `workflow-retrospective.json` is complete and `workflow-completion.json` status is `complete`.",
     "- The website repo's lint, typecheck, test, build and security checks pass.",
     "- Final summary includes before/after score, changed files, remaining approvals and verification evidence."
   ];
@@ -233,6 +242,26 @@ function renderAgentReviewPhase(review: AgentReview | null): string {
     "6. Run `seo-polish report render <report-dir>` and `seo-polish report lint <report-dir> --strict`.",
     "",
     "Only continue to Phase 2 after strict lint accepts the completed review artifacts."
+  ].join("\n");
+}
+
+function renderWorkflowRetrospectivePhase(retrospective: WorkflowRetrospective | null): string {
+  return [
+    "## Final Phase - Complete Workflow Retrospective",
+    "",
+    "This phase is mandatory before declaring the workflow run fully complete. It is maintainer-facing and private by default; it does not authorize the agent to change workflow rules, schemas, docs or code.",
+    "",
+    `Current status: ${retrospective?.status ?? "pending"}`,
+    "",
+    "Required actions:",
+    "",
+    "1. Read `workflow-retrospective-input.json` after scan, agent review, validation, benchmark and implementation checks are complete.",
+    "2. Complete `workflow-retrospective.json` with evidence-linked notes about noisy findings, missed signals, report UX friction, agent blockers and maintainer improvement proposals.",
+    "3. Keep customer URLs, local paths, snippets, secrets and private repo context out of exported learnings unless explicitly authorized.",
+    "4. Rerender the report so `workflow-retrospective.md`, `workflow-completion.json` and `workflow-learnings/` reflect the completed retrospective.",
+    "5. Use `seo-polish learnings collect --report <report-dir>` only for maintainer-reviewed learning packages.",
+    "",
+    "Do not mutate the SEO workflow itself from this phase. Treat all maintainer actions as proposals."
   ].join("\n");
 }
 
@@ -425,8 +454,9 @@ Run the remediation plan end to end:
 7. Do not implement approval_required items until the owner explicitly approves them.
 8. Re-run the SEO Polish scan, report lint, validation, benchmark and this plan build.
 9. Run the website repo's lint, typecheck, test, build and security checks.
-10. Commit and push only after all required gates pass.
-11. Summarize before/after score, changed files, remaining approvals and verification results.
+10. Complete workflow-retrospective.json, rerender the report, and confirm workflow-completion.json is complete.
+11. Commit and push only after all required gates pass.
+12. Summarize before/after score, changed files, remaining approvals, workflow learnings status and verification results.
 \`\`\``;
 }
 

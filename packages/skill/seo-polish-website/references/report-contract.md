@@ -15,6 +15,11 @@ The audit run directory must include:
 - `agent-review-input.json`
 - `agent-review.json`
 - `quality-gate.json`
+- `workflow-retrospective-input.json`
+- `workflow-retrospective.json`
+- `workflow-retrospective.md`
+- `workflow-completion.json`
+- `workflow-learnings/`
 - `audit-run.json`
 - `priority-action-plan.md`
 - `agent-execution-plan.md`

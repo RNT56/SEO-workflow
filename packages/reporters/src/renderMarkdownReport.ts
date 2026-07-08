@@ -112,7 +112,7 @@ Report directory: ${reportDir}
 Current score: ${score}
 Critical findings: ${critical ?? "see findings.json"}
 
-Use the generated SEO Polish Report as the source of truth. Complete the mandatory agent review before implementation.
+Use the generated SEO Polish Report as the source of truth. Complete the mandatory agent review before implementation, then complete the workflow retrospective before declaring the run fully complete.
 
 ${agentNote}
 
@@ -131,14 +131,15 @@ Rules:
 Execution order:
 
 1. Follow the communication contract. ${renderAgentCommunicationPromptClause()}
-2. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/agent-review-input.json\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/actionability.json\`, \`${reportDir}/repo-analysis.json\`, \`${reportDir}/tech-stack.json\`, \`${reportDir}/browser-evidence.json\`, \`${reportDir}/field-data.json\`, \`${reportDir}/search-console.json\`, \`${reportDir}/url-inspection.json\`, \`${reportDir}/rum-vitals.json\`, \`${reportDir}/performance-audit.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
+2. Read \`${reportDir}/agent-execution-plan.md\`, \`${reportDir}/agent-review-input.json\`, \`${reportDir}/workflow-retrospective-input.json\`, \`${reportDir}/findings.json\`, \`${reportDir}/remediation-plan.json\`, \`${reportDir}/actionability.json\`, \`${reportDir}/repo-analysis.json\`, \`${reportDir}/tech-stack.json\`, \`${reportDir}/browser-evidence.json\`, \`${reportDir}/field-data.json\`, \`${reportDir}/search-console.json\`, \`${reportDir}/url-inspection.json\`, \`${reportDir}/rum-vitals.json\`, \`${reportDir}/performance-audit.json\`, \`${reportDir}/patch.diff\`, and \`${reportDir}/validation.json\`.
 3. Complete \`${reportDir}/agent-review.json\`, search-intent, agent-skills, copy recommendations, \`${reportDir}/executive-summary.md\`, and \`${reportDir}/final-audit.md\` from cited evidence.
 4. Re-render and strict-lint the report before implementation.
 5. Implement safe fixes that are applicable to the current source repo.
 6. Do not implement policy/auth/payment/indexing/canonical/MCP mutation changes without explicit approval.
 7. Re-run \`${bundle ? agentInstructionScanCommand(bundle) : `seo-polish scan ${target} --audit-root ./audit-reports`}\`.
 8. Re-run \`seo-polish report lint ${reportDir} --strict\`, \`seo-polish validate --report ${reportDir}\`, \`seo-polish benchmark --report ${reportDir}\`, \`seo-polish plan build --report ${reportDir}\`, and project build/test/security gates.
-9. Export the final handoff with \`seo-polish export --report ${reportDir} --profile review\` or \`--profile repo-import\` when a portable package is needed.
+9. Complete \`${reportDir}/workflow-retrospective.json\`, rerender, and confirm \`${reportDir}/workflow-completion.json\` is complete before declaring the workflow run complete.
+10. Export the final handoff with \`seo-polish export --report ${reportDir} --profile review\` or \`--profile repo-import\` when a portable package is needed. Use \`--profile learnings\` only for maintainer-reviewed learning packages.
 `;
 }
 
@@ -539,6 +540,11 @@ function renderEvidence(bundle: ReportBundle): string {
     "- `agent-skills-review.json`",
     "- `copy-recommendations.json`",
     "- `final-audit.md`",
+    "- `workflow-retrospective-input.json`",
+    "- `workflow-retrospective.json`",
+    "- `workflow-retrospective.md`",
+    "- `workflow-completion.json`",
+    "- `workflow-learnings/`",
     "",
     "Representative evidence:"
   ];
@@ -552,7 +558,7 @@ function renderFinalExecutionPlanReference(bundle: ReportBundle, agentReview: Ag
   const preview = renderAgentExecutionPlan(bundle, { agentReview }).split("\n").slice(0, 18).join("\n");
   return `The full executable handoff is written to \`agent-execution-plan.md\`.
 
-Use it as the final workflow step after scan, validation and benchmark data have been generated. Rebuild it with:
+Use it as the final workflow step after scan, validation, benchmark and workflow retrospective data have been generated. Rebuild it with:
 
 \`\`\`bash
 seo-polish plan build --report ${bundle.scan.config.outputDir}

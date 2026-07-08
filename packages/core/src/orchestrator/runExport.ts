@@ -4,7 +4,7 @@ import { basename, dirname, join, relative } from "node:path";
 import type { ScanResult } from "@seo-polish/schemas";
 import { auditSlugForTarget, auditTimestamp } from "../config/auditOutput.js";
 
-export type AuditExportProfile = "review" | "full" | "repo-import";
+export type AuditExportProfile = "review" | "full" | "repo-import" | "learnings";
 export type AuditExportFormat = "zip" | "directory";
 
 export interface AuditExportOptions {
@@ -95,6 +95,14 @@ const REPO_IMPORT_FILES = new Set([
   "audit-run.json"
 ]);
 
+const LEARNINGS_FILES = new Set([
+  "workflow-retrospective-input.json",
+  "workflow-retrospective.json",
+  "workflow-retrospective.md",
+  "workflow-completion.json",
+  "audit-run.json"
+]);
+
 const ALWAYS_EXCLUDED_TOP_LEVEL = new Set(["exports"]);
 
 export async function runExport(options: AuditExportOptions): Promise<AuditExportSummary> {
@@ -111,8 +119,12 @@ export async function runExport(options: AuditExportOptions): Promise<AuditExpor
     options.outputPath ??
     join(reportDir, "exports", format === "zip" ? `${exportBaseName}.zip` : exportBaseName);
   const localPathsRedacted = options.includePrivatePaths !== true;
+  const siteIdentityRedacted = profile === "learnings" && localPathsRedacted;
   const selectedFiles = await selectReportFiles(reportDir, profile);
-  const entries = await buildExportEntries(reportDir, selectedFiles, localPathsRedacted);
+  const entries = await buildExportEntries(reportDir, selectedFiles, {
+    redactLocalPaths: localPathsRedacted,
+    redactSiteIdentity: siteIdentityRedacted
+  });
   const manifest = buildExportManifest({
     reportDir,
     generatedAt,
@@ -121,7 +133,8 @@ export async function runExport(options: AuditExportOptions): Promise<AuditExpor
     outputPath,
     scan,
     entries,
-    localPathsRedacted
+    localPathsRedacted,
+    siteIdentityRedacted
   });
   entries.push({
     path: "LICENSE-NOTICE.md",
@@ -156,7 +169,7 @@ export async function runExport(options: AuditExportOptions): Promise<AuditExpor
 }
 
 function normalizeProfile(profile: AuditExportProfile): AuditExportProfile {
-  if (["review", "full", "repo-import"].includes(profile)) {
+  if (["review", "full", "repo-import", "learnings"].includes(profile)) {
     return profile;
   }
   throw new Error(`Unsupported export profile: ${profile}`);
@@ -173,6 +186,9 @@ async function selectReportFiles(reportDir: string, profile: AuditExportProfile)
   const allFiles = await listFiles(reportDir);
   if (profile === "full") {
     return allFiles;
+  }
+  if (profile === "learnings") {
+    return allFiles.filter((path) => LEARNINGS_FILES.has(path) || path.startsWith("workflow-learnings/"));
   }
   const include = profile === "review" ? REVIEW_FILES : REPO_IMPORT_FILES;
   return allFiles.filter((path) => include.has(path) || path.startsWith("agent-instructions/"));
@@ -202,14 +218,16 @@ async function listFiles(root: string, current = root): Promise<string[]> {
 async function buildExportEntries(
   reportDir: string,
   files: string[],
-  redactLocalPaths: boolean
+  redaction: { redactLocalPaths: boolean; redactSiteIdentity: boolean }
 ): Promise<ExportEntry[]> {
   const entries: ExportEntry[] = [];
   for (const path of files) {
     const content = await readFile(join(reportDir, path));
+    const shouldSanitize = isLikelyText(path, content);
+    const sanitized = shouldSanitize ? sanitizeExportContent(content, redaction) : content;
     entries.push({
       path,
-      content: redactLocalPaths && isLikelyText(path, content) ? sanitizeLocalPaths(content) : content
+      content: sanitized
     });
   }
   return entries;
@@ -224,6 +242,7 @@ function buildExportManifest(input: {
   scan: ScanResult | null;
   entries: ExportEntry[];
   localPathsRedacted: boolean;
+  siteIdentityRedacted: boolean;
 }): unknown {
   const files: ExportManifestFile[] = input.entries.map((entry) => ({
     path: entry.path,
@@ -235,15 +254,16 @@ function buildExportManifest(input: {
     generatedAt: input.generatedAt,
     profile: input.profile,
     format: input.format,
-    targetUrl: input.scan?.config.url ?? null,
+    targetUrl: input.siteIdentityRedacted ? "[redacted-url]" : (input.scan?.config.url ?? null),
     scanId: input.scan?.scanId ?? null,
-    auditSlug: input.scan?.config.auditSlug ?? null,
-    auditRunId: input.scan?.config.auditRunId ?? null,
+    auditSlug: input.siteIdentityRedacted ? "[redacted-site]" : (input.scan?.config.auditSlug ?? null),
+    auditRunId: input.siteIdentityRedacted ? "[redacted-run]" : (input.scan?.config.auditRunId ?? null),
     sourceReportDir: input.localPathsRedacted ? "[redacted-local-path]" : input.reportDir,
     outputPath: input.localPathsRedacted ? "[redacted-local-path]" : input.outputPath,
     files,
     privacy: {
       localPathsRedacted: input.localPathsRedacted,
+      siteIdentityRedacted: input.siteIdentityRedacted,
       cloudUploadIncluded: false,
       cloudUploadNote:
         "Cloud upload is intentionally outside this export. Upload this package only through an explicitly authorized agent connector or storage workflow."
@@ -298,13 +318,25 @@ async function writeDirectoryExport(outputPath: string, entries: ExportEntry[]):
   }
 }
 
-function sanitizeLocalPaths(content: Buffer): Buffer {
-  const sanitized = content
-    .toString("utf8")
+function sanitizeExportContent(
+  content: Buffer,
+  redaction: { redactLocalPaths: boolean; redactSiteIdentity: boolean }
+): Buffer {
+  let sanitized = content.toString("utf8");
+  if (redaction.redactLocalPaths) {
+    sanitized = sanitizeLocalPaths(sanitized);
+  }
+  if (redaction.redactSiteIdentity) {
+    sanitized = sanitized.replace(/https?:\/\/[^\s"')<>,]+/g, "[redacted-url]");
+  }
+  return Buffer.from(sanitized, "utf8");
+}
+
+function sanitizeLocalPaths(content: string): string {
+  return content
     .replace(/\/Users\/[A-Za-z0-9._-]+\/[^\s"')<>,]+/g, "[redacted-local-path]")
     .replace(/\/home\/[A-Za-z0-9._-]+\/[^\s"')<>,]+/g, "[redacted-local-path]")
     .replace(/[A-Za-z]:\\Users\\[A-Za-z0-9._-]+\\[^\s"')<>,]+/g, "[redacted-local-path]");
-  return Buffer.from(sanitized, "utf8");
 }
 
 function isLikelyText(path: string, content: Buffer): boolean {

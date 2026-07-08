@@ -8,7 +8,11 @@ import type {
   ReportDashboard,
   ReportDashboardQueueItem,
   Score,
-  ValidationCheck
+  ValidationCheck,
+  WorkflowLearningItem,
+  WorkflowRetrospective,
+  WorkflowRetrospectiveEvidenceLink,
+  WorkflowRetrospectiveInput
 } from "./types.js";
 
 export interface SchemaValidationResult {
@@ -287,6 +291,116 @@ export function validateAgentReview(review: AgentReview): SchemaValidationResult
   return { ok: checks.every((item) => item.status !== "failed"), checks };
 }
 
+export function validateWorkflowRetrospectiveInput(
+  input: WorkflowRetrospectiveInput
+): SchemaValidationResult {
+  const sourceArtifacts = Array.isArray(input.sourceArtifacts) ? input.sourceArtifacts : [];
+  const artifactInventory = Array.isArray(input.artifactInventory) ? input.artifactInventory : [];
+  const nextBestFixes = Array.isArray(input.dashboardQueues?.nextBestFixes)
+    ? input.dashboardQueues.nextBestFixes
+    : [];
+  const implementationQueue = Array.isArray(input.dashboardQueues?.implementationQueue)
+    ? input.dashboardQueues.implementationQueue
+    : [];
+  const approvalQueue = Array.isArray(input.dashboardQueues?.approvalQueue)
+    ? input.dashboardQueues.approvalQueue
+    : [];
+  const checks: ValidationCheck[] = [
+    check(
+      "workflow-retrospective-input.status",
+      "Workflow retrospective input status",
+      input.status === "ready",
+      "workflow-retrospective-input.json must be a ready evidence packet."
+    ),
+    check(
+      "workflow-retrospective-input.target",
+      "Workflow retrospective input target",
+      typeof input.targetUrl === "string" && input.targetUrl.length > 0,
+      "Workflow retrospective input must include the target URL."
+    ),
+    check(
+      "workflow-retrospective-input.sources",
+      "Workflow retrospective input sources",
+      sourceArtifacts.length > 0 && artifactInventory.length > 0,
+      "Workflow retrospective input must include source artifacts and artifact inventory."
+    ),
+    check(
+      "workflow-retrospective-input.bounded",
+      "Workflow retrospective input bounded queues",
+      nextBestFixes.length <= 20 && implementationQueue.length <= 80 && approvalQueue.length <= 80,
+      "Workflow retrospective input queues must stay bounded for agent review."
+    )
+  ];
+  return { ok: checks.every((item) => item.status !== "failed"), checks };
+}
+
+export function validateWorkflowRetrospective(retrospective: WorkflowRetrospective): SchemaValidationResult {
+  const sourceArtifacts = Array.isArray(retrospective.sourceArtifacts) ? retrospective.sourceArtifacts : [];
+  const evidence = Array.isArray(retrospective.evidence) ? retrospective.evidence : [];
+  const ruleGaps = Array.isArray(retrospective.ruleGaps) ? retrospective.ruleGaps : [];
+  const reportUxGaps = Array.isArray(retrospective.reportUxGaps) ? retrospective.reportUxGaps : [];
+  const agentFriction = Array.isArray(retrospective.agentFriction) ? retrospective.agentFriction : [];
+  const maintainerActions = Array.isArray(retrospective.maintainerActions)
+    ? retrospective.maintainerActions
+    : [];
+  const learningItems = workflowLearningItems(retrospective);
+  const checks: ValidationCheck[] = [
+    check(
+      "workflow-retrospective.status",
+      "Workflow retrospective status",
+      ["pending", "complete", "invalid"].includes(retrospective.status),
+      "workflow-retrospective.json must declare a valid status."
+    ),
+    check(
+      "workflow-retrospective.reviewer",
+      "Workflow retrospective reviewer",
+      ["pending", "agent", "fixture"].includes(retrospective.reviewer),
+      "workflow-retrospective.json must declare the reviewer type."
+    ),
+    check(
+      "workflow-retrospective.target",
+      "Workflow retrospective target",
+      typeof retrospective.targetUrl === "string" && retrospective.targetUrl.length > 0,
+      "Workflow retrospective must include the target URL."
+    ),
+    check(
+      "workflow-retrospective.sources",
+      "Workflow retrospective source artifacts",
+      sourceArtifacts.length > 0,
+      "Workflow retrospective must list the source artifacts it used."
+    ),
+    check(
+      "workflow-retrospective.summary",
+      "Workflow retrospective summary",
+      retrospective.status !== "complete" ||
+        (typeof retrospective.summary === "string" && retrospective.summary.trim().length > 0),
+      "Completed workflow retrospective must include a summary."
+    ),
+    check(
+      "workflow-retrospective.evidence",
+      "Workflow retrospective evidence",
+      retrospective.status !== "complete" ||
+        (evidence.length > 0 && evidence.every(hasAnyRetrospectiveEvidenceAnchor)),
+      "Completed workflow retrospective must cite source artifacts, finding IDs, validation checks, report sections or blockers."
+    ),
+    check(
+      "workflow-retrospective.bounded",
+      "Workflow retrospective bounded learnings",
+      ruleGaps.length <= 50 &&
+        reportUxGaps.length <= 50 &&
+        agentFriction.length <= 50 &&
+        maintainerActions.length <= 80,
+      "Workflow retrospective learning queues must stay bounded."
+    )
+  ];
+
+  for (const item of learningItems) {
+    checks.push(...validateWorkflowLearningItem(item));
+  }
+
+  return { ok: checks.every((item) => item.status !== "failed"), checks };
+}
+
 export function validateReportDashboard(dashboard: ReportDashboard): SchemaValidationResult {
   const queueItems = [
     ...dashboard.nextBestFixes,
@@ -377,6 +491,62 @@ function hasAnyEvidenceAnchor(link: AgentReviewEvidenceLink): boolean {
     (link.url && link.url.trim().length > 0) ||
     (link.sourceArtifact && link.sourceArtifact.trim().length > 0)
   );
+}
+
+function hasAnyRetrospectiveEvidenceAnchor(link: WorkflowRetrospectiveEvidenceLink): boolean {
+  return Boolean(
+    (link.sourceArtifact && link.sourceArtifact.trim().length > 0) ||
+    (link.findingId && link.findingId.trim().length > 0) ||
+    (link.evidenceId && link.evidenceId.trim().length > 0) ||
+    (link.validationCheckId && link.validationCheckId.trim().length > 0) ||
+    (link.reportSection && link.reportSection.trim().length > 0) ||
+    (link.blockerId && link.blockerId.trim().length > 0)
+  );
+}
+
+function workflowLearningItems(retrospective: WorkflowRetrospective): WorkflowLearningItem[] {
+  return [
+    ...(Array.isArray(retrospective.ruleGaps) ? retrospective.ruleGaps : []),
+    ...(Array.isArray(retrospective.reportUxGaps) ? retrospective.reportUxGaps : []),
+    ...(Array.isArray(retrospective.agentFriction) ? retrospective.agentFriction : []),
+    ...(Array.isArray(retrospective.maintainerActions) ? retrospective.maintainerActions : [])
+  ];
+}
+
+function validateWorkflowLearningItem(item: WorkflowLearningItem): ValidationCheck[] {
+  const evidence = Array.isArray(item.evidence) ? item.evidence : [];
+  return [
+    check(
+      `workflow-learning.${item.id}.title`,
+      `${item.id} title`,
+      typeof item.title === "string" && item.title.trim().length > 0,
+      "Every workflow learning must include a title."
+    ),
+    check(
+      `workflow-learning.${item.id}.summary`,
+      `${item.id} summary`,
+      typeof item.summary === "string" && item.summary.trim().length > 0,
+      "Every workflow learning must include a summary."
+    ),
+    check(
+      `workflow-learning.${item.id}.evidence`,
+      `${item.id} evidence`,
+      evidence.length > 0 && evidence.every(hasAnyRetrospectiveEvidenceAnchor),
+      "Every workflow learning must cite source artifacts, finding IDs, validation checks, report sections or blockers."
+    ),
+    check(
+      `workflow-learning.${item.id}.recommendation`,
+      `${item.id} recommendation`,
+      typeof item.recommendation === "string" && item.recommendation.trim().length > 0,
+      "Every workflow learning must include a maintainer-facing recommendation."
+    ),
+    check(
+      `workflow-learning.${item.id}.action-status`,
+      `${item.id} maintainer action status`,
+      ["proposed", "accepted", "rejected", "implemented"].includes(item.maintainerActionStatus),
+      "Workflow learning maintainer action status must be valid."
+    )
+  ];
 }
 
 function validateDashboardQueueItem(item: ReportDashboardQueueItem): ValidationCheck[] {

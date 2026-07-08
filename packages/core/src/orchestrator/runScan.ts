@@ -22,7 +22,8 @@ import type {
   Severity,
   SuppressionReport,
   SuppressionRule,
-  ValidationResult
+  ValidationResult,
+  WorkflowRetrospective
 } from "@seo-polish/schemas";
 import { calculateScore } from "@seo-polish/scoring";
 import { redactSensitiveValue } from "@seo-polish/security";
@@ -137,7 +138,7 @@ async function writeAuditRunFiles(
     qualityGateStatus: qualityGate.status ?? "failed",
     productionReadiness: qualityGate.status ?? "failed",
     artifacts,
-    exportProfiles: ["review", "full", "repo-import"],
+    exportProfiles: ["review", "full", "repo-import", "learnings"],
     privacy: {
       exportsRedactLocalPathsByDefault: true,
       cloudUploadRequiresExplicitUserDirection: true
@@ -150,12 +151,24 @@ async function writeAuditRunFiles(
   }
 }
 
-async function artifactList(outputDir: string): Promise<string[]> {
-  const entries = await readdir(outputDir, { withFileTypes: true });
-  return entries
-    .filter((entry) => entry.isFile())
-    .map((entry) => entry.name)
-    .sort();
+async function artifactList(outputDir: string, current = outputDir): Promise<string[]> {
+  const entries = await readdir(current, { withFileTypes: true });
+  const artifacts: string[] = [];
+  for (const entry of entries) {
+    const path = join(current, entry.name);
+    const relativePath = path.slice(outputDir.length + 1).replace(/\\/g, "/");
+    if (relativePath === "exports" || relativePath.startsWith("exports/")) {
+      continue;
+    }
+    if (entry.isDirectory()) {
+      artifacts.push(...(await artifactList(outputDir, path)));
+      continue;
+    }
+    if (entry.isFile()) {
+      artifacts.push(relativePath);
+    }
+  }
+  return artifacts.sort();
 }
 
 async function writeAuditIndex(
@@ -315,6 +328,10 @@ async function writeQualityGate(
   const agentReview = await readOptionalJson<AgentReview>(join(outputDir, "agent-review.json"));
   const agentReviewStatus = agentReview?.status ?? "pending";
   const agentReviewIncomplete = agentReviewStatus !== "complete";
+  const workflowRetrospective = await readOptionalJson<WorkflowRetrospective>(
+    join(outputDir, "workflow-retrospective.json")
+  );
+  const workflowRetrospectiveStatus = workflowRetrospective?.status ?? "pending";
   const status =
     bundle.validation.ok &&
     missingActionability === 0 &&
@@ -332,6 +349,7 @@ async function writeQualityGate(
       evidenceFreeFindings,
       invalidSafeFixes,
       agentReviewStatus,
+      workflowRetrospectiveStatus,
       suppressionMatches: suppressionReport.matches.length,
       baselineStatus: baselineComparison.status
     },
