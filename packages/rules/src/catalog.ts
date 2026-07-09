@@ -1,4 +1,4 @@
-import type { FindingCategory, Severity } from "@seo-polish/schemas";
+import type { FindingCategory, RuleMaturity, Severity } from "@seo-polish/schemas";
 
 export interface RuleDefinition {
   id: string;
@@ -7,11 +7,12 @@ export interface RuleDefinition {
   defaultSeverity: Severity;
   implemented: boolean;
   standard: string;
+  maturity: RuleMaturity;
 }
 
 export const RULE_CATALOG: RuleDefinition[] = [
   rule("SEO-TECH-001", "invalid-http-status", "technical_seo", "critical", true, "http-status"),
-  rule("SEO-TECH-002", "redirect-chain-too-long", "technical_seo", "medium", false, "redirects"),
+  rule("SEO-TECH-002", "redirect-chain-too-long", "technical_seo", "medium", true, "redirects"),
   rule("SEO-TECH-011", "missing-compression", "technical_seo", "low", true, "http-headers"),
   rule("SEO-TECH-012", "poor-cacheability", "technical_seo", "low", true, "http-headers"),
   rule("SEO-CRAWL-001", "robots-missing", "crawlability", "low", true, "robots-txt"),
@@ -86,7 +87,7 @@ export const RULE_CATALOG: RuleDefinition[] = [
   rule("SEO-A11Y-002", "heading-order-invalid", "accessibility", "low", true, "wcag-headings"),
   rule("SEO-A11Y-006", "image-alt-missing", "accessibility", "medium", true, "wcag-images"),
   rule("SEO-A11Y-010", "skip-link-missing", "accessibility", "low", true, "wcag-navigation"),
-  rule("SEO-INTL-005", "x-default-missing", "international_seo", "low", false, "hreflang"),
+  rule("SEO-INTL-005", "x-default-missing", "international_seo", "low", true, "hreflang"),
   rule("SEO-LOCAL-001", "nap-missing", "local_seo", "medium", true, "local-seo"),
   rule("SEO-LOCAL-003", "localbusiness-schema-missing", "local_seo", "medium", true, "local-seo"),
   rule("SEO-ECOM-001", "product-schema-missing", "ecommerce_seo", "high", true, "ecommerce-seo"),
@@ -125,10 +126,10 @@ export const RULE_CATALOG: RuleDefinition[] = [
     true,
     "search-integrations"
   ),
-  rule("SEO-PERF-001", "poor-lcp", "performance_seo", "medium", false, "core-web-vitals"),
-  rule("SEO-INTL-001", "hreflang-missing", "international_seo", "low", false, "hreflang"),
-  rule("SEO-LOCAL-004", "opening-hours-missing", "local_seo", "low", false, "local-seo"),
-  rule("SEO-ECOM-013", "return-policy-missing", "ecommerce_seo", "low", false, "ecommerce-seo")
+  rule("SEO-PERF-001", "poor-lcp", "performance_seo", "medium", true, "core-web-vitals"),
+  rule("SEO-INTL-001", "hreflang-missing", "international_seo", "low", true, "hreflang"),
+  rule("SEO-LOCAL-004", "opening-hours-missing", "local_seo", "low", true, "local-seo"),
+  rule("SEO-ECOM-013", "return-policy-missing", "ecommerce_seo", "low", true, "ecommerce-seo")
 ];
 
 function rule(
@@ -139,7 +140,17 @@ function rule(
   implemented: boolean,
   standard: string
 ): RuleDefinition {
-  return { id, slug, category, defaultSeverity, implemented, standard };
+  return { id, slug, category, defaultSeverity, implemented, standard, maturity: maturityForRule(id) };
+}
+
+function maturityForRule(id: string): RuleMaturity {
+  if (/^(AR-(LLMS|MD|SKILL|MCP|API)|SEO-SEARCH)-/.test(id)) {
+    return "experimental";
+  }
+  if (id.startsWith("AR-")) {
+    return "emerging";
+  }
+  return "stable";
 }
 
 export function getRule(id: string): RuleDefinition {

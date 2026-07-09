@@ -40,4 +40,20 @@ describe("HTML extraction", () => {
 
     expect(text).toBe("Keep &lt;escaped&gt;");
   });
+
+  it("preserves hreflang labels for international validation", () => {
+    const snapshot = extractHtmlSnapshot({
+      url: "https://example.com/en",
+      finalUrl: "https://example.com/en",
+      status: 200,
+      contentType: "text/html",
+      headers: {},
+      html: '<html lang="en"><head><link rel="alternate" hreflang="de" href="/de"><link rel="alternate" hreflang="x-default" href="/"></head><body>Example</body></html>'
+    });
+
+    expect(snapshot.hreflangEntries).toEqual([
+      { language: "de", href: "https://example.com/de" },
+      { language: "x-default", href: "https://example.com/" }
+    ]);
+  });
 });

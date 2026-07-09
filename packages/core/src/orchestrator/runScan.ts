@@ -9,7 +9,7 @@ import {
   writeReportBundle,
   type ReportDashboardQualityGate
 } from "@seo-polish/reporters";
-import { evaluateRules } from "@seo-polish/rules";
+import { evaluateRulesWithCoverage } from "@seo-polish/rules";
 import { scanSite } from "@seo-polish/scanner";
 import type {
   BaselineComparison,
@@ -40,10 +40,11 @@ export async function runScan(input: ScanConfigInput): Promise<ScanSummary> {
   const config = finalizeAuditOutputConfig(initialConfig, rawScan.scanId);
   const rawScanWithFinalConfig = { ...rawScan, config };
   await mkdir(config.outputDir, { recursive: true });
-  const rawFindings = evaluateRules(rawScanWithFinalConfig);
+  const ruleResult = evaluateRulesWithCoverage(rawScanWithFinalConfig);
+  const rawFindings = ruleResult.findings;
   const scan = redactSensitiveValue(rawScanWithFinalConfig);
   const findings = rawFindings.map((finding) => redactSensitiveValue(finding));
-  const score = calculateScore(findings);
+  const score = calculateScore(findings, ruleResult.evaluations);
   const remediationPlan = createRemediationPlan(findings);
   const patchBundle = generatePatchBundle(config, findings, remediationPlan);
   const suppressionReport = buildSuppressionReport(config.suppressions ?? [], findings);
@@ -81,6 +82,11 @@ export async function runScan(input: ScanConfigInput): Promise<ScanSummary> {
   await writePatchSupportFiles(config.outputDir, patchBundle);
   await writeIntelligenceSupportFiles(config.outputDir, findings, baselineComparison, suppressionReport);
   await writeFile(join(config.outputDir, "scan-result.json"), `${JSON.stringify(scan, null, 2)}\n`, "utf8");
+  await writeFile(
+    join(config.outputDir, "rule-evaluations.json"),
+    `${JSON.stringify(ruleResult.evaluations, null, 2)}\n`,
+    "utf8"
+  );
   await writeReportBundle(config.outputDir, bundle, {
     baselineComparison,
     agentReview: buildPendingAgentReview(bundle)

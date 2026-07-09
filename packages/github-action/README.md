@@ -24,7 +24,10 @@ jobs:
         with:
           url: "http://localhost:3000"
           output: "seo-polish-report"
+          baseline: ".seo-polish-baseline"
           max-pages: "300"
+          max-score-drop: "2"
+          fail-on-new-high: "true"
           fail-on-critical: "true"
           fail-on-report-lint: "true"
           fail-on-private-url: "true"
@@ -34,4 +37,8 @@ jobs:
           path: seo-polish-report/
 ```
 
-The action writes `report-path`, `score`, `critical-findings` and `github-pr-comment` outputs.
+The action writes `report-path`, `score`, `critical-findings`, `regression-gate`, `score-delta` and
+`github-pr-comment` outputs. When a baseline is supplied it compares stable finding groups, blocks configured score
+drops and newly introduced critical/high findings, and writes the result to the GitHub step summary.
+
+See `.github/workflows/seo-monitor.yml` for scheduled baseline restore, regression gating and artifact persistence.

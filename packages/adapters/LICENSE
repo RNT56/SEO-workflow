@@ -1,0 +1,154 @@
+SEO Polish Non-Commercial License v1.0
+
+Copyright (c) 2026 RNT56
+
+This software, including all source code, object code, documentation,
+configuration, workflows, examples, reports, templates, prompts, schemas,
+tests, generated artifacts, and related materials in this repository
+(collectively, the "Software"), is made available only under the terms below.
+
+This is not an open source license. It intentionally restricts commercial use.
+Any permission not expressly granted below is reserved by the copyright holder.
+
+1. Definitions
+
+"Licensor" means RNT56 and any copyright holder authorized to grant this
+license.
+
+"You" means any individual or legal entity that accesses, copies, modifies,
+runs, evaluates, distributes, or otherwise uses the Software.
+
+"Commercial Purpose" means any activity, direct or indirect, that is connected
+to a business, trade, profession, employer, client, customer, contractor,
+commercial product, commercial service, revenue-generating activity, paid work,
+fundraising activity, business operation, investment activity, or other
+commercial advantage, whether or not revenue is immediately received.
+
+"Commercial Work" includes, without limitation, commercial products, commercial
+services, paid consulting, client work, agency work, internal business tooling,
+business operations, product development, market research, competitive research,
+SEO services, content strategy, marketing work, sales enablement, analytics,
+audits, reports, benchmarks, remediation plans, procurement decisions,
+investment decisions, training materials, operational playbooks, datasets,
+models, prompts, or any other work product intended for or connected to a
+Commercial Purpose.
+
+"Non-Commercial Purpose" means personal learning, private experimentation,
+academic research, classroom teaching, non-commercial security review, or
+non-commercial evaluation that is not connected to any Commercial Purpose or
+Commercial Work.
+
+2. Limited Non-Commercial Grant
+
+Subject to full compliance with this license, Licensor grants You a limited,
+worldwide, royalty-free, non-exclusive, non-transferable, non-sublicensable
+license to copy, run, inspect, and modify the Software solely for a
+Non-Commercial Purpose.
+
+You may distribute copies or modified copies of the Software only for a
+Non-Commercial Purpose, only under this same license, and only if You preserve
+this license, all copyright notices, and all attribution notices.
+
+3. Commercial Use Is Prohibited
+
+You may not use the Software, or any output, report, benchmark, remediation
+plan, recommendation, code, patch, workflow, schema, prompt, template,
+architecture, know-how, evaluation, or other material derived from or informed
+by the Software, for any Commercial Purpose or Commercial Work.
+
+Prohibited commercial use includes, without limitation:
+
+- using the Software in, with, for, or to support any commercial product,
+  commercial service, SaaS offering, hosted service, managed service, internal
+  business tool, agency workflow, consulting workflow, client deliverable, or
+  paid engagement;
+- using the Software to audit, optimize, benchmark, validate, improve, plan,
+  advise on, or inform any commercial website, application, product, service,
+  business operation, SEO program, marketing program, or commercial strategy;
+- using the Software to create, improve, validate, compare, train, fine-tune,
+  evaluate, or inform commercial datasets, models, agents, prompts, tools,
+  reports, benchmarks, playbooks, or knowledge bases;
+- incorporating, linking, bundling, translating, adapting, embedding,
+  distributing, sublicensing, reselling, renting, leasing, or making available
+  the Software as part of any commercial product or commercial service;
+- using the Software for competitive analysis, procurement analysis, due
+  diligence, investment analysis, market research, or business decision-making;
+  and
+- using the Software in work performed by or for any company, employer, client,
+  customer, contractor, agency, partnership, nonprofit commercial operation, or
+  other organization when that work is connected to a Commercial Purpose.
+
+Receiving the Software for free, using it internally, or using it without
+charging a separate fee does not make a use non-commercial if the use is
+connected to a Commercial Purpose or Commercial Work.
+
+4. No Circumvention
+
+You may not use the Software indirectly to do anything this license prohibits
+directly. You may not use any automated system, agent, model, employee,
+contractor, affiliate, customer, or third party to obtain commercial benefit
+from the Software or from material derived from or informed by the Software.
+
+5. No Patent, Trademark, or Brand Rights
+
+This license grants no patent license, no trademark license, no trade name
+license, no service mark license, and no right to use Licensor names, logos,
+brands, or product names except as necessary to identify the Software and
+preserve notices required by this license.
+
+6. Contributions
+
+Unless a separate written agreement says otherwise, by submitting any
+contribution to this repository You grant Licensor a perpetual, worldwide,
+royalty-free, non-exclusive, transferable, sublicensable license to reproduce,
+modify, prepare derivative works of, publicly display, publicly perform,
+distribute, use, and relicense that contribution as part of the Software.
+
+Downstream recipients receive Your contribution only under this license unless
+Licensor provides a separate written license. You represent that You have the
+right to submit the contribution under these terms.
+
+7. Termination
+
+Your rights under this license terminate automatically and immediately if You
+breach any term. After termination, You must stop using the Software and delete
+or destroy all copies, modified copies, generated commercial materials, and
+commercial work product created in breach of this license.
+
+Sections intended to survive termination, including restrictions, disclaimers,
+limitations of liability, and reserved rights, survive termination.
+
+8. Commercial Licensing
+
+Commercial rights are not granted by this license. Any commercial use requires
+prior written permission from Licensor under a separate commercial license.
+
+9. Disclaimer of Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF TITLE,
+NON-INFRINGEMENT, MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, SECURITY,
+ACCURACY, RELIABILITY, OR AVAILABILITY. YOU ARE SOLELY RESPONSIBLE FOR
+DETERMINING WHETHER YOUR USE IS PERMITTED AND APPROPRIATE.
+
+10. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, LICENSOR AND CONTRIBUTORS WILL NOT BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY,
+PUNITIVE, OR OTHER DAMAGES, INCLUDING WITHOUT LIMITATION LOST PROFITS, LOST
+REVENUE, LOST DATA, BUSINESS INTERRUPTION, SECURITY INCIDENTS, OR PROCUREMENT
+OF SUBSTITUTE GOODS OR SERVICES, ARISING FROM OR RELATED TO THE SOFTWARE OR
+THIS LICENSE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+11. Severability
+
+If any provision of this license is held unenforceable, the remaining provisions
+remain in effect to the maximum extent permitted by law. The unenforceable
+provision will be interpreted or replaced to best preserve the original
+non-commercial intent.
+
+12. Entire License
+
+This license is the complete permission granted for the Software unless
+Licensor signs a separate written agreement. Any use outside this license is
+unauthorized.

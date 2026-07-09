@@ -49,6 +49,35 @@ describe("buildReportDashboard", () => {
       unchangedFindingGroups: ["SEO-INDEX-004"]
     });
   });
+
+  it("uses Search Console rows to prioritize observed opportunities without creating findings", () => {
+    const bundle = makeBundle();
+    bundle.scan.fieldData = {
+      searchConsole: {
+        searchAnalytics: {
+          rows: [
+            {
+              keys: ["https://example.com/a"],
+              page: "https://example.com/a",
+              clicks: 20,
+              impressions: 2_000,
+              ctr: 0.01,
+              position: 8
+            }
+          ]
+        }
+      }
+    } as NonNullable<ReportBundle["scan"]["fieldData"]>;
+
+    const dashboard = buildReportDashboard(bundle);
+    const item = dashboard.implementationQueue.find((candidate) => candidate.findingId === "SEO-A11Y-006");
+
+    expect(item?.searchOpportunity).toMatchObject({ clicks: 20, impressions: 2_000 });
+    expect(item?.priorityReasons).toEqual(
+      expect.arrayContaining([expect.stringContaining("Search Console impressions")])
+    );
+    expect(dashboard.implementationQueue).toHaveLength(2);
+  });
 });
 
 const canonicalFix: RemediationOption = {

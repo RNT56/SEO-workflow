@@ -38,12 +38,13 @@ It is built for maintainers, researchers and non-commercial teams that need repe
 
 ```mermaid
 flowchart LR
-  A["Live website URL"] --> B["Crawl, render and discover"]
-  B --> C["Evidence and site intelligence"]
-  C --> D["Findings, scoring and actionability"]
-  D --> E["Static report bundle"]
-  E --> F["Review, export and remediation handoff"]
-  F --> G["Validation and safety gates"]
+  A["Choose audit mode"] --> B["Preflight and live evidence"]
+  B --> C["Coverage and evidence gate"]
+  C --> D["Review and owner decisions"]
+  D --> E["Bounded change set"]
+  E --> F["Deployed verification scan"]
+  F --> G["Final review and retrospective"]
+  G --> H["Complete or monitor"]
 ```
 
 The workflow audits what users, crawlers and agents actually receive from the live site. Source repository access is optional for reporting, but required for safe implementation work. See [Agent remediation handoff](docs/agent-remediation.md) for source-backed execution patterns.
@@ -96,6 +97,53 @@ pnpm --filter @seo-polish/cli seo-polish report lint ./audit-reports/example/<ru
 pnpm --filter @seo-polish/cli seo-polish benchmark --report ./audit-reports/example/<run>
 pnpm --filter @seo-polish/cli seo-polish plan build --report ./audit-reports/example/<run>
 ```
+
+## Guided workflow
+
+The guided path turns the scan/report primitives into a resumable project workflow. Start with one of four modes:
+
+| Mode               | Completion boundary                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| `quick-audit`      | Evidence-backed report and verification manifest; no repository mutation                   |
+| `full-remediation` | Review, decisions, bounded source changes, deployed rescan, final review and retrospective |
+| `pr-regression`    | Baseline comparison with score-drop and new-critical/high regression gates                 |
+| `monitor`          | Repeatable audit run plus portfolio/history aggregation                                    |
+
+```bash
+seo-polish init https://example.com \
+  --name "Example" \
+  --repo ../website \
+  --mode full-remediation
+
+seo-polish run --browser-evidence
+seo-polish status <audit-run-dir>
+```
+
+Full remediation pauses rather than guessing whenever an evidence-linked review, owner decision, source-change
+approval, deployed verification URL or retrospective is missing:
+
+```bash
+seo-polish review import <audit-run-dir> --file ./agent-review.json
+seo-polish approve <audit-run-dir> --decision <decision-id> --option approve
+seo-polish resume <audit-run-dir> --apply-safe --verification-url https://preview.example.com
+seo-polish retrospective import <audit-run-dir> --file ./workflow-retrospective.json
+seo-polish resume <audit-run-dir> --project-checks
+```
+
+Open the local-only control center for project history, score profiles, rule coverage, phases, findings and the
+approval inbox. It binds only to a loopback host, requires same-origin JSON for decisions, and never applies source
+changes:
+
+```bash
+seo-polish open ./audit-reports
+```
+
+### Score trust model
+
+`score.json` has a primary core SEO grade and a separately labelled experimental composite. Experimental
+`llms.txt`, Agent Skills and public discovery conventions cannot reduce the primary SEO grade. Every run also
+writes `rule-evaluations.json`, recording whether each catalogued rule passed, failed, was not applicable, or was
+not measured; unavailable browser or field evidence never becomes a false pass.
 
 ## Repo-aware scans
 
@@ -198,19 +246,23 @@ storage secrets outside the audit engine.
 
 Each scan writes a complete report folder. The files most people start with are:
 
-| File                        | Purpose                                                                                                                           |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `index.html` and `index.md` | Human-readable audit report                                                                                                       |
-| `findings.json`             | Evidence-backed findings with impact, root cause, affected URLs, recommended fix, validation steps, confidence and approval flags |
-| `score.json`                | SEO and readiness scoring output                                                                                                  |
-| `report-dashboard.json`     | Stable dashboard model for the report UI and implementation queue                                                                 |
-| `agent-review-input.json`   | Bounded evidence packet for strategic review and narrative writing                                                                |
-| `agent-review.json`         | Structured agent-authored review, required for production-complete handoffs                                                       |
-| `remediation-plan.json`     | Phased remediation plan with safe, manual and approval-required work                                                              |
-| `agent-execution-plan.md`   | Source-repo handoff plan for repo-capable agents or human implementers                                                            |
-| `field-data.json`           | Unified CrUX, Search Console and RUM field-data summary when requested                                                            |
-| `quality-gate.json`         | Final report production gate status                                                                                               |
-| `audit-run.json`            | Storage metadata for the audit run folder, export profiles and privacy defaults                                                   |
+| File                         | Purpose                                                                                                                           |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `index.html` and `index.md`  | Human-readable audit report                                                                                                       |
+| `findings.json`              | Evidence-backed findings with impact, root cause, affected URLs, recommended fix, validation steps, confidence and approval flags |
+| `score.json`                 | SEO and readiness scoring output                                                                                                  |
+| `rule-evaluations.json`      | Per-rule measured, not-measured and not-applicable coverage ledger                                                                |
+| `report-dashboard.json`      | Stable dashboard model for the report UI and implementation queue                                                                 |
+| `agent-review-input.json`    | Bounded evidence packet for strategic review and narrative writing                                                                |
+| `agent-review.json`          | Structured agent-authored review, required for production-complete handoffs                                                       |
+| `remediation-plan.json`      | Phased remediation plan with safe, manual and approval-required work                                                              |
+| `agent-execution-plan.md`    | Source-repo handoff plan for repo-capable agents or human implementers                                                            |
+| `field-data.json`            | Unified CrUX, Search Console and RUM field-data summary when requested                                                            |
+| `quality-gate.json`          | Final report production gate status                                                                                               |
+| `audit-run.json`             | Storage metadata for the audit run folder, export profiles and privacy defaults                                                   |
+| `workflow-state.json`        | Durable phase, decision, review, change and verification state for guided runs                                                    |
+| `change-set.json`            | Framework-aware bounded source changes with hashes and approval requirements                                                      |
+| `verification-manifest.json` | Evidence that the selected workflow completion boundary was met                                                                   |
 
 The HTML report is a static execution cockpit. It has file-safe tabs for overview, agent review,
 implementation, performance, route templates, baseline comparison and evidence review. The implementation
@@ -230,6 +282,8 @@ SEO Polish Workflow is report-first and evidence-bound:
 - Strict report lint and production readiness fail until the mandatory agent review artifacts are complete.
 - Workflow completion stays blocked until the maintainer-facing retrospective is complete.
 - Patch generation defaults to diff-only proposals.
+- Framework adapters are path-confined, hash-checked and approval-aware; they cannot write outside the selected repository.
+- Full remediation requires a fresh scan of a deployed verification URL. A local source edit alone cannot complete the workflow.
 - Repo-aware analysis is explicit through `--repo`; the workflow does not silently assume the current directory is the target website source.
 - Core Web Vitals are not fabricated from HTTP data. LCP, INP and CLS stay `not_measured` unless browser or field evidence exists.
 - Suppressions are non-destructive ledgers with reason, owner and expiry; they do not delete findings from `findings.json`.
@@ -247,22 +301,31 @@ Commercial rights require prior written permission from the copyright holder.
 
 ## CLI commands
 
-| Command                                                                                     | Use                                                       |
-| ------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `seo-polish scan <url>`                                                                     | Crawl and analyze a live site                             |
-| `seo-polish scan <url> --repo ../website --performance-runs 3`                              | Add repo-aware source candidates and repeated timing      |
-| `seo-polish scan <url> --baseline ./previous-report --suppressions ./rules.json`            | Compare against history and record intentional exceptions |
-| `seo-polish report lint <audit-run-dir> --strict --format summary`                          | Validate the report contract                              |
-| `seo-polish report render <audit-run-dir>`                                                  | Regenerate report UI, validation and quality gate         |
-| `seo-polish agent-review fixture --report <audit-run-dir>`                                  | Write deterministic test review artifacts for fixtures    |
-| `seo-polish workflow-retrospective fixture --report <audit-run-dir>`                        | Write deterministic test retrospective artifacts          |
-| `seo-polish learnings validate --report <audit-run-dir>`                                    | Validate the workflow retrospective completion gate       |
-| `seo-polish learnings collect --report <audit-run-dir>`                                     | Export redacted maintainer learnings into the inbox       |
-| `seo-polish standards update --output <audit-run-dir>/standards-registry.json`              | Write standards and rule coverage metadata                |
-| `seo-polish benchmark --report <audit-run-dir>`                                             | Generate agent-experience benchmark files                 |
-| `seo-polish plan build --report <audit-run-dir>`                                            | Build the final remediation handoff                       |
-| `seo-polish export --report <audit-run-dir> --profile review\|repo-import\|full\|learnings` | Create a portable audit package                           |
-| `seo-polish doctor`                                                                         | Check runtime, standards registry and safety defaults     |
+| Command                                                                                     | Use                                                        |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `seo-polish scan <url>`                                                                     | Crawl and analyze a live site                              |
+| `seo-polish scan <url> --repo ../website --performance-runs 3`                              | Add repo-aware source candidates and repeated timing       |
+| `seo-polish scan <url> --baseline ./previous-report --suppressions ./rules.json`            | Compare against history and record intentional exceptions  |
+| `seo-polish init <url> --mode full-remediation --repo ../website`                           | Create a durable guided project and workflow               |
+| `seo-polish run` and `seo-polish resume <audit-run-dir>`                                    | Advance a workflow until its next explicit gate            |
+| `seo-polish status <audit-run-dir>`                                                         | Inspect phases, blockers, decisions and verification state |
+| `seo-polish approve\|reject\|defer <audit-run-dir> --decision <id>`                         | Record an owner decision without applying a change         |
+| `seo-polish review import <audit-run-dir> --file ./agent-review.json`                       | Import an evidence-linked strategic or final review        |
+| `seo-polish retrospective import <audit-run-dir> --file ./workflow-retrospective.json`      | Import the required maintainer retrospective               |
+| `seo-polish compare <baseline-report> <current-report>`                                     | Write a stable finding and score regression comparison     |
+| `seo-polish monitor ./audit-reports`                                                        | Build cross-run portfolio and history data                 |
+| `seo-polish open ./audit-reports`                                                           | Open the local project control center                      |
+| `seo-polish report lint <audit-run-dir> --strict --format summary`                          | Validate the report contract                               |
+| `seo-polish report render <audit-run-dir>`                                                  | Regenerate report UI, validation and quality gate          |
+| `seo-polish agent-review fixture --report <audit-run-dir>`                                  | Write deterministic test review artifacts for fixtures     |
+| `seo-polish workflow-retrospective fixture --report <audit-run-dir>`                        | Write deterministic test retrospective artifacts           |
+| `seo-polish learnings validate --report <audit-run-dir>`                                    | Validate the workflow retrospective completion gate        |
+| `seo-polish learnings collect --report <audit-run-dir>`                                     | Export redacted maintainer learnings into the inbox        |
+| `seo-polish standards update --output <audit-run-dir>/standards-registry.json`              | Write standards and rule coverage metadata                 |
+| `seo-polish benchmark --report <audit-run-dir>`                                             | Generate agent-experience benchmark files                  |
+| `seo-polish plan build --report <audit-run-dir>`                                            | Build the final remediation handoff                        |
+| `seo-polish export --report <audit-run-dir> --profile review\|repo-import\|full\|learnings` | Create a portable audit package                            |
+| `seo-polish doctor`                                                                         | Check runtime, standards registry and safety defaults      |
 
 ## Repository packages
 
@@ -274,13 +337,16 @@ Commercial rights require prior written permission from the copyright holder.
 | `@seo-polish/rules`                                  | Runtime package              | Deterministic SEO and readiness rules           |
 | `@seo-polish/scoring`                                | Runtime package              | Score calculation                               |
 | `@seo-polish/remediation` and `@seo-polish/patchers` | Runtime packages             | Remediation plans and diff-only patch proposals |
+| `@seo-polish/adapters`                               | Release package              | Bounded framework-aware source change sets      |
+| `@seo-polish/workflow`                               | Release package              | Durable projects, phases, decisions and gates   |
+| `@seo-polish/integrations`                           | Release package              | Search, field-data and submission providers     |
 | `@seo-polish/reporters` and `@seo-polish/renderer`   | Runtime packages             | Markdown, HTML and support-file rendering       |
 | `@seo-polish/validation`                             | Runtime package              | Report linting and safety validation            |
 | `@seo-polish/benchmark`                              | Runtime package              | Agent-experience benchmark metrics              |
 | `@seo-polish/standards-registry`                     | Runtime package              | Standards snapshots and rule mapping metadata   |
 | `@seo-polish/security`                               | Runtime package              | Private URL, secret and prompt-injection guards |
-| `@seo-polish/mcp-server`                             | Release package              | MCP-facing tool contracts and dispatcher        |
-| `@seo-polish/github-action`                          | Release package              | GitHub Action wrapper                           |
+| `@seo-polish/mcp-server`                             | Release package              | Protocol-compliant MCP tools and resources      |
+| `@seo-polish/github-action`                          | Release package              | PR and scheduled regression gates               |
 | `@seo-polish/skill`                                  | Release package              | Agent skill package for the workflow            |
 | `@seo-polish/sdk`                                    | Private; not released to npm | Experimental programmatic API                   |
 

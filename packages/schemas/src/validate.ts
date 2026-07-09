@@ -109,6 +109,27 @@ export function validateScore(score: Score): SchemaValidationResult {
       "Score categories",
       score.categories.length > 0,
       "Score must include categories."
+    ),
+    check(
+      "score.primary-profile",
+      "Primary score profile",
+      score.profiles?.core_seo?.score === score.total && score.profiles.core_seo.includedInPrimary,
+      "The public total must equal the stable core SEO profile."
+    ),
+    check(
+      "score.coverage",
+      "Rule evaluation coverage",
+      Boolean(score.coverage) &&
+        score.coverage.measuredRules <= score.coverage.applicableRules &&
+        score.coverage.percentMeasured >= 0 &&
+        score.coverage.percentMeasured <= 100,
+      "Score must report bounded measured/applicable rule coverage."
+    ),
+    check(
+      "score.experimental-separation",
+      "Experimental score separation",
+      typeof score.experimentalCombined === "number" && !score.profiles.agent_readiness.includedInPrimary,
+      "Experimental agent-readiness must remain outside the primary SEO grade."
     )
   ];
   return { ok: checks.every((item) => item.status !== "failed"), checks };

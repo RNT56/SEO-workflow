@@ -14,6 +14,17 @@ pnpm dlx @seo-polish/cli seo-polish plan build --report ./audit-reports/example/
 
 Core commands:
 
+- `seo-polish init`
+- `seo-polish run`
+- `seo-polish status`
+- `seo-polish resume`
+- `seo-polish approve|reject|defer`
+- `seo-polish review import`
+- `seo-polish retrospective import`
+- `seo-polish verify`
+- `seo-polish compare`
+- `seo-polish monitor`
+- `seo-polish open`
 - `seo-polish scan <url>`
 - `seo-polish plan`
 - `seo-polish plan build`
@@ -41,6 +52,10 @@ Generated agent handoffs include a quiet communication contract: agents should a
 write detail into report artifacts, and message users only for approvals, blockers, safety boundaries,
 long-running delays, failed gates and completion.
 `doctor` reports runtime, safety defaults and standards registry health.
+
+The guided commands persist projects, phases, events, reviews and owner decisions. `open` serves a local-only control
+center on a loopback host; it requires same-origin JSON to record decisions and cannot apply repository changes. Full
+remediation requires a fresh scan of a deployed verification URL before it can complete.
 
 When invoked through package managers such as `pnpm --filter`, relative paths are resolved from the
 directory where the user launched the command, not from the CLI package directory.

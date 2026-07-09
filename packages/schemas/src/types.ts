@@ -95,6 +95,114 @@ export type WorkflowLearningSeverity = "critical" | "high" | "medium" | "low" | 
 export type WorkflowLearningPrivacy = "public" | "redacted" | "private";
 export type WorkflowMaintainerActionStatus = "proposed" | "accepted" | "rejected" | "implemented";
 export type WorkflowCompletionStatus = "complete" | "blocked";
+export type RuleMaturity = "stable" | "emerging" | "experimental";
+export type RuleEvaluationStatus = "passed" | "failed" | "not_applicable" | "not_measured";
+export type ScoreProfileId = "core_seo" | "experience" | "agent_readiness" | "governance";
+export type WorkflowMode = "quick-audit" | "full-remediation" | "pr-regression" | "monitor";
+export type WorkflowRunStatus = "initialized" | "running" | "awaiting_approval" | "failed" | "complete";
+export type WorkflowPhaseStatus = "pending" | "running" | "blocked" | "failed" | "complete" | "skipped";
+export type WorkflowPhaseId =
+  | "preflight"
+  | "scan"
+  | "evidence_gate"
+  | "review"
+  | "decisions"
+  | "plan"
+  | "apply"
+  | "verify"
+  | "retrospective"
+  | "complete";
+export type WorkflowDecisionStatus = "pending" | "approved" | "rejected" | "deferred";
+
+export interface WorkflowTarget {
+  id: string;
+  name: string;
+  url: string;
+  repoPath?: string;
+  auditName?: string;
+  defaultMode: WorkflowMode;
+}
+
+export interface WorkflowProject {
+  version: "1";
+  projectId: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  auditRoot: string;
+  targets: WorkflowTarget[];
+}
+
+export interface WorkflowPhase {
+  id: WorkflowPhaseId;
+  status: WorkflowPhaseStatus;
+  startedAt?: string;
+  completedAt?: string;
+  message: string;
+  artifacts: string[];
+}
+
+export interface WorkflowDecision {
+  id: string;
+  title: string;
+  reason: string;
+  status: WorkflowDecisionStatus;
+  sensitive: boolean;
+  findingIds: string[];
+  options: string[];
+  selectedOption?: string;
+  note?: string;
+  decidedBy?: string;
+  decidedAt?: string;
+}
+
+export interface WorkflowEvent {
+  id: string;
+  timestamp: string;
+  type: "phase_started" | "phase_completed" | "phase_failed" | "decision_recorded" | "artifact_written";
+  phase?: WorkflowPhaseId;
+  message: string;
+  artifacts: string[];
+}
+
+export interface WorkflowState {
+  version: "1";
+  workflowId: string;
+  projectId: string;
+  targetId: string;
+  mode: WorkflowMode;
+  status: WorkflowRunStatus;
+  currentPhase: WorkflowPhaseId;
+  createdAt: string;
+  updatedAt: string;
+  reportDir?: string;
+  baselinePath?: string;
+  phases: WorkflowPhase[];
+  decisions: WorkflowDecision[];
+  stopReasons: string[];
+  lastError?: string;
+}
+
+export interface VerificationManifest {
+  version: "1";
+  generatedAt: string;
+  workflowId: string;
+  reportDir: string;
+  ok: boolean;
+  reportValid: boolean;
+  primaryScore: number;
+  experimentalScore: number;
+  coveragePercent: number;
+  baselineStatus: "not_configured" | "ok" | "invalid";
+  commands: Array<{
+    command: string;
+    status: "passed" | "failed" | "skipped";
+    exitCode: number | null;
+    durationMs: number;
+    outputExcerpt: string;
+  }>;
+  stopReasons: string[];
+}
 
 export interface ScanPolicy {
   search: "yes" | "no" | "neutral";
@@ -229,6 +337,39 @@ export interface Finding {
   actionability?: FindingActionability;
 }
 
+export interface RuleEvaluation {
+  ruleId: string;
+  category: FindingCategory;
+  maturity: RuleMaturity;
+  status: RuleEvaluationStatus;
+  applicable: boolean;
+  measured: boolean;
+  findingCount: number;
+  reason: string;
+}
+
+export interface ScoreCoverage {
+  catalogRules: number;
+  applicableRules: number;
+  measuredRules: number;
+  passedRules: number;
+  failedRules: number;
+  notApplicableRules: number;
+  notMeasuredRules: number;
+  percentMeasured: number;
+}
+
+export interface ScoreProfile {
+  id: ScoreProfileId;
+  label: string;
+  score: number;
+  level: ScoreLevel;
+  maturity: RuleMaturity;
+  includedInPrimary: boolean;
+  coverage: ScoreCoverage;
+  notes: string;
+}
+
 export interface ScoreCategory {
   id: string;
   label: string;
@@ -239,6 +380,7 @@ export interface ScoreCategory {
 }
 
 export interface Score {
+  /** Primary stable SEO health score. Experimental agent conventions never reduce this value. */
   total: number;
   level: ScoreLevel;
   scores: {
@@ -250,6 +392,9 @@ export interface Score {
     securityPolicy: number;
   };
   categories: ScoreCategory[];
+  profiles: Record<ScoreProfileId, ScoreProfile>;
+  coverage: ScoreCoverage;
+  experimentalCombined: number;
 }
 
 export interface ReportDashboardQueueItem {
@@ -273,6 +418,14 @@ export interface ReportDashboardQueueItem {
   nextStep: string;
   instances: number;
   evidenceCount: number;
+  priorityScore?: number;
+  priorityReasons?: string[];
+  searchOpportunity?: {
+    matchedUrls: string[];
+    clicks: number;
+    impressions: number;
+    averagePosition: number | null;
+  } | null;
 }
 
 export interface ReportDashboardMatrixQuadrant {
@@ -661,6 +814,13 @@ export interface EndpointProbe {
   headers: Record<string, string>;
   error?: string;
   timing?: FetchTimingSnapshot;
+  redirectChain?: RedirectHop[];
+}
+
+export interface RedirectHop {
+  url: string;
+  status: number;
+  location: string;
 }
 
 export interface ImageSnapshot {
@@ -707,6 +867,8 @@ export interface PageSnapshot {
   forms: number;
   bodyExcerpt: string;
   timing?: FetchTimingSnapshot;
+  redirectChain?: RedirectHop[];
+  hreflangEntries?: Array<{ language: string; href: string }>;
 }
 
 export interface CrawlGraphNode {

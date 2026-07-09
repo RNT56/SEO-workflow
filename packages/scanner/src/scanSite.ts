@@ -147,7 +147,8 @@ export async function scanSite(config: ScanConfig): Promise<ScanResult> {
           status: response.status,
           contentType: response.contentType,
           headers: response.headers,
-          html: response.body
+          html: response.body,
+          redirectChain: response.redirectChain
         });
         page.timing = response.timing;
         pages.push(page);

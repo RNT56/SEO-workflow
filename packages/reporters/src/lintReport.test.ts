@@ -188,7 +188,51 @@ function makeBundle(): ReportBundle {
           status: "strong",
           notes: "Test score"
         }
-      ]
+      ],
+      profiles: {
+        core_seo: {
+          id: "core_seo",
+          label: "Core SEO Health",
+          score: 82,
+          level: "strong",
+          maturity: "stable",
+          includedInPrimary: true,
+          coverage: testCoverage(),
+          notes: "Test coverage"
+        },
+        experience: {
+          id: "experience",
+          label: "Performance & Accessibility",
+          score: 82,
+          level: "strong",
+          maturity: "stable",
+          includedInPrimary: true,
+          coverage: testCoverage(),
+          notes: "Test coverage"
+        },
+        agent_readiness: {
+          id: "agent_readiness",
+          label: "Agent Readiness (Experimental)",
+          score: 78,
+          level: "strong",
+          maturity: "experimental",
+          includedInPrimary: false,
+          coverage: testCoverage(),
+          notes: "Test coverage"
+        },
+        governance: {
+          id: "governance",
+          label: "Security & Policy Governance",
+          score: 95,
+          level: "excellent",
+          maturity: "emerging",
+          includedInPrimary: false,
+          coverage: testCoverage(),
+          notes: "Test coverage"
+        }
+      },
+      coverage: testCoverage(),
+      experimentalCombined: 80
     },
     remediationPlan: {
       phases: [{ id: "safe", title: "Safe fixes", summary: "Safe fixes.", items: [fix] }],
@@ -203,5 +247,18 @@ function makeBundle(): ReportBundle {
       checks: []
     },
     patchDiff: ""
+  };
+}
+
+function testCoverage() {
+  return {
+    catalogRules: 1,
+    applicableRules: 1,
+    measuredRules: 1,
+    passedRules: 0,
+    failedRules: 1,
+    notApplicableRules: 0,
+    notMeasuredRules: 0,
+    percentMeasured: 100
   };
 }

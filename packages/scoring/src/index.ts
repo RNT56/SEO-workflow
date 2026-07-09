@@ -2,9 +2,13 @@ import type {
   Finding,
   FindingCategory,
   FindingStatus,
+  RuleEvaluation,
   Score,
   ScoreCategory,
+  ScoreCoverage,
   ScoreLevel,
+  ScoreProfile,
+  ScoreProfileId,
   Severity
 } from "@seo-polish/schemas";
 
@@ -114,12 +118,91 @@ const COMBINED_WEIGHTS: Record<keyof Score["scores"], number> = {
   securityPolicy: 10
 };
 
-export function calculateScore(findings: Finding[]): Score {
+const CORE_SEO_CATEGORIES: FindingCategory[] = [
+  "technical_seo",
+  "crawlability",
+  "indexability",
+  "onpage_seo",
+  "content_seo",
+  "internal_linking",
+  "structured_data",
+  "javascript_seo",
+  "media_seo",
+  "performance_seo",
+  "accessibility",
+  "international_seo",
+  "local_seo",
+  "ecommerce_seo",
+  "security"
+];
+
+const PROFILE_DEFINITIONS: Array<{
+  id: ScoreProfileId;
+  label: string;
+  categories: FindingCategory[];
+  maturity: ScoreProfile["maturity"];
+  includedInPrimary: boolean;
+}> = [
+  {
+    id: "core_seo",
+    label: "Core SEO Health",
+    categories: CORE_SEO_CATEGORIES,
+    maturity: "stable",
+    includedInPrimary: true
+  },
+  {
+    id: "experience",
+    label: "Performance & Accessibility",
+    categories: ["performance_seo", "media_seo", "accessibility", "javascript_seo"],
+    maturity: "stable",
+    includedInPrimary: true
+  },
+  {
+    id: "agent_readiness",
+    label: "Agent Readiness (Experimental)",
+    categories: ["agent_readiness", "protocol_discovery", "api_auth_mcp"],
+    maturity: "experimental",
+    includedInPrimary: false
+  },
+  {
+    id: "governance",
+    label: "Security & Policy Governance",
+    categories: ["security", "policy"],
+    maturity: "emerging",
+    includedInPrimary: false
+  }
+];
+
+export function calculateScore(findings: Finding[], evaluations: RuleEvaluation[] = []): Score {
   const scores = Object.fromEntries(
     AREAS.map((area) => [area.id, scoreArea(findings, area.categories)])
   ) as Score["scores"];
 
-  const total = weightedScore(scores, COMBINED_WEIGHTS);
+  const total = scoreArea(findings, CORE_SEO_CATEGORIES, stableMeasuredRuleIds(evaluations));
+  const experimentalCombined = weightedScore(scores, COMBINED_WEIGHTS);
+  const coverage = buildCoverage(evaluations);
+  const profiles = Object.fromEntries(
+    PROFILE_DEFINITIONS.map((definition) => {
+      const profileEvaluations = evaluations.filter((evaluation) =>
+        definition.categories.includes(evaluation.category)
+      );
+      const allowedRuleIds =
+        definition.id === "core_seo" ? stableMeasuredRuleIds(profileEvaluations) : undefined;
+      const score = scoreArea(findings, definition.categories, allowedRuleIds);
+      const profileCoverage = buildCoverage(profileEvaluations);
+      const profile: ScoreProfile = {
+        id: definition.id,
+        label: definition.label,
+        score,
+        level: scoreLevel(score),
+        maturity: definition.maturity,
+        includedInPrimary: definition.includedInPrimary,
+        coverage: profileCoverage,
+        notes: coverageNote(profileCoverage)
+      };
+      return [definition.id, profile];
+    })
+  ) as Record<ScoreProfileId, ScoreProfile>;
 
   const categories: ScoreCategory[] = AREAS.map((area) => ({
     id: area.id,
@@ -132,23 +215,38 @@ export function calculateScore(findings: Finding[]): Score {
 
   categories.push({
     id: "combined",
-    label: "Combined SEO Polish Score",
+    label: "Primary Core SEO Score",
     score: total,
     maxScore: 100,
     status: scoreLevel(total),
-    notes: total >= 90 ? "Excellent foundation." : "Prioritize high-impact evidence-backed findings."
+    notes:
+      total >= 90
+        ? `Excellent core foundation. ${coverageNote(profiles.core_seo.coverage)}`
+        : `Prioritize high-impact core findings. ${coverageNote(profiles.core_seo.coverage)}`
+  });
+  categories.push({
+    id: "experimentalCombined",
+    label: "Experimental Composite",
+    score: experimentalCombined,
+    maxScore: 100,
+    status: scoreLevel(experimentalCombined),
+    notes:
+      "Informational composite that includes agent-readiness and policy signals; it is not the primary SEO grade."
   });
 
   return {
     total,
     level: scoreLevel(total),
     scores,
-    categories
+    categories,
+    profiles,
+    coverage,
+    experimentalCombined
   };
 }
 
-function scoreArea(findings: Finding[], categories: FindingCategory[]): number {
-  const groups = groupFindings(findings, categories);
+function scoreArea(findings: Finding[], categories: FindingCategory[], allowedRuleIds?: Set<string>): number {
+  const groups = groupFindings(findings, categories, allowedRuleIds);
   const penalty = groups.reduce((sum, group) => sum + scoreGroupPenalty(group), 0);
   return clampScore(Math.round(100 - penalty));
 }
@@ -169,11 +267,19 @@ function categoryNotes(findings: Finding[], categories: FindingCategory[]): stri
   return `${groups.length} unique issue${groups.length === 1 ? "" : "s"}, ${affectedUrlReferences} affected URL reference${affectedUrlReferences === 1 ? "" : "s"}; ${parts.join(", ")}`;
 }
 
-function groupFindings(findings: Finding[], categories: FindingCategory[]): FindingGroup[] {
+function groupFindings(
+  findings: Finding[],
+  categories: FindingCategory[],
+  allowedRuleIds?: Set<string>
+): FindingGroup[] {
   const groups = new Map<string, FindingGroup>();
 
   for (const finding of findings) {
-    if (!categories.includes(finding.category) || !SCOREABLE_STATUSES.has(finding.status)) {
+    if (
+      !categories.includes(finding.category) ||
+      !SCOREABLE_STATUSES.has(finding.status) ||
+      (allowedRuleIds && !allowedRuleIds.has(finding.id))
+    ) {
       continue;
     }
 
@@ -205,6 +311,39 @@ function groupFindings(findings: Finding[], categories: FindingCategory[]): Find
   }
 
   return [...groups.values()];
+}
+
+function stableMeasuredRuleIds(evaluations: RuleEvaluation[]): Set<string> | undefined {
+  if (evaluations.length === 0) {
+    return undefined;
+  }
+  return new Set(
+    evaluations
+      .filter((evaluation) => evaluation.maturity === "stable" && evaluation.measured)
+      .map((evaluation) => evaluation.ruleId)
+  );
+}
+
+function buildCoverage(evaluations: RuleEvaluation[]): ScoreCoverage {
+  const applicable = evaluations.filter((evaluation) => evaluation.applicable);
+  const measured = applicable.filter((evaluation) => evaluation.measured);
+  return {
+    catalogRules: evaluations.length,
+    applicableRules: applicable.length,
+    measuredRules: measured.length,
+    passedRules: measured.filter((evaluation) => evaluation.status === "passed").length,
+    failedRules: measured.filter((evaluation) => evaluation.status === "failed").length,
+    notApplicableRules: evaluations.filter((evaluation) => evaluation.status === "not_applicable").length,
+    notMeasuredRules: applicable.filter((evaluation) => evaluation.status === "not_measured").length,
+    percentMeasured: applicable.length === 0 ? 0 : Math.round((measured.length / applicable.length) * 100)
+  };
+}
+
+function coverageNote(coverage: ScoreCoverage): string {
+  if (coverage.catalogRules === 0) {
+    return "Rule coverage metadata was not supplied.";
+  }
+  return `${coverage.measuredRules}/${coverage.applicableRules} applicable rules measured (${coverage.percentMeasured}%).`;
 }
 
 function scoreGroupPenalty(group: FindingGroup): number {

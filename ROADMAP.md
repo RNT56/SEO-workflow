@@ -1,38 +1,47 @@
-# Roadmap
+# Roadmap and Capability Status
 
-## v0.1 Core workflow
+The implementation state is tracked by capability rather than by aspirational version buckets. A capability is
+`complete` only when its contract, implementation, tests, user documentation and release verification exist.
 
-- Bootstrap pnpm/Turbo TypeScript monorepo.
-- Implement scan config, evidence, finding, score, remediation and validation contracts.
-- Implement HTTP discovery, sitemap parsing, basic crawl and HTML extraction.
-- Implement deterministic SEO and agent-readiness rules.
-- Render schema-bound Markdown and HTML reports.
-- Enforce report linting, evidence requirements and safety gates.
-- Ship CLI, SDK, MCP tool dispatcher, GitHub Action wrapper and agent skill.
-- Add security automation, Dependabot, dependency review, CodeQL and local secret scanning.
-- Add real fixture scan/report-lint gate and deterministic agent-experience benchmark output.
-- Add full rule-to-standard registry validation, standards snapshot export and CLI doctor diagnostics.
-- Generate priority action plan and agent-specific instruction sidecars with every report render.
-- Generate a final agent execution plan that consolidates scan, findings, benchmark, approval gates and verification steps.
+## Current capability matrix
 
-## v0.2 SEO basics hardening
+| Capability                                                 | State    | Evidence                                                                               |
+| ---------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------- |
+| Evidence-first live scan and report contract               | Complete | CLI scan, schema-bound artifacts, report lint, fixture scans                           |
+| Stable vs experimental scoring                             | Complete | Core SEO primary grade, separate experimental composite, coverage ledger               |
+| Rule applicability and measurement coverage                | Complete | `rule-evaluations.json` records pass/fail/not-applicable/not-measured                  |
+| Redirect, international, local, commerce and LCP hardening | Complete | All catalogued rules have deterministic evaluators and direct tests                    |
+| Guided project workflow                                    | Complete | `init`, `run`, `status`, `resume`, durable phases and append-only events               |
+| Owner decision workflow                                    | Complete | Decision inbox, approve/reject/defer CLI and local control-center actions              |
+| Framework-aware bounded remediation                        | Complete | Static, Next.js, Astro, Nuxt, SvelteKit, Remix, Docusaurus and generic detection       |
+| Change-set safety                                          | Complete | Repository confinement, symlink guards, content hashes and sensitive approvals         |
+| Post-change verification                                   | Complete | Deployed verification URL, fresh scan, baseline comparison and final review gate       |
+| Workflow retrospective                                     | Complete | Import, rerender and completion gating after final verification                        |
+| Local control center                                       | Complete | `seo-polish open`, project/run view, phases, scores, coverage, decisions and findings  |
+| MCP interoperability                                       | Complete | Official SDK, lifecycle negotiation, tool schemas, resources and in-memory client test |
+| Search/field data providers                                | Complete | Search Console, CrUX, metric-file normalization and approval-gated IndexNow            |
+| Search opportunity prioritization                          | Complete | Search Console metrics enrich queue priority without creating findings                 |
+| PR regression workflow                                     | Complete | Baseline comparison, score-drop/new-high gates, outputs and step summary               |
+| Continuous monitoring                                      | Complete | Monitor mode, portfolio aggregation and scheduled GitHub workflow                      |
+| Package/export release surface                             | Complete | Release set, packed artifact validation and portable report exports                    |
 
-- Broaden redirect, broken-link, parameter duplicate and canonical conflict coverage.
-- Add exact golden report snapshots for fixtures beyond structural fixture scan coverage.
-- Add richer rendered HTML comparison where Playwright/Lighthouse are available.
+## Next maturity milestones
 
-## v0.3 Agent readiness hardening
+### Stable 1.0 contract
 
-- Deepen llms.txt, Agent Skills, API Catalog, MCP, OAuth and auth.md validation.
-- Add live benchmark tasks for agent paths through documentation and APIs.
+- Accumulate compatibility evidence from diverse live sites and repositories.
+- Freeze schema and MCP tool contracts after the pre-1.0 feedback window.
+- Publish migration notes for every breaking contract revision.
+- Complete an independent security and false-positive review.
 
-## v0.4 Advanced SEO
+### Optional hosted operations
 
-- Add richer structured-data validation, raw/rendered HTML comparison, media checks, accessibility checks and duplicate-content detection.
-- Integrate optional Lighthouse/Core Web Vitals collection.
+- Add a hosted runner only if local-first projects demonstrate a real coordination need.
+- Preserve origin guards, report-only defaults, credential isolation and explicit mutation approvals.
+- Keep the local CLI, static reports and control center fully usable without an account or cloud service.
 
-## v1.0 Stable release
+### Additional adapters and providers
 
-- Stabilize package APIs, schemas, report contract and MCP tool contracts.
-- Publish packages under `@seo-polish/*`.
-- Add migration/versioning docs and complete security review.
+- Add framework adapters only with golden repositories and end-to-end verification fixtures.
+- Add analytics providers through the normalized metric contract; imported data may prioritize but never invent findings.
+- Track experimental agent-discovery conventions independently from established SEO standards.

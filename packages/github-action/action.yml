@@ -12,6 +12,25 @@ inputs:
     description: "Report output directory."
     required: false
     default: "seo-polish-report"
+  baseline:
+    description: "Optional baseline report directory for regression gating."
+    required: false
+  repo:
+    description: "Optional checked-out source repository path for route/template mapping."
+    required: false
+    default: "."
+  browser-evidence:
+    description: "Collect bounded Playwright browser evidence."
+    required: false
+    default: "false"
+  max-score-drop:
+    description: "Maximum allowed primary core SEO score drop when a baseline is configured."
+    required: false
+    default: "0"
+  fail-on-new-high:
+    description: "Fail when comparison introduces a new critical or high finding group."
+    required: false
+    default: "true"
   fail-on-critical:
     description: "Fail when critical findings exist."
     required: false
@@ -33,6 +52,10 @@ outputs:
     description: "Number of critical findings."
   github-pr-comment:
     description: "Path to the generated PR comment markdown."
+  regression-gate:
+    description: "passed, failed or not-configured."
+  score-delta:
+    description: "Primary core SEO score delta against the baseline."
 runs:
   using: "node24"
   main: "dist/index.js"

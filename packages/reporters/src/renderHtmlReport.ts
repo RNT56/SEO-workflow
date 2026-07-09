@@ -211,7 +211,7 @@ function renderOverviewView(bundle: ReportBundle, dashboard: ReportDashboard): s
     <div class="panel executive-panel">
       <p class="panel-label">Executive Summary</p>
       <h2>${dashboard.score.total}/100 ${escapeHtml(dashboard.score.level)}</h2>
-      <p>Validation ${escapeHtml(dashboard.executiveSummary.validationState)}. Quality gate ${escapeHtml(dashboard.qualityGateStatus)}. Agent review ${escapeHtml(dashboard.agentReview.status)}. ${dashboard.executiveSummary.remainingApprovals} approval-gated items remain.</p>
+      <p>Primary core SEO score. ${dashboard.score.coverage?.measuredRules ?? 0}/${dashboard.score.coverage?.applicableRules ?? 0} applicable rules measured (${dashboard.score.coverage?.percentMeasured ?? 0}%). Experimental agent readiness is reported separately at ${dashboard.score.profiles?.agent_readiness?.score ?? dashboard.score.scores.agentReadiness}/100. Validation ${escapeHtml(dashboard.executiveSummary.validationState)}. Quality gate ${escapeHtml(dashboard.qualityGateStatus)}. Agent review ${escapeHtml(dashboard.agentReview.status)}. ${dashboard.executiveSummary.remainingApprovals} approval-gated items remain.</p>
       ${renderSiteIntelligence(bundle)}
     </div>
     <div class="panel">
@@ -558,7 +558,8 @@ ${bundle.score.categories
     <div class="score-model">
       <span>Score model</span>
       <strong>Grouped issue impact</strong>
-      <p>Scores use unique open/warning issue groups. Repeated affected URLs add capped impact, while passed and not-applicable checks do not lower scores.</p>
+      <p>The primary score uses stable, measured core SEO and security rules. Experimental agent conventions remain outside that grade. Repeated affected URLs add capped impact, while passed, not-applicable and unmeasured checks do not lower scores.</p>
+      <p><strong>Coverage:</strong> ${bundle.score.coverage?.measuredRules ?? 0}/${bundle.score.coverage?.applicableRules ?? 0} applicable rules measured (${bundle.score.coverage?.percentMeasured ?? 0}%). ${bundle.score.coverage?.notMeasuredRules ?? 0} applicable rules were explicitly not measured.</p>
     </div>
   </div>
 </section>`;
@@ -571,7 +572,7 @@ function renderHero(bundle: ReportBundle): string {
       <h1>${escapeHtml(new URL(bundle.scan.config.url).hostname)}</h1>
       <p>${escapeHtml(bundle.scan.siteType)} site, ${escapeHtml(bundle.scan.techStack?.framework ?? bundle.scan.framework)} framework signal</p>
     </div>
-    ${renderScoreRing(bundle.score.total, 100, bundle.score.level, "Combined SEO Polish Score", "large")}
+    ${renderScoreRing(bundle.score.total, 100, bundle.score.level, "Primary Core SEO Score", "large")}
   </header>`;
 }
 
@@ -630,7 +631,7 @@ function renderHtmlSection(
       agentReview?.status === "complete"
         ? `<p>${escapeHtml(agentReview.executiveSummary)}</p><p>Agent review: <strong>complete</strong>. Final audit is available in <code>final-audit.md</code>.</p>`
         : `<p class="empty-state">Agent review: ${escapeHtml(dashboard.agentReview.status)}. Production readiness is blocked until the mandatory review artifacts are completed.</p>`;
-    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>Combined score: <strong>${bundle.score.total}/100</strong> (${escapeHtml(bundle.score.level)}). Findings are evidence-bound and generated from structured scan output.</p>${reviewSummary}<p>${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info. ${groups.length} unique grouped issues.</p>${renderSiteIntelligence(bundle)}${groups.length > 0 ? `<h3>Top grouped findings</h3><ol>${top}</ol>` : emptyState("No open findings.")}</section>`;
+    return `<section id="section-${number}"><h2>${number}. ${escapeHtml(title)}</h2><p>Primary core SEO score: <strong>${bundle.score.total}/100</strong> (${escapeHtml(bundle.score.level)}). Experimental composite: <strong>${bundle.score.experimentalCombined ?? bundle.score.total}/100</strong>. Coverage: ${bundle.score.coverage?.measuredRules ?? 0}/${bundle.score.coverage?.applicableRules ?? 0} applicable rules measured. Findings are evidence-bound and generated from structured scan output.</p>${reviewSummary}<p>${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info. ${groups.length} unique grouped issues.</p>${renderSiteIntelligence(bundle)}${groups.length > 0 ? `<h3>Top grouped findings</h3><ol>${top}</ol>` : emptyState("No open findings.")}</section>`;
   }
   if (number === 3) {
     const instanceCounts = findingInstanceCounts(bundle.findings);
@@ -871,7 +872,7 @@ function renderQueueCard(item: ReportDashboardQueueItem, suffix: string): string
         <span class="badge ${escapeHtml(item.severity)}">${escapeHtml(item.severity)}</span>
         <h4>${escapeHtml(item.findingId)} - ${escapeHtml(item.title)}</h4>
       </div>
-      <strong>${escapeHtml(item.expectedImpact)} impact</strong>
+      <strong>${escapeHtml(item.expectedImpact)} impact · priority ${item.priorityScore ?? "n/a"}</strong>
     </div>
     <div class="meta">
       <span>${escapeHtml(FIX_CLASS_LABEL[item.fixClass])}</span>
@@ -882,6 +883,7 @@ function renderQueueCard(item: ReportDashboardQueueItem, suffix: string): string
       <span>Approval: ${item.approvalRequired ? "yes" : "no"}</span>
     </div>
     <p>${escapeHtml(item.nextStep)}</p>
+    ${item.searchOpportunity ? `<p><strong>Search opportunity:</strong> ${item.searchOpportunity.impressions} impressions, ${item.searchOpportunity.clicks} clicks${item.searchOpportunity.averagePosition === null ? "" : `, average position ${item.searchOpportunity.averagePosition.toFixed(1)}`} across ${item.searchOpportunity.matchedUrls.length} affected URL${item.searchOpportunity.matchedUrls.length === 1 ? "" : "s"}.</p>` : ""}
     <details class="evidence-drawer">
       <summary>Fix preview and validation</summary>
       <p><strong>Source candidates:</strong> ${escapeHtml(item.sourceCandidates.join(", ") || "needs repo access")}</p>

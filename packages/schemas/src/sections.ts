@@ -48,7 +48,7 @@ export const REPORT_SECTIONS: ReportSection[] = [
   { number: 27, title: "Final Agent Execution Plan", categories: [] }
 ];
 
-export const REPORT_CONTRACT_VERSION = "2026-07-08.workflow-retrospective";
+export const REPORT_CONTRACT_VERSION = "2026-07-09.guided-workflow";
 
 export const REQUIRED_REPORT_FILES = [
   "index.md",

@@ -61,7 +61,9 @@ Final audit: \`final-audit.md\`
   return `# Executive Summary
 
 Target: ${bundle.scan.config.url}
-Combined SEO Polish Score: ${bundle.score.total}/100 (${bundle.score.level})
+Primary Core SEO Score: ${bundle.score.total}/100 (${bundle.score.level})
+Experimental composite: ${bundle.score.experimentalCombined ?? bundle.score.total}/100
+Rule coverage: ${bundle.score.coverage?.measuredRules ?? 0}/${bundle.score.coverage?.applicableRules ?? 0} applicable rules measured (${bundle.score.coverage?.percentMeasured ?? 0}%)
 Agent review: pending
 
 Findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info.
@@ -76,7 +78,8 @@ export function renderGitHubPrComment(bundle: ReportBundle): string {
   const counts = countBySeverity(bundle.findings);
   return `## SEO Polish Report
 
-Score: **${bundle.score.total}/100** (${bundle.score.level})
+Primary core SEO score: **${bundle.score.total}/100** (${bundle.score.level})
+Experimental composite: **${bundle.score.experimentalCombined ?? bundle.score.total}/100**
 
 Findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info.
 
@@ -216,7 +219,9 @@ ${renderSiteIntelligence(bundle)}
       (finding, index) =>
         `${index + 1}. ${finding.id} - ${finding.title}${formatInstanceSuffix(finding.count)}`
     );
-  return `Combined score: **${bundle.score.total}/100** (${bundle.score.level})
+  return `Primary core SEO score: **${bundle.score.total}/100** (${bundle.score.level})
+Experimental composite: **${bundle.score.experimentalCombined ?? bundle.score.total}/100**
+Rule coverage: **${bundle.score.coverage?.measuredRules ?? 0}/${bundle.score.coverage?.applicableRules ?? 0}** applicable rules (${bundle.score.coverage?.percentMeasured ?? 0}%)
 Agent review status: **pending_agent_review**
 
 Findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info.

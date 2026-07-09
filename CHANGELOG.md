@@ -14,5 +14,10 @@
 - Added `report-dashboard.json` and the static execution cockpit report UI with implementation queues, impact/effort matrix, template heatmap, performance summaries, baseline comparison and evidence drawers.
 - Added optional browser evidence collection with rendered DOM comparison, console/network/runtime markers and browser lab metrics.
 - Added optional field-data collection for CrUX, Search Console and first-party RUM, with field metrics prioritized over lab evidence.
+- Added trustworthy primary scoring with stable, emerging and experimental profiles plus a per-rule applicability and measurement ledger.
+- Added durable quick-audit, full-remediation, PR-regression and monitor workflows with owner decisions, resumable phases, deployed verification and retrospective gates.
+- Added path-confined, hash-checked framework remediation adapters and a hardened loopback-only local control center.
+- Replaced the MCP placeholder transport with the official protocol SDK and added normalized Search Console, CrUX, metric-file and approval-gated IndexNow integrations.
+- Added stable finding comparisons, GitHub regression gates, scheduled monitoring, portfolio aggregation and 77 implemented rule evaluators.
 - Added non-commercial package release preparation for `@seo-polish/cli` and its runtime package set.
 - Kept `@seo-polish/sdk` private and excluded from the npm release set.

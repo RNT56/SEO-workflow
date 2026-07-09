@@ -15,6 +15,8 @@
   { "name": "@seo-polish/crawler", "path": "packages/crawler" },
   { "name": "@seo-polish/renderer", "path": "packages/renderer" },
   { "name": "@seo-polish/integrations", "path": "packages/integrations" },
+  { "name": "@seo-polish/adapters", "path": "packages/adapters" },
+  { "name": "@seo-polish/workflow", "path": "packages/workflow" },
   { "name": "@seo-polish/skill", "path": "packages/skill" },
   { "name": "@seo-polish/github-action", "path": "packages/github-action" },
   { "name": "@seo-polish/mcp-server", "path": "packages/mcp-server" },

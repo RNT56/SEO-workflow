@@ -122,7 +122,7 @@ describe("calculateScore", () => {
     expect(score.scores.performanceAccessibility).toBe(100);
   });
 
-  it("keeps the combined score within bounds for mixed severities", () => {
+  it("keeps the primary and experimental scores within bounds for mixed severities", () => {
     const score = calculateScore([
       makeFinding({
         id: "SEO-SITEMAP-002",
@@ -149,7 +149,7 @@ describe("calculateScore", () => {
 
     expect(score.total).toBeGreaterThanOrEqual(0);
     expect(score.total).toBeLessThanOrEqual(100);
-    expect(score.total).toBe(
+    expect(score.experimentalCombined).toBe(
       Math.round(
         score.scores.seo * 0.25 +
           score.scores.agentReadiness * 0.2 +
@@ -159,6 +159,41 @@ describe("calculateScore", () => {
           score.scores.securityPolicy * 0.1
       )
     );
+    expect(score.total).toBe(score.profiles.core_seo.score);
+    expect(score.categories.find((category) => category.id === "experimentalCombined")?.score).toBe(
+      score.experimentalCombined
+    );
+  });
+
+  it("does not let experimental agent findings reduce the primary SEO grade", () => {
+    const agentFinding = makeFinding({
+      id: "AR-LLMS-001",
+      title: "llms.txt is missing",
+      category: "agent_readiness",
+      severity: "critical",
+      url: "https://example.com/llms.txt"
+    });
+
+    const score = calculateScore(
+      [agentFinding],
+      [
+        {
+          ruleId: "AR-LLMS-001",
+          category: "agent_readiness",
+          maturity: "experimental",
+          status: "failed",
+          applicable: true,
+          measured: true,
+          findingCount: 1,
+          reason: "Fixture finding."
+        }
+      ]
+    );
+
+    expect(score.total).toBe(100);
+    expect(score.profiles.agent_readiness.score).toBeLessThan(100);
+    expect(score.experimentalCombined).toBeLessThan(100);
+    expect(score.coverage.percentMeasured).toBe(100);
   });
 });
 

@@ -169,7 +169,7 @@ function buildImplementationQueue(bundle: ReportBundle): ReportDashboardQueueIte
     }
   }
 
-  return queue.sort(queuePrioritySort);
+  return enrichQueueWithSearchOpportunity(queue, bundle).sort(queuePrioritySort);
 }
 
 function queueItemFromRemediation(
@@ -416,26 +416,26 @@ function buildPerformanceSummary(bundle: ReportBundle): ReportDashboardPerforman
     fieldData: {
       status: fieldData?.status ?? "disabled",
       providersRequested: fieldData?.providersRequested ?? [],
-      providersAvailable: fieldData?.summary.providersAvailable ?? [],
-      metricCoverage: fieldData?.summary.metricCoverage ?? {
+      providersAvailable: fieldData?.summary?.providersAvailable ?? [],
+      metricCoverage: fieldData?.summary?.metricCoverage ?? {
         crux: {},
         rum: {},
         gsc: { searchAnalytics: false, urlInspection: false }
       },
-      fieldOrigin: fieldData?.summary.origin ?? {
+      fieldOrigin: fieldData?.summary?.origin ?? {
         lcpP75Ms: null,
         inpP75Ms: null,
         clsP75: null,
         ttfbP75Ms: null
       },
-      searchConsole: fieldData?.summary.searchConsole ?? {
+      searchConsole: fieldData?.summary?.searchConsole ?? {
         clicks: null,
         impressions: null,
         inspectedUrls: 0,
         indexedUrls: 0,
         nonIndexedUrls: 0
       },
-      rum: fieldData?.summary.rum ?? {
+      rum: fieldData?.summary?.rum ?? {
         lcpP75Ms: null,
         inpP75Ms: null,
         clsP75: null,
@@ -494,6 +494,7 @@ function buildEvidenceStats(
 
 function queuePrioritySort(left: ReportDashboardQueueItem, right: ReportDashboardQueueItem): number {
   return (
+    (right.priorityScore ?? 0) - (left.priorityScore ?? 0) ||
     SEVERITY_ORDER[left.severity] - SEVERITY_ORDER[right.severity] ||
     IMPACT_WEIGHT[left.expectedImpact] - IMPACT_WEIGHT[right.expectedImpact] ||
     Number(left.approvalRequired) - Number(right.approvalRequired) ||
@@ -502,6 +503,73 @@ function queuePrioritySort(left: ReportDashboardQueueItem, right: ReportDashboar
     left.findingId.localeCompare(right.findingId) ||
     left.id.localeCompare(right.id)
   );
+}
+
+function enrichQueueWithSearchOpportunity(
+  queue: ReportDashboardQueueItem[],
+  bundle: ReportBundle
+): ReportDashboardQueueItem[] {
+  const rows = bundle.scan.fieldData?.searchConsole?.searchAnalytics.rows ?? [];
+  const rowsByPage = new Map<string, typeof rows>();
+  for (const row of rows) {
+    if (!row.page) continue;
+    const key = normalizedUrl(row.page);
+    rowsByPage.set(key, [...(rowsByPage.get(key) ?? []), row]);
+  }
+  return queue.map((item) => {
+    const matchedRows = item.affectedUrls.flatMap((url) => rowsByPage.get(normalizedUrl(url)) ?? []);
+    const matchedUrls = uniqueStrings(matchedRows.flatMap((row) => (row.page ? [row.page] : [])));
+    const clicks = matchedRows.reduce((sum, row) => sum + row.clicks, 0);
+    const impressions = matchedRows.reduce((sum, row) => sum + row.impressions, 0);
+    const weightedPositions = matchedRows.filter((row) => row.impressions > 0);
+    const averagePosition =
+      weightedPositions.length === 0
+        ? null
+        : weightedPositions.reduce((sum, row) => sum + row.position * row.impressions, 0) /
+          weightedPositions.reduce((sum, row) => sum + row.impressions, 0);
+    const searchOpportunity =
+      matchedRows.length === 0 ? null : { matchedUrls, clicks, impressions, averagePosition };
+    const priorityReasons = [
+      `${item.severity} evidence-backed finding`,
+      `${item.expectedImpact} expected impact`,
+      ...(impressions > 0 ? [`${impressions} Search Console impressions on affected URLs`] : []),
+      ...(averagePosition !== null && averagePosition >= 4 && averagePosition <= 20
+        ? [`average position ${averagePosition.toFixed(1)} indicates a near-page-one opportunity`]
+        : [])
+    ];
+    return {
+      ...item,
+      priorityScore: priorityScore(item, clicks, impressions, averagePosition),
+      priorityReasons,
+      searchOpportunity
+    };
+  });
+}
+
+function priorityScore(
+  item: ReportDashboardQueueItem,
+  clicks: number,
+  impressions: number,
+  averagePosition: number | null
+): number {
+  const severity = { critical: 100, high: 80, medium: 50, low: 20, info: 5 }[item.severity];
+  const impact = { high: 20, medium: 10, low: 0 }[item.expectedImpact];
+  const impressionOpportunity = Math.min(20, Math.log10(impressions + 1) * 5);
+  const clickSignal = Math.min(10, Math.log10(clicks + 1) * 4);
+  const rankingOpportunity =
+    averagePosition !== null && averagePosition >= 4 && averagePosition <= 20 ? 15 : 0;
+  return Math.round((severity + impact + impressionOpportunity + clickSignal + rankingOpportunity) * 10) / 10;
+}
+
+function normalizedUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    url.pathname = url.pathname === "/" ? "/" : url.pathname.replace(/\/$/, "");
+    return url.toString();
+  } catch {
+    return value.replace(/\/$/, "");
+  }
 }
 
 function statusCounts(metrics: PerformanceMetricSnapshot[]): Record<BudgetStatus, number> {

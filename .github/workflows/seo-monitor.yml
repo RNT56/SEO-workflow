@@ -1,0 +1,69 @@
+name: SEO monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Public site URL. Falls back to repository variable SEO_POLISH_MONITOR_URL."
+        required: false
+        type: string
+  schedule:
+    - cron: "41 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    if: ${{ inputs.url != '' || vars.SEO_POLISH_MONITOR_URL != '' }}
+    runs-on: ubuntu-latest
+    env:
+      TARGET_URL: ${{ inputs.url || vars.SEO_POLISH_MONITOR_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.10.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Restore latest monitor baseline
+        id: baseline
+        uses: actions/cache/restore@v5
+        with:
+          path: monitor-baseline
+          key: seo-monitor-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            seo-monitor-${{ github.ref_name }}-
+      - name: Run regression-aware SEO scan
+        id: seo
+        uses: ./packages/github-action
+        with:
+          url: ${{ env.TARGET_URL }}
+          output: monitor-current
+          baseline: ${{ steps.baseline.outputs.cache-matched-key != '' && 'monitor-baseline' || '' }}
+          fail-on-report-lint: "false"
+          fail-on-critical: "true"
+          fail-on-new-high: "true"
+          max-score-drop: "0"
+      - name: Prepare next baseline
+        if: always() && hashFiles('monitor-current/score.json') != ''
+        run: |
+          rm -rf monitor-baseline
+          cp -R monitor-current monitor-baseline
+      - name: Save monitor baseline
+        if: always() && hashFiles('monitor-baseline/score.json') != ''
+        uses: actions/cache/save@v5
+        with:
+          path: monitor-baseline
+          key: seo-monitor-${{ github.ref_name }}-${{ github.run_id }}
+      - name: Upload audit bundle
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: seo-monitor-${{ github.run_id }}
+          path: monitor-current
+          if-no-files-found: warn

@@ -7,11 +7,12 @@ import type {
   PageSnapshot,
   RemediationOption,
   RepoSourceFile,
+  RuleEvaluation,
   ScanResult,
   Severity
 } from "@seo-polish/schemas";
 import { enforceApprovalForFinding, findPrivateReferences, isPrivateUrl } from "@seo-polish/security";
-import { getRule } from "./catalog.js";
+import { getRule, RULE_CATALOG } from "./catalog.js";
 
 interface FindingInput {
   id: string;
@@ -455,6 +456,133 @@ export function evaluateRules(scan: ScanResult): Finding[] {
   }
 }
 
+export function evaluateRulesWithCoverage(scan: ScanResult): {
+  findings: Finding[];
+  evaluations: RuleEvaluation[];
+} {
+  const findings = evaluateRules(scan);
+  const findingCounts = new Map<string, number>();
+  for (const finding of findings) {
+    findingCounts.set(finding.id, (findingCounts.get(finding.id) ?? 0) + 1);
+  }
+
+  const evaluations = RULE_CATALOG.map((rule): RuleEvaluation => {
+    const applicability = ruleApplicability(rule.id, rule.category, scan);
+    const findingCount = findingCounts.get(rule.id) ?? 0;
+    if (!applicability.applicable) {
+      return {
+        ruleId: rule.id,
+        category: rule.category,
+        maturity: rule.maturity,
+        status: "not_applicable",
+        applicable: false,
+        measured: false,
+        findingCount: 0,
+        reason: applicability.reason
+      };
+    }
+    if (!rule.implemented) {
+      return {
+        ruleId: rule.id,
+        category: rule.category,
+        maturity: rule.maturity,
+        status: "not_measured",
+        applicable: true,
+        measured: false,
+        findingCount: 0,
+        reason: "The rule is catalogued but its deterministic evaluator is not implemented yet."
+      };
+    }
+    const unavailableReason = ruleMeasurementUnavailable(rule.id, scan);
+    if (unavailableReason) {
+      return {
+        ruleId: rule.id,
+        category: rule.category,
+        maturity: rule.maturity,
+        status: "not_measured",
+        applicable: true,
+        measured: false,
+        findingCount: 0,
+        reason: unavailableReason
+      };
+    }
+    return {
+      ruleId: rule.id,
+      category: rule.category,
+      maturity: rule.maturity,
+      status: findingCount > 0 ? "failed" : "passed",
+      applicable: true,
+      measured: true,
+      findingCount,
+      reason:
+        findingCount > 0
+          ? `${findingCount} evidence-backed finding instance${findingCount === 1 ? "" : "s"} emitted.`
+          : "The deterministic evaluator ran and emitted no finding."
+    };
+  });
+
+  return { findings, evaluations };
+}
+
+function ruleMeasurementUnavailable(ruleId: string, scan: ScanResult): string | null {
+  if (ruleId === "SEO-PERF-001") {
+    const lcp = scan.performance?.metrics.find((metric) => metric.id === "lcp-ms");
+    if (!lcp || lcp.status === "not_measured" || lcp.value === null) {
+      return "LCP was not available from browser or field evidence and is not inferred from fetch timing.";
+    }
+  }
+  return null;
+}
+
+function ruleApplicability(
+  ruleId: string,
+  category: FindingCategory,
+  scan: ScanResult
+): { applicable: boolean; reason: string } {
+  if (ruleId.startsWith("AR-") && !scan.config.includeAgentReadiness) {
+    return { applicable: false, reason: "Agent-readiness evaluation is disabled for this scan." };
+  }
+  if (ruleId.startsWith("SEO-SEARCH-") && !scan.config.includeSearchIntegrations) {
+    return { applicable: false, reason: "Search-provider integration checks are disabled for this scan." };
+  }
+  if (category === "accessibility" && !scan.config.includeAccessibility) {
+    return { applicable: false, reason: "Accessibility evaluation is disabled for this scan." };
+  }
+  if (category === "international_seo" && !scan.config.includeInternationalSeo) {
+    return { applicable: false, reason: "International SEO evaluation is disabled for this scan." };
+  }
+  if (category === "local_seo") {
+    const applicable = scan.config.includeLocalSeo && ["local-business", "mixed"].includes(scan.siteType);
+    return {
+      applicable,
+      reason: applicable
+        ? "The detected site type includes a local-business surface."
+        : "The site is not classified as local or mixed."
+    };
+  }
+  if (category === "ecommerce_seo") {
+    const applicable =
+      scan.config.includeCommerce && ["commerce", "marketplace", "mixed"].includes(scan.siteType);
+    return {
+      applicable,
+      reason: applicable
+        ? "The detected site type includes a commerce surface."
+        : "The site is not classified as commerce, marketplace or mixed."
+    };
+  }
+  if (
+    ruleId === "SEO-PERF-001" &&
+    !scan.config.includeCoreWebVitals &&
+    scan.config.fieldDataProviders.length === 0
+  ) {
+    return {
+      applicable: false,
+      reason: "Core Web Vitals evidence was not requested; the metric is not inferred from fetch timing."
+    };
+  }
+  return { applicable: true, reason: "The rule applies to this scan profile." };
+}
+
 function buildActionability(finding: Finding, scan: ScanResult): NonNullable<Finding["actionability"]> {
   const sourceFiles = sourceCandidatesForFinding(finding, scan);
   const owner = ownerForFinding(finding);
@@ -619,6 +747,25 @@ function evaluatePage(page: PageSnapshot, scan: ScanResult, add: (input: Finding
     scan.evidence.push(evidence);
     return evidence;
   };
+
+  if ((page.redirectChain?.length ?? 0) > 2) {
+    add({
+      id: "SEO-TECH-002",
+      title: "Redirect chain is too long",
+      confidence: 99,
+      evidence: [pageEvidence("response.redirect-chain", page.redirectChain)],
+      affectedUrls: [page.url],
+      impact:
+        "Long redirect chains waste crawl budget, add latency and make canonical delivery less reliable.",
+      rootCause: `The requested URL followed ${page.redirectChain?.length ?? 0} redirects before the final response.`,
+      recommendation:
+        "Point internal links and discovery files directly at the final canonical URL and collapse intermediate redirects.",
+      implementationPath:
+        "Update redirect configuration, internal links and sitemap URLs after confirming the intended final URL.",
+      validation: ["curl -IL <url>", "seo-polish scan <url>"],
+      safeToAutoFix: false
+    });
+  }
 
   if (page.status < 200 || page.status >= 400) {
     add({
@@ -842,6 +989,27 @@ function evaluatePage(page: PageSnapshot, scan: ScanResult, add: (input: Finding
       implementationPath: "Update the root layout or document template.",
       validation: ["seo-polish validate --check accessibility"],
       safeToAutoFix: true
+    });
+  }
+
+  if (
+    (page.hreflangEntries?.length ?? 0) > 0 &&
+    !page.hreflangEntries?.some((entry) => entry.language === "x-default")
+  ) {
+    add({
+      id: "SEO-INTL-005",
+      title: "Hreflang cluster has no x-default URL",
+      confidence: 92,
+      evidence: [pageEvidence('link[rel="alternate"][hreflang]', page.hreflangEntries)],
+      affectedUrls: [page.finalUrl],
+      affectedTemplates: ["international metadata"],
+      impact: "Search systems lack a language-neutral fallback for users whose locale is not represented.",
+      rootCause: "Alternate language links exist, but none declares hreflang x-default.",
+      recommendation:
+        "Add an x-default alternate only after confirming the correct language-neutral or selector URL.",
+      implementationPath: "Update the international metadata generator with an owner-approved fallback URL.",
+      validation: ["Verify every alternate cluster contains one x-default and reciprocal links."],
+      approvalRequired: true
     });
   }
 
@@ -1095,6 +1263,32 @@ function evaluatePage(page: PageSnapshot, scan: ScanResult, add: (input: Finding
     });
   }
 
+  if (
+    scan.siteType === "local-business" &&
+    !page.jsonLd.some((item) => hasJsonKey(item.parsed, ["openingHours", "openingHoursSpecification"])) &&
+    !/\b(?:open|hours|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(page.bodyExcerpt)
+  ) {
+    add({
+      id: "SEO-LOCAL-004",
+      title: "Opening-hours information is missing",
+      confidence: 76,
+      evidence: [
+        pageEvidence("local.opening-hours", {
+          bodyExcerpt: page.bodyExcerpt.slice(0, 300),
+          jsonLdTypes: [...schemaTypes]
+        })
+      ],
+      affectedUrls: [page.finalUrl],
+      affectedTemplates: ["local business page"],
+      impact: "Local users and search systems cannot determine when the business is available.",
+      rootCause: "No visible or structured opening-hours signal was detected on the local-business page.",
+      recommendation: "Publish owner-approved opening hours visibly and in LocalBusiness structured data.",
+      implementationPath: "Add verified business hours from the canonical business record.",
+      validation: ["Confirm displayed and structured hours match the owner-approved business source."],
+      approvalRequired: true
+    });
+  }
+
   if (scan.siteType === "commerce" && !schemaTypes.has("Product")) {
     add({
       id: "SEO-ECOM-001",
@@ -1129,6 +1323,36 @@ function evaluatePage(page: PageSnapshot, scan: ScanResult, add: (input: Finding
       approvalRequired: true
     });
   }
+
+  if (
+    scan.siteType === "commerce" &&
+    !schemaTypes.has("MerchantReturnPolicy") &&
+    !page.jsonLd.some((item) =>
+      hasJsonKey(item.parsed, ["hasMerchantReturnPolicy", "merchantReturnPolicy"])
+    ) &&
+    !/\breturn(?:s| policy)?\b/i.test(page.bodyExcerpt)
+  ) {
+    add({
+      id: "SEO-ECOM-013",
+      title: "Merchant return policy is not discoverable",
+      confidence: 74,
+      evidence: [
+        pageEvidence("commerce.return-policy", {
+          bodyExcerpt: page.bodyExcerpt.slice(0, 300),
+          jsonLdTypes: [...schemaTypes]
+        })
+      ],
+      affectedUrls: [page.finalUrl],
+      affectedTemplates: ["product or commerce page"],
+      impact: "Shoppers and commerce search surfaces lack a clear return-policy signal.",
+      rootCause: "No visible return-policy reference or MerchantReturnPolicy structured data was detected.",
+      recommendation:
+        "Link an owner-approved return policy and add matching structured data where applicable.",
+      implementationPath: "Publish policy content only after legal and commerce owner approval.",
+      validation: ["Verify visible policy terms exactly match structured data and approved policy text."],
+      approvalRequired: true
+    });
+  }
 }
 
 function evaluateCrossPageRules(scan: ScanResult, add: (input: FindingInput) => void): void {
@@ -1136,6 +1360,32 @@ function evaluateCrossPageRules(scan: ScanResult, add: (input: FindingInput) => 
   const sitemapEvidence = scan.discovery.sitemapXml
     ? toEvidence(scan.discovery.sitemapXml, "sitemap-cross-page")
     : fallbackEvidence("/sitemap.xml", scan);
+
+  const internationalSite = scan.pages.some(
+    (page) => (page.hreflangEntries?.length ?? page.hreflang.length) > 0
+  );
+  if (internationalSite) {
+    const missingHreflang = scan.pages
+      .filter((page) => (page.hreflangEntries?.length ?? page.hreflang.length) === 0)
+      .map((page) => page.finalUrl);
+    if (missingHreflang.length > 0) {
+      add({
+        id: "SEO-INTL-001",
+        title: "Pages in an international site are missing hreflang",
+        confidence: 88,
+        evidence: [crossPageEvidence("hreflang-coverage", missingHreflang)],
+        affectedUrls: missingHreflang,
+        affectedTemplates: ["international metadata"],
+        impact: "Search systems may serve the wrong language or regional URL for affected pages.",
+        rootCause: "Other crawled pages publish alternate-language clusters, but these pages publish none.",
+        recommendation: "Add reciprocal hreflang clusters only for confirmed equivalent localized URLs.",
+        implementationPath:
+          "Update the international route metadata generator after validating locale mappings.",
+        validation: ["Verify reciprocal locale URLs, canonical consistency and one x-default fallback."],
+        approvalRequired: true
+      });
+    }
+  }
 
   if (sitemapSet.size > 0) {
     const missingFromSitemap = scan.pages
@@ -1281,6 +1531,28 @@ function evaluatePerformanceRules(scan: ScanResult, add: (input: FindingInput) =
     performance.metrics.filter((metric) => metric.status === "failed").map((metric) => metric.id)
   );
   const affectedUrls = scan.pages.slice(0, 5).map((page) => page.finalUrl);
+
+  if (failed.has("lcp-ms")) {
+    add({
+      id: "SEO-PERF-001",
+      title: "Largest Contentful Paint exceeds the configured budget",
+      severity: "medium",
+      confidence: 90,
+      evidence: [metricEvidence("lcp-ms")],
+      affectedUrls,
+      affectedTemplates: ["performance profile"],
+      impact: "Slow largest-content rendering degrades real user experience and Core Web Vitals performance.",
+      rootCause: "Measured browser or field LCP exceeds the configured good threshold.",
+      recommendation:
+        "Optimize the LCP resource, server response, critical rendering path and above-the-fold layout.",
+      implementationPath:
+        "Use browser and field evidence to identify the LCP element before changing source or infrastructure.",
+      validation: [
+        "Re-run browser evidence and confirm p75 field or repeated lab LCP meets the configured budget."
+      ],
+      safeToAutoFix: false
+    });
+  }
 
   if (failed.has("document-fetch-ms")) {
     add({
@@ -1552,6 +1824,27 @@ function lacksNapSignals(text: string): boolean {
   const digits = [...text].filter((char) => char >= "0" && char <= "9").length;
   const hasPhoneLikeNumber = digits >= 7;
   return !hasAddressWord || !hasPhoneLikeNumber;
+}
+
+function hasJsonKey(value: unknown, keys: string[]): boolean {
+  const expected = new Set(keys);
+  let found = false;
+  const visit = (item: unknown): void => {
+    if (found) return;
+    if (Array.isArray(item)) {
+      item.forEach(visit);
+      return;
+    }
+    if (!item || typeof item !== "object") return;
+    const record = item as Record<string, unknown>;
+    if (Object.keys(record).some((key) => expected.has(key))) {
+      found = true;
+      return;
+    }
+    Object.values(record).forEach(visit);
+  };
+  visit(value);
+  return found;
 }
 
 function collectRiskyToolNames(value: unknown): string[] {

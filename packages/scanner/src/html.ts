@@ -9,6 +9,7 @@ export interface ExtractHtmlInput {
   contentType: string;
   headers: Record<string, string>;
   html: string;
+  redirectChain?: PageSnapshot["redirectChain"];
 }
 
 interface HtmlTag {
@@ -26,6 +27,7 @@ export function extractHtmlSnapshot(input: ExtractHtmlInput): PageSnapshot {
   const internalLinks = links.filter((url) => sameOrigin(url, origin));
   const externalLinks = links.filter((url) => !sameOrigin(url, origin));
 
+  const hreflangEntries = extractHreflang(input.html, input.finalUrl);
   return {
     url: input.url,
     status: input.status,
@@ -36,7 +38,8 @@ export function extractHtmlSnapshot(input: ExtractHtmlInput): PageSnapshot {
     metaDescription: extractMeta(input.html, "description"),
     robotsMeta: extractMeta(input.html, "robots"),
     canonical: extractLinkRel(input.html, "canonical", input.finalUrl),
-    hreflang: extractHreflang(input.html, input.finalUrl),
+    hreflang: hreflangEntries.map((entry) => entry.href),
+    hreflangEntries,
     lang: firstTagAttribute(input.html, "html", "lang"),
     viewport: extractMeta(input.html, "viewport"),
     headings: extractHeadings(input.html),
@@ -49,7 +52,8 @@ export function extractHtmlSnapshot(input: ExtractHtmlInput): PageSnapshot {
     twitterCards: extractNamePrefixMeta(input.html, "twitter:"),
     hasSkipLink: hasSkipLink(input.html),
     forms: countOpeningTags(input.html, "form"),
-    bodyExcerpt: cleanText.slice(0, 1200)
+    bodyExcerpt: cleanText.slice(0, 1200),
+    ...(input.redirectChain ? { redirectChain: input.redirectChain } : {})
   };
 }
 
@@ -136,8 +140,8 @@ function extractLinkRel(html: string, rel: string, baseUrl: string): string | nu
   return null;
 }
 
-function extractHreflang(html: string, baseUrl: string): string[] {
-  const values: string[] = [];
+function extractHreflang(html: string, baseUrl: string): Array<{ language: string; href: string }> {
+  const values: Array<{ language: string; href: string }> = [];
   for (const tag of iterateTags(html)) {
     if (tag.closing || tag.name !== "link") {
       continue;
@@ -148,11 +152,12 @@ function extractHreflang(html: string, baseUrl: string): string[] {
     }
     const href = attrs.get("href");
     const url = href ? normalizeHttpUrl(href, baseUrl) : null;
-    if (url) {
-      values.push(url);
+    const language = attrs.get("hreflang")?.trim().toLowerCase();
+    if (url && language) {
+      values.push({ language, href: url });
     }
   }
-  return values;
+  return [...new Map(values.map((entry) => [`${entry.language}|${entry.href}`, entry])).values()];
 }
 
 function extractHeadings(html: string): HeadingSnapshot[] {

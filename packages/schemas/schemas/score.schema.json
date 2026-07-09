@@ -2,10 +2,56 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://seo-polish.dev/schemas/score.schema.json",
   "type": "object",
-  "required": ["total", "level", "scores", "categories"],
+  "required": ["total", "level", "scores", "categories", "profiles", "coverage", "experimentalCombined"],
   "properties": {
     "total": { "type": "number", "minimum": 0, "maximum": 100 },
     "level": { "enum": ["excellent", "strong", "medium", "weak", "critical"] },
-    "categories": { "type": "array" }
+    "categories": { "type": "array" },
+    "experimentalCombined": { "type": "number", "minimum": 0, "maximum": 100 },
+    "coverage": { "$ref": "#/$defs/coverage" },
+    "profiles": {
+      "type": "object",
+      "required": ["core_seo", "experience", "agent_readiness", "governance"],
+      "additionalProperties": { "$ref": "#/$defs/profile" }
+    }
+  },
+  "$defs": {
+    "coverage": {
+      "type": "object",
+      "required": [
+        "catalogRules",
+        "applicableRules",
+        "measuredRules",
+        "passedRules",
+        "failedRules",
+        "notApplicableRules",
+        "notMeasuredRules",
+        "percentMeasured"
+      ],
+      "properties": {
+        "catalogRules": { "type": "integer", "minimum": 0 },
+        "applicableRules": { "type": "integer", "minimum": 0 },
+        "measuredRules": { "type": "integer", "minimum": 0 },
+        "passedRules": { "type": "integer", "minimum": 0 },
+        "failedRules": { "type": "integer", "minimum": 0 },
+        "notApplicableRules": { "type": "integer", "minimum": 0 },
+        "notMeasuredRules": { "type": "integer", "minimum": 0 },
+        "percentMeasured": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "required": ["id", "label", "score", "level", "maturity", "includedInPrimary", "coverage", "notes"],
+      "properties": {
+        "id": { "enum": ["core_seo", "experience", "agent_readiness", "governance"] },
+        "label": { "type": "string", "minLength": 1 },
+        "score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "level": { "enum": ["excellent", "strong", "medium", "weak", "critical"] },
+        "maturity": { "enum": ["stable", "emerging", "experimental"] },
+        "includedInPrimary": { "type": "boolean" },
+        "coverage": { "$ref": "#/$defs/coverage" },
+        "notes": { "type": "string" }
+      }
+    }
   }
 }

@@ -8,23 +8,31 @@ together so the audit can be reviewed, reproduced and handed off safely.
 
 Every audit run should include these core files:
 
-| File                        | Purpose                                                                                                                           |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `index.html` and `index.md` | Static human-readable report                                                                                                      |
-| `findings.json`             | Evidence-backed findings with impact, root cause, affected URLs, recommended fix, validation steps, confidence and approval flags |
-| `score.json`                | SEO and readiness scoring output                                                                                                  |
-| `evidence.jsonl`            | Raw evidence records used by findings                                                                                             |
-| `remediation-plan.json`     | Structured remediation phases and fix classifications                                                                             |
-| `validation.json`           | Report lint, signal-quality and safety validation results                                                                         |
-| `quality-gate.json`         | Final report production gate status                                                                                               |
-| `production-readiness.json` | Production-readiness mirror of the quality gate                                                                                   |
-| `report-dashboard.json`     | Stable dashboard model for the HTML report and implementation queue                                                               |
-| `audit-run.json`            | Storage metadata for the audit run folder, export profiles and privacy defaults                                                   |
-| `patch.diff`                | Diff-only patch proposal where safe automation is possible                                                                        |
-| `priority-action-plan.md`   | Ordered remediation summary                                                                                                       |
-| `agent-execution-plan.md`   | Source-repo handoff plan for repo-capable agents or human implementers                                                            |
-| `standards-registry.json`   | Local standards snapshot and rule mapping metadata                                                                                |
-| `agent-instructions/*.md`   | Environment-specific execution guidance generated from the report                                                                 |
+| File                         | Purpose                                                                                                                           |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `index.html` and `index.md`  | Static human-readable report                                                                                                      |
+| `findings.json`              | Evidence-backed findings with impact, root cause, affected URLs, recommended fix, validation steps, confidence and approval flags |
+| `score.json`                 | SEO and readiness scoring output                                                                                                  |
+| `evidence.jsonl`             | Raw evidence records used by findings                                                                                             |
+| `remediation-plan.json`      | Structured remediation phases and fix classifications                                                                             |
+| `validation.json`            | Report lint, signal-quality and safety validation results                                                                         |
+| `quality-gate.json`          | Final report production gate status                                                                                               |
+| `production-readiness.json`  | Production-readiness mirror of the quality gate                                                                                   |
+| `report-dashboard.json`      | Stable dashboard model for the HTML report and implementation queue                                                               |
+| `rule-evaluations.json`      | Applicability, maturity, measured/not-measured state and result for every catalogued rule                                         |
+| `workflow-state.json`        | Durable mode, phase, status, stop-reason and resume state for guided workflow runs                                                |
+| `workflow-events.jsonl`      | Append-only phase, decision and artifact event ledger                                                                             |
+| `workflow-project.json`      | Portable project and target snapshot used to resume the run                                                                       |
+| `decisions.json`             | Owner approval inbox and recorded approve/reject/defer dispositions                                                               |
+| `verification-manifest.json` | Report and optional repository gate results for the completed run                                                                 |
+| `change-set.json`            | Framework-adapter plan with hashes, approvals, applied changes and failures                                                       |
+| `change-set.diff`            | Human-reviewable bounded adapter change proposal                                                                                  |
+| `audit-run.json`             | Storage metadata for the audit run folder, export profiles and privacy defaults                                                   |
+| `patch.diff`                 | Diff-only patch proposal where safe automation is possible                                                                        |
+| `priority-action-plan.md`    | Ordered remediation summary                                                                                                       |
+| `agent-execution-plan.md`    | Source-repo handoff plan for repo-capable agents or human implementers                                                            |
+| `standards-registry.json`    | Local standards snapshot and rule mapping metadata                                                                                |
+| `agent-instructions/*.md`    | Environment-specific execution guidance generated from the report                                                                 |
 
 ## Review artifacts
 

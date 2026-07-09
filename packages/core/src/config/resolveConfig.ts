@@ -42,25 +42,38 @@ export async function resolveConfig(input: ScanConfigInput): Promise<ScanConfig>
   const suppressionsFromFile = merged.suppressionsFile
     ? await readSuppressionsFile(merged.suppressionsFile, input.repoPath ?? process.cwd())
     : [];
-  return {
+  const resolved = {
     ...merged,
     suppressions: [...(merged.suppressions ?? []), ...suppressionsFromFile]
   };
+  validateResolvedConfig(resolved);
+  return resolved;
 }
 
 async function readConfigFile(cwd: string): Promise<Partial<ScanConfig>> {
   const candidates = ["seo-polish.config.json", "package.json"];
   for (const candidate of candidates) {
+    let raw: string;
     try {
-      const raw = await readFile(new URL(candidate, `file://${cwd.replace(/\/$/, "")}/`), "utf8");
-      const json = JSON.parse(raw) as Record<string, unknown>;
-      if (candidate === "package.json") {
-        return (json["seo-polish"] as Partial<ScanConfig> | undefined) ?? {};
+      raw = await readFile(new URL(candidate, `file://${cwd.replace(/\/$/, "")}/`), "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        continue;
       }
-      return normalizeConfigObject(json);
-    } catch {
-      // Continue to the next source.
+      throw new Error(`Could not read ${candidate} from ${cwd}: ${errorMessage(error)}`, {
+        cause: error
+      });
     }
+    let json: Record<string, unknown>;
+    try {
+      json = JSON.parse(raw) as Record<string, unknown>;
+    } catch (error) {
+      throw new Error(`Invalid JSON in ${candidate}: ${errorMessage(error)}`, { cause: error });
+    }
+    if (candidate === "package.json") {
+      return (json["seo-polish"] as Partial<ScanConfig> | undefined) ?? {};
+    }
+    return normalizeConfigObject(json);
   }
   return {};
 }
@@ -140,4 +153,49 @@ async function readSuppressionsFile(
     // Invalid suppression files are surfaced by the generated suppression report as unmatched config.
   }
   return [];
+}
+
+function validateResolvedConfig(config: ScanConfig): void {
+  let target: URL;
+  try {
+    target = new URL(config.url);
+  } catch {
+    throw new Error(`Invalid scan URL: ${config.url}`);
+  }
+  if (!["http:", "https:"].includes(target.protocol)) {
+    throw new Error(`Scan URL must use http or https: ${config.url}`);
+  }
+  assertIntegerRange("maxPages", config.maxPages, 1, 10_000);
+  assertIntegerRange("maxDepth", config.maxDepth, 0, 100);
+  assertIntegerRange("timeoutMs", config.timeoutMs, 100, 120_000);
+  assertIntegerRange("concurrency", config.concurrency, 1, 64);
+  assertIntegerRange("performanceRuns", config.performanceRuns ?? 1, 1, 20);
+  assertIntegerRange("gscRowLimit", config.gscRowLimit ?? 250, 1, 25_000);
+  assertIntegerRange("gscInspectionLimit", config.gscInspectionLimit ?? 5, 0, 2_000);
+  assertIntegerRange("fieldDataUrlLimit", config.fieldDataUrlLimit ?? 3, 1, 500);
+  if (!["auto", "never", "always"].includes(config.renderJs)) {
+    throw new Error(`Invalid renderJs value: ${String(config.renderJs)}`);
+  }
+  if (config.suppressions) {
+    const seen = new Set<string>();
+    for (const suppression of config.suppressions) {
+      if (!suppression.id || !suppression.findingId || !suppression.reason) {
+        throw new Error("Every suppression requires id, findingId and reason.");
+      }
+      if (seen.has(suppression.id)) {
+        throw new Error(`Duplicate suppression id: ${suppression.id}`);
+      }
+      seen.add(suppression.id);
+    }
+  }
+}
+
+function assertIntegerRange(name: string, value: number, min: number, max: number): void {
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`${name} must be an integer between ${min} and ${max}; received ${String(value)}.`);
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

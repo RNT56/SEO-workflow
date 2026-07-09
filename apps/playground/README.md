@@ -1,6 +1,6 @@
 # Playground
 
-This directory is reserved for a local scan playground.
+The local scan playground is now delivered as the SEO Polish Control Center through the CLI.
 
 The playground should stay a thin UI over the same workflow contract used by the CLI:
 
@@ -10,10 +10,13 @@ The playground should stay a thin UI over the same workflow contract used by the
 4. Never invent findings outside the structured report files.
 5. Keep apply behavior diff-only unless the user explicitly approves a safe fix.
 
-For now, use the CLI directly:
+Start it against an audit root:
 
 ```bash
 pnpm build
-node packages/cli/dist/index.js scan https://example.com --output ./seo-polish-report
-node packages/cli/dist/index.js report lint ./seo-polish-report --strict
+pnpm seo-polish open ./audit-reports
 ```
+
+The local-only surface lists targets and audit runs, separates core and experimental scores, shows measured-rule
+coverage, renders workflow phases, exposes the approval inbox and links to the complete static report. Decision
+actions update the report's durable workflow state; they do not apply repository changes.

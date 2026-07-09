@@ -1,6 +1,7 @@
 # Web app
 
-This directory is reserved for an optional hosted scan API and dashboard.
+This directory remains reserved for an optional hosted scan API. The interactive dashboard is already available
+locally through `seo-polish open`, so a hosted service is not required for the complete product workflow.
 
 Hosted scanning is not required for the first stable workflow. If added, it must preserve the same safety
 boundaries as the CLI:

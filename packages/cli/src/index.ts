@@ -35,9 +35,23 @@ import type {
   ScanResult,
   ValidationResult,
   ValidationStatus,
+  WorkflowMode,
   WorkflowRetrospective
 } from "@seo-polish/schemas";
 import { buildStandardsSnapshot, validateStandardsRegistry } from "@seo-polish/standards-registry";
+import {
+  buildPortfolio,
+  compareReports,
+  importAgentReview,
+  importWorkflowRetrospective,
+  initProject,
+  readWorkflowState,
+  recordDecision,
+  resumeWorkflow,
+  runWorkflow,
+  verifyWorkflow
+} from "@seo-polish/workflow";
+import { startControlCenter } from "./controlCenter.js";
 
 interface ParsedArgs {
   command: string[];
@@ -52,6 +66,155 @@ async function main(argv: string[]): Promise<void> {
 
   if (!command || command === "help" || args.flags.help) {
     printHelp();
+    return;
+  }
+
+  if (command === "init") {
+    const url = args.positionals[0];
+    if (!url) throw new Error("Usage: seo-polish init <url>");
+    const name = flagOptionalString(args, "name");
+    const targetName = flagOptionalString(args, "target-name");
+    const repoPath = flagOptionalString(args, "repo");
+    const auditRoot = flagOptionalString(args, "audit-root");
+    const auditName = flagOptionalString(args, "audit-name");
+    const project = await initProject({
+      url,
+      workspacePath: flagString(args, "workspace", "seo-polish.workspace.json"),
+      ...(name ? { name } : {}),
+      ...(targetName ? { targetName } : {}),
+      ...(repoPath ? { repoPath } : {}),
+      ...(auditRoot ? { auditRoot } : {}),
+      ...(auditName ? { auditName } : {}),
+      mode: flagString(args, "mode", "quick-audit") as WorkflowMode,
+      overwrite: flagBoolean(args, "overwrite", false)
+    });
+    console.log(JSON.stringify(project, null, 2));
+    return;
+  }
+
+  if (command === "run") {
+    const targetId = flagOptionalString(args, "target");
+    const mode = flagOptionalString(args, "mode") as WorkflowMode | undefined;
+    const baselinePath = flagOptionalString(args, "baseline");
+    const browserEvidence = optionalFlagBoolean(args, "browser-evidence");
+    const coreWebVitals = optionalFlagBoolean(args, "core-web-vitals");
+    const maxPages = optionalFlagNumber(args, "max-pages");
+    const verificationUrl = flagOptionalString(args, "verification-url");
+    const state = await runWorkflow({
+      workspacePath: flagString(args, "workspace", "seo-polish.workspace.json"),
+      ...(targetId ? { targetId } : {}),
+      ...(mode ? { mode } : {}),
+      ...(baselinePath ? { baselinePath } : {}),
+      ...(browserEvidence !== undefined ? { browserEvidence } : {}),
+      ...(coreWebVitals !== undefined ? { coreWebVitals } : {}),
+      ...(maxPages !== undefined ? { maxPages } : {}),
+      ...(verificationUrl ? { verificationUrl } : {}),
+      applySafe: flagBoolean(args, "apply-safe", false)
+    });
+    console.log(JSON.stringify(state, null, 2));
+    process.exitCode = state.status === "failed" ? 1 : 0;
+    return;
+  }
+
+  if (command === "status") {
+    console.log(JSON.stringify(await readWorkflowState(workflowStateArg(args)), null, 2));
+    return;
+  }
+
+  if (command === "resume") {
+    const state = await resumeWorkflow({
+      statePath: workflowStateArg(args),
+      applySafe: flagBoolean(args, "apply-safe", false),
+      runProjectChecks: flagBoolean(args, "project-checks", false),
+      ...(flagOptionalString(args, "verification-url")
+        ? { verificationUrl: flagOptionalString(args, "verification-url")! }
+        : {})
+    });
+    console.log(JSON.stringify(state, null, 2));
+    process.exitCode = state.status === "failed" ? 1 : 0;
+    return;
+  }
+
+  if (["approve", "reject", "defer"].includes(command)) {
+    const decisionId = flagString(args, "decision", args.positionals[1] ?? "");
+    if (!decisionId) throw new Error(`Usage: seo-polish ${command} <state-or-run-dir> --decision <id>`);
+    const state = await recordDecision({
+      statePath: workflowStateArg(args),
+      decisionId,
+      status: command === "approve" ? "approved" : command === "reject" ? "rejected" : "deferred",
+      ...(flagOptionalString(args, "option") ? { selectedOption: flagOptionalString(args, "option")! } : {}),
+      ...(flagOptionalString(args, "note") ? { note: flagOptionalString(args, "note")! } : {}),
+      ...(flagOptionalString(args, "by") ? { decidedBy: flagOptionalString(args, "by")! } : {})
+    });
+    console.log(JSON.stringify(state, null, 2));
+    return;
+  }
+
+  if (command === "review" && subcommand === "import") {
+    const reviewPath = flagString(args, "file", args.positionals[1] ?? "");
+    if (!reviewPath)
+      throw new Error("Usage: seo-polish review import <state-or-run-dir> --file agent-review.json");
+    console.log(JSON.stringify(await importAgentReview(workflowStateArg(args), reviewPath), null, 2));
+    return;
+  }
+
+  if (command === "retrospective" && subcommand === "import") {
+    const retrospectivePath = flagString(args, "file", args.positionals[1] ?? "");
+    if (!retrospectivePath) {
+      throw new Error(
+        "Usage: seo-polish retrospective import <state-or-run-dir> --file workflow-retrospective.json"
+      );
+    }
+    console.log(
+      JSON.stringify(await importWorkflowRetrospective(workflowStateArg(args), retrospectivePath), null, 2)
+    );
+    return;
+  }
+
+  if (command === "verify") {
+    const result = await verifyWorkflow(workflowStateArg(args), flagBoolean(args, "project-checks", false));
+    console.log(JSON.stringify(result, null, 2));
+    process.exitCode = result.ok ? 0 : 1;
+    return;
+  }
+
+  if (command === "compare") {
+    const baseline = flagString(args, "baseline", args.positionals[0] ?? "");
+    const current = flagString(args, "current", args.positionals[1] ?? "");
+    if (!baseline || !current)
+      throw new Error("Usage: seo-polish compare <baseline-report> <current-report>");
+    const comparison = await compareReports(baseline, current, flagOptionalString(args, "output"));
+    console.log(JSON.stringify(comparison, null, 2));
+    process.exitCode = comparison.regressionGate === "passed" ? 0 : 1;
+    return;
+  }
+
+  if (command === "monitor") {
+    const summary = await buildPortfolio(
+      flagString(args, "audit-root", args.positionals[0] ?? "audit-reports"),
+      flagOptionalString(args, "output")
+    );
+    console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
+
+  if (command === "open") {
+    const controlCenter = await startControlCenter({
+      auditRoot: flagString(args, "audit-root", args.positionals[0] ?? "audit-reports"),
+      host: flagString(args, "host", "127.0.0.1"),
+      port: flagNumber(args, "port", 4178),
+      openBrowser: flagBoolean(args, "browser", true)
+    });
+    console.log(
+      JSON.stringify(
+        {
+          url: controlCenter.url,
+          auditRoot: flagString(args, "audit-root", args.positionals[0] ?? "audit-reports")
+        },
+        null,
+        2
+      )
+    );
     return;
   }
 
@@ -361,6 +524,19 @@ async function main(argv: string[]): Promise<void> {
           defaultOutput: "audit-reports/<site>/<timestamp>-<scanId> unless --output is provided",
           commands: [
             "scan",
+            "init",
+            "run",
+            "status",
+            "resume",
+            "approve",
+            "reject",
+            "defer",
+            "review import",
+            "retrospective import",
+            "verify",
+            "compare",
+            "monitor",
+            "open",
             "plan",
             "apply",
             "validate",
@@ -433,6 +609,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       (command[0] === "plan" && command.length === 1) ||
       (command[0] === "agent-review" && command.length === 1) ||
       (command[0] === "workflow-retrospective" && command.length === 1) ||
+      (command[0] === "review" && command.length === 1) ||
+      (command[0] === "retrospective" && command.length === 1) ||
       (command[0] === "learnings" && command.length === 1) ||
       (command[0] === "policy" && command.length === 1) ||
       (command[0] === "standards" && command.length === 1)
@@ -456,7 +634,16 @@ function flagNumber(args: ParsedArgs, key: string, fallback: number): number {
   const value = args.flags[key];
   if (typeof value !== "string") return fallback;
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`--${key} must be a finite number; received ${value}.`);
+  }
+  return parsed;
+}
+
+function optionalFlagNumber(args: ParsedArgs, key: string): number | undefined {
+  return Object.prototype.hasOwnProperty.call(args.flags, key)
+    ? flagNumber(args, key, Number.NaN)
+    : undefined;
 }
 
 function flagOptionalString(args: ParsedArgs, key: string): string | undefined {
@@ -470,7 +657,15 @@ function flagBoolean(args: ParsedArgs, key: string, fallback: boolean): boolean 
   if (typeof value !== "string") return fallback;
   if (["1", "true", "yes", "on"].includes(value.toLowerCase())) return true;
   if (["0", "false", "no", "off"].includes(value.toLowerCase())) return false;
-  return fallback;
+  throw new Error(`--${key} must be true or false; received ${value}.`);
+}
+
+function optionalFlagBoolean(args: ParsedArgs, key: string): boolean | undefined {
+  return Object.prototype.hasOwnProperty.call(args.flags, key) ? flagBoolean(args, key, false) : undefined;
+}
+
+function workflowStateArg(args: ParsedArgs): string {
+  return flagString(args, "state", args.positionals[0] ?? "");
 }
 
 function fieldDataProviders(args: ParsedArgs): FieldDataProvider[] | undefined {
@@ -481,9 +676,13 @@ function fieldDataProviders(args: ParsedArgs): FieldDataProvider[] | undefined {
     .map((item) => item.trim().toLowerCase())
     .flatMap((item) => (item === "all" ? ["crux", "gsc", "rum"] : item === "none" ? [] : [item]));
   const valid = new Set<FieldDataProvider>(["crux", "gsc", "rum"]);
-  return [...new Set(providers)].filter((provider): provider is FieldDataProvider =>
-    valid.has(provider as FieldDataProvider)
-  );
+  const invalid = providers.filter((provider) => !valid.has(provider as FieldDataProvider));
+  if (invalid.length > 0) {
+    throw new Error(
+      `--field-data contains unsupported provider${invalid.length === 1 ? "" : "s"}: ${invalid.join(", ")}.`
+    );
+  }
+  return [...new Set(providers)] as FieldDataProvider[];
 }
 
 function budgetOverrides(args: ParsedArgs): PerformanceBudget {
@@ -560,6 +759,17 @@ function printHelp(): void {
   console.log(`SEO polish workflow
 
 Usage:
+  seo-polish init <url> [--name "Project"] [--repo ../site] [--mode quick-audit|full-remediation|pr-regression|monitor]
+  seo-polish run [--workspace ./seo-polish.workspace.json] [--baseline ./previous-report] [--browser-evidence]
+  seo-polish status <state-or-run-dir>
+  seo-polish review import <state-or-run-dir> --file ./agent-review.json
+  seo-polish retrospective import <state-or-run-dir> --file ./workflow-retrospective.json
+  seo-polish approve|reject|defer <state-or-run-dir> --decision <id> [--option <value>] [--note <text>]
+  seo-polish resume <state-or-run-dir> [--apply-safe] [--verification-url <deployed-url>] [--project-checks]
+  seo-polish verify <state-or-run-dir> [--project-checks]
+  seo-polish compare <baseline-report> <current-report> [--output ./workflow-comparison.json]
+  seo-polish monitor [./audit-reports] [--output ./portfolio.json]
+  seo-polish open [./audit-reports] [--host 127.0.0.1] [--port 4178] [--browser false]
   seo-polish scan <url> [--output ./seo-polish-report] [--max-pages 50] [--repo ../site]
                    [--audit-root ./audit-reports] [--audit-name "Company Name"]
                    [--browser-evidence] [--core-web-vitals] [--performance-runs 3] [--baseline ./previous-report]
