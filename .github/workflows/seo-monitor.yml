@@ -62,7 +62,7 @@ jobs:
           key: seo-monitor-${{ github.ref_name }}-${{ github.run_id }}
       - name: Upload audit bundle
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: seo-monitor-${{ github.run_id }}
           path: monitor-current
