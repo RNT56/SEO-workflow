@@ -32,7 +32,7 @@ jobs:
       - run: pnpm build
       - name: Restore latest monitor baseline
         id: baseline
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: monitor-baseline
           key: seo-monitor-${{ github.ref_name }}-${{ github.run_id }}
@@ -56,7 +56,7 @@ jobs:
           cp -R monitor-current monitor-baseline
       - name: Save monitor baseline
         if: always() && hashFiles('monitor-baseline/score.json') != ''
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: monitor-baseline
           key: seo-monitor-${{ github.ref_name }}-${{ github.run_id }}
