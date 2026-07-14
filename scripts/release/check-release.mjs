@@ -23,8 +23,8 @@ for (const item of releasePackages) {
   if (packageJson.private) {
     failures.push(`${item.name} is marked private but is listed for release.`);
   }
-  if (packageJson.license !== "SEE LICENSE IN LICENSE") {
-    failures.push(`${item.name} must use SEE LICENSE IN LICENSE.`);
+  if (packageJson.license !== "Apache-2.0") {
+    failures.push(`${item.name} must use the Apache-2.0 SPDX license identifier.`);
   }
   if (packageJson.publishConfig?.access !== "public") {
     failures.push(`${item.name} must declare publishConfig.access=public.`);

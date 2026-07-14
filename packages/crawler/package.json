@@ -2,7 +2,7 @@
   "name": "@seo-polish/crawler",
   "version": "0.1.0",
   "description": "Crawler helpers re-exported from scanner.",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

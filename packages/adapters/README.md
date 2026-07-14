@@ -8,4 +8,4 @@ The package detects Next.js, Astro, Nuxt, SvelteKit, Remix, Docusaurus and stati
 content hashes, remains inside the selected repository, refuses symlink escapes and stale updates, and is written to
 `change-set.json` plus `change-set.diff` before application.
 
-Non-commercial only. This package is distributed under the SEO Polish Non-Commercial License v1.0.
+Licensed under the Apache License, Version 2.0.

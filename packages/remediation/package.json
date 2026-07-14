@@ -2,7 +2,7 @@
   "name": "@seo-polish/remediation",
   "version": "0.1.0",
   "description": "Remediation planner and fix classifier.",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

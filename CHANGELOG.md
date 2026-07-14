@@ -19,5 +19,5 @@
 - Added path-confined, hash-checked framework remediation adapters and a hardened loopback-only local control center.
 - Replaced the MCP placeholder transport with the official protocol SDK and added normalized Search Console, CrUX, metric-file and approval-gated IndexNow integrations.
 - Added stable finding comparisons, GitHub regression gates, scheduled monitoring, portfolio aggregation and 77 implemented rule evaluators.
-- Added non-commercial package release preparation for `@seo-polish/cli` and its runtime package set.
+- Added Apache-2.0-licensed package release preparation for `@seo-polish/cli` and its runtime package set.
 - Kept `@seo-polish/sdk` private and excluded from the npm release set.

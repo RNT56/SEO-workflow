@@ -10,4 +10,4 @@ without an evidence-linked review, relevant owner decisions, approved bounded ch
 scan, a final review and a maintainer retrospective. The package also compares stable finding identities across runs
 and builds portfolio summaries from an audit root.
 
-Non-commercial only. This package is distributed under the SEO Polish Non-Commercial License v1.0.
+Licensed under the Apache License, Version 2.0.

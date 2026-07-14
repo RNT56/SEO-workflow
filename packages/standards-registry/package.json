@@ -2,7 +2,7 @@
   "name": "@seo-polish/standards-registry",
   "version": "0.1.0",
   "description": "Versioned registry for SEO, web, agent, MCP, API and search standards.",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

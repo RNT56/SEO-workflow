@@ -1,154 +1,202 @@
-SEO Polish Non-Commercial License v1.0
 
-Copyright (c) 2026 RNT56
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
 
-This software, including all source code, object code, documentation,
-configuration, workflows, examples, reports, templates, prompts, schemas,
-tests, generated artifacts, and related materials in this repository
-(collectively, the "Software"), is made available only under the terms below.
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
 
-This is not an open source license. It intentionally restricts commercial use.
-Any permission not expressly granted below is reserved by the copyright holder.
+   1. Definitions.
 
-1. Definitions
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
 
-"Licensor" means RNT56 and any copyright holder authorized to grant this
-license.
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
 
-"You" means any individual or legal entity that accesses, copies, modifies,
-runs, evaluates, distributes, or otherwise uses the Software.
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
 
-"Commercial Purpose" means any activity, direct or indirect, that is connected
-to a business, trade, profession, employer, client, customer, contractor,
-commercial product, commercial service, revenue-generating activity, paid work,
-fundraising activity, business operation, investment activity, or other
-commercial advantage, whether or not revenue is immediately received.
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
 
-"Commercial Work" includes, without limitation, commercial products, commercial
-services, paid consulting, client work, agency work, internal business tooling,
-business operations, product development, market research, competitive research,
-SEO services, content strategy, marketing work, sales enablement, analytics,
-audits, reports, benchmarks, remediation plans, procurement decisions,
-investment decisions, training materials, operational playbooks, datasets,
-models, prompts, or any other work product intended for or connected to a
-Commercial Purpose.
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
 
-"Non-Commercial Purpose" means personal learning, private experimentation,
-academic research, classroom teaching, non-commercial security review, or
-non-commercial evaluation that is not connected to any Commercial Purpose or
-Commercial Work.
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
 
-2. Limited Non-Commercial Grant
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
 
-Subject to full compliance with this license, Licensor grants You a limited,
-worldwide, royalty-free, non-exclusive, non-transferable, non-sublicensable
-license to copy, run, inspect, and modify the Software solely for a
-Non-Commercial Purpose.
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
 
-You may distribute copies or modified copies of the Software only for a
-Non-Commercial Purpose, only under this same license, and only if You preserve
-this license, all copyright notices, and all attribution notices.
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
 
-3. Commercial Use Is Prohibited
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
 
-You may not use the Software, or any output, report, benchmark, remediation
-plan, recommendation, code, patch, workflow, schema, prompt, template,
-architecture, know-how, evaluation, or other material derived from or informed
-by the Software, for any Commercial Purpose or Commercial Work.
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
 
-Prohibited commercial use includes, without limitation:
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
 
-- using the Software in, with, for, or to support any commercial product,
-  commercial service, SaaS offering, hosted service, managed service, internal
-  business tool, agency workflow, consulting workflow, client deliverable, or
-  paid engagement;
-- using the Software to audit, optimize, benchmark, validate, improve, plan,
-  advise on, or inform any commercial website, application, product, service,
-  business operation, SEO program, marketing program, or commercial strategy;
-- using the Software to create, improve, validate, compare, train, fine-tune,
-  evaluate, or inform commercial datasets, models, agents, prompts, tools,
-  reports, benchmarks, playbooks, or knowledge bases;
-- incorporating, linking, bundling, translating, adapting, embedding,
-  distributing, sublicensing, reselling, renting, leasing, or making available
-  the Software as part of any commercial product or commercial service;
-- using the Software for competitive analysis, procurement analysis, due
-  diligence, investment analysis, market research, or business decision-making;
-  and
-- using the Software in work performed by or for any company, employer, client,
-  customer, contractor, agency, partnership, nonprofit commercial operation, or
-  other organization when that work is connected to a Commercial Purpose.
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
 
-Receiving the Software for free, using it internally, or using it without
-charging a separate fee does not make a use non-commercial if the use is
-connected to a Commercial Purpose or Commercial Work.
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
 
-4. No Circumvention
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
 
-You may not use the Software indirectly to do anything this license prohibits
-directly. You may not use any automated system, agent, model, employee,
-contractor, affiliate, customer, or third party to obtain commercial benefit
-from the Software or from material derived from or informed by the Software.
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
 
-5. No Patent, Trademark, or Brand Rights
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
 
-This license grants no patent license, no trademark license, no trade name
-license, no service mark license, and no right to use Licensor names, logos,
-brands, or product names except as necessary to identify the Software and
-preserve notices required by this license.
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
 
-6. Contributions
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
 
-Unless a separate written agreement says otherwise, by submitting any
-contribution to this repository You grant Licensor a perpetual, worldwide,
-royalty-free, non-exclusive, transferable, sublicensable license to reproduce,
-modify, prepare derivative works of, publicly display, publicly perform,
-distribute, use, and relicense that contribution as part of the Software.
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
 
-Downstream recipients receive Your contribution only under this license unless
-Licensor provides a separate written license. You represent that You have the
-right to submit the contribution under these terms.
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
 
-7. Termination
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
 
-Your rights under this license terminate automatically and immediately if You
-breach any term. After termination, You must stop using the Software and delete
-or destroy all copies, modified copies, generated commercial materials, and
-commercial work product created in breach of this license.
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
 
-Sections intended to survive termination, including restrictions, disclaimers,
-limitations of liability, and reserved rights, survive termination.
+   END OF TERMS AND CONDITIONS
 
-8. Commercial Licensing
+   APPENDIX: How to apply the Apache License to your work.
 
-Commercial rights are not granted by this license. Any commercial use requires
-prior written permission from Licensor under a separate commercial license.
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
 
-9. Disclaimer of Warranty
+   Copyright [yyyy] [name of copyright owner]
 
-THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY
-KIND, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF TITLE,
-NON-INFRINGEMENT, MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, SECURITY,
-ACCURACY, RELIABILITY, OR AVAILABILITY. YOU ARE SOLELY RESPONSIBLE FOR
-DETERMINING WHETHER YOUR USE IS PERMITTED AND APPROPRIATE.
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
 
-10. Limitation of Liability
+       http://www.apache.org/licenses/LICENSE-2.0
 
-TO THE MAXIMUM EXTENT PERMITTED BY LAW, LICENSOR AND CONTRIBUTORS WILL NOT BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY,
-PUNITIVE, OR OTHER DAMAGES, INCLUDING WITHOUT LIMITATION LOST PROFITS, LOST
-REVENUE, LOST DATA, BUSINESS INTERRUPTION, SECURITY INCIDENTS, OR PROCUREMENT
-OF SUBSTITUTE GOODS OR SERVICES, ARISING FROM OR RELATED TO THE SOFTWARE OR
-THIS LICENSE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-
-11. Severability
-
-If any provision of this license is held unenforceable, the remaining provisions
-remain in effect to the maximum extent permitted by law. The unenforceable
-provision will be interpreted or replaced to best preserve the original
-non-commercial intent.
-
-12. Entire License
-
-This license is the complete permission granted for the Software unless
-Licensor signs a separate written agreement. Any use outside this license is
-unauthorized.
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.

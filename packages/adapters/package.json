@@ -2,7 +2,7 @@
   "name": "@seo-polish/adapters",
   "version": "0.1.0",
   "description": "Framework-aware bounded remediation adapters for SEO Polish.",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

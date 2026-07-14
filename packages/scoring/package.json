@@ -2,7 +2,7 @@
   "name": "@seo-polish/scoring",
   "version": "0.1.0",
   "description": "Score engine for SEO polish reports.",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

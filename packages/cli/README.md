@@ -2,7 +2,7 @@
 
 Provides the `seo-polish` CLI.
 
-Non-commercial only. This package is distributed under the SEO Polish Non-Commercial License v1.0 and cannot be used for commercial products, commercial services, paid work, client work, business operations, or to inform commercial work.
+Licensed under the Apache License, Version 2.0.
 
 Run without installing globally:
 

@@ -4,14 +4,14 @@
   <a href="https://github.com/RNT56/SEO-workflow/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RNT56/SEO-workflow/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://github.com/RNT56/SEO-workflow/actions/workflows/report-quality.yml"><img alt="Report quality" src="https://github.com/RNT56/SEO-workflow/actions/workflows/report-quality.yml/badge.svg" /></a>
   <a href="https://github.com/RNT56/SEO-workflow/actions/workflows/security-audit.yml"><img alt="Security audit" src="https://github.com/RNT56/SEO-workflow/actions/workflows/security-audit.yml/badge.svg" /></a>
-  <img alt="License: Non-commercial only" src="https://img.shields.io/badge/license-Non--commercial--only-red.svg" />
+  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" /></a>
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6.0-3178C6.svg" />
   <img alt="pnpm 11.10.0" src="https://img.shields.io/badge/pnpm-11.10.0-F69220.svg" />
 </p>
 
-SEO Polish Workflow is a non-commercial CLI for live website SEO audits. It crawls and renders a site, records evidence, scores SEO and agent-readiness, fingerprints the site system, and writes a static report bundle with prioritized remediation plans.
+SEO Polish Workflow is an open-source CLI for live website SEO audits. It crawls and renders a site, records evidence, scores SEO and agent-readiness, fingerprints the site system, and writes a static report bundle with prioritized remediation plans.
 
-It is built for maintainers, researchers and non-commercial teams that need repeatable audits instead of freeform notes. Every finding is evidence-backed, every suggested change is classified by risk, and every scan produces machine-readable files that can be reviewed, exported, validated and used for source-backed remediation work.
+It is built for maintainers, researchers and teams that need repeatable audits instead of freeform notes. Every finding is evidence-backed, every suggested change is classified by risk, and every scan produces machine-readable files that can be reviewed, exported, validated and used for source-backed remediation work.
 
 ## Status
 
@@ -21,7 +21,7 @@ It is built for maintainers, researchers and non-commercial teams that need repe
 | Stability         | Pre-1.0; report lint and validation enforce the artifact contract |
 | Distribution      | Source checkout now; npm packages are prepared for release        |
 | Package manager   | `pnpm@11.10.0` through Corepack                                   |
-| License           | Custom non-commercial license; commercial use prohibited          |
+| License           | Apache License 2.0                                                |
 | Primary interface | `@seo-polish/cli`                                                 |
 
 ## What it checks
@@ -293,11 +293,7 @@ SEO Polish Workflow is report-first and evidence-bound:
 
 ## License
 
-This repository is available under the [SEO Polish Non-Commercial License v1.0](LICENSE). It is not open source.
-
-You may use it only for non-commercial personal learning, private experimentation, academic research, classroom teaching, non-commercial security review, or non-commercial evaluation. You may not use the software, its outputs, reports, recommendations, workflows, schemas, prompts, templates, architecture, know-how, or derived materials in commercial products, commercial services, client work, paid work, business operations, SEO programs, marketing programs, commercial strategy, commercial datasets, commercial models, or to inform commercial work in any way.
-
-Commercial rights require prior written permission from the copyright holder.
+This repository is licensed under the [Apache License 2.0](LICENSE).
 
 ## CLI commands
 

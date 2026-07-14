@@ -2,7 +2,7 @@
   "name": "@seo-polish/security",
   "version": "0.1.0",
   "description": "Safety guards for private URLs, approval gates and untrusted crawled content.",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

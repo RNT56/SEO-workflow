@@ -270,8 +270,7 @@ function buildExportManifest(input: {
     },
     license: {
       noticeFile: "LICENSE-NOTICE.md",
-      summary:
-        "SEO Polish is distributed under a custom non-commercial license. Commercial use or use to inform commercial work requires separate permission."
+      summary: "SEO Polish is distributed under the Apache License, Version 2.0."
     }
   };
 }
@@ -286,13 +285,13 @@ function renderChecksums(entries: ExportEntry[]): string {
 function renderLicenseNotice(): string {
   return `# License Notice
 
-SEO Polish is distributed under the SEO Polish Non-Commercial License v1.0.
+SEO Polish is licensed under the Apache License, Version 2.0 (the "License").
+You may obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0.
 
-The software, reports, recommendations, workflows, schemas, prompts, templates, architecture,
-know-how and derived materials may not be used in commercial products, commercial services,
-paid work, client work, business operations, SEO programs, marketing programs, commercial
-strategy, commercial datasets, commercial models, or to inform commercial work unless the
-rights holder grants a separate commercial license.
+Unless required by applicable law or agreed to in writing, software distributed under the
+License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+either express or implied. See the License for the specific language governing permissions
+and limitations under the License.
 `;
 }
 

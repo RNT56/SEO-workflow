@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "SEO polish workflow audits, scores, reports and improves websites for modern SEO and AI-agent readiness.",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "type": "module",
   "packageManager": "pnpm@11.10.0",
   "scripts": {

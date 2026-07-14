@@ -6,4 +6,4 @@ query rows and CrUX percentile data, validates imported metric files, and suppor
 Imported data stays labeled separately from crawler-observed evidence. IndexNow requires explicit approval, rejects
 cross-host URLs, and validates key and URL-count limits before making a request.
 
-Non-commercial only. This package is distributed under the SEO Polish Non-Commercial License v1.0.
+Licensed under the Apache License, Version 2.0.
