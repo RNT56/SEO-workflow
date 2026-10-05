@@ -20,7 +20,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "@seo-polish/benchmark": "workspace:*",
     "@seo-polish/core": "workspace:*",
     "@seo-polish/schemas": "workspace:*",
